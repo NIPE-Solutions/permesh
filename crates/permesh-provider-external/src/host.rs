@@ -269,7 +269,24 @@ pub async fn check_configured(
     .await
 }
 
+// Store the supervisor future once on the heap. Its concurrent pipe readers
+// otherwise inflate every async caller and exhaust small native main stacks.
 async fn supervise<D: Decoder>(
+    executable: &Path,
+    exchange_spec: Exchange<'_, D>,
+    cancellation: impl Future<Output = ()>,
+    deadlines: Deadlines,
+) -> Result<D::Output, ExternalError> {
+    Box::pin(supervise_inner(
+        executable,
+        exchange_spec,
+        cancellation,
+        deadlines,
+    ))
+    .await
+}
+
+async fn supervise_inner<D: Decoder>(
     executable: &Path,
     exchange_spec: Exchange<'_, D>,
     cancellation: impl Future<Output = ()>,
