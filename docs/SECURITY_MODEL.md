@@ -8,7 +8,7 @@ GitHub uses a fixed HTTPS API origin with redirects disabled. Pagination must re
 
 Configuration size and parser expansion budgets bound hostile input. Workspace creation uses create-new semantics and restrictive Unix modes; it never overwrites symlinks. OS ACL inheritance applies on Windows. Native credential operations occur only on explicit auth commands; inspection only resolves references.
 
-Plugins are not executed in this milestone. The future subprocess protocol requires user-level explicit trust, absolute executable paths, bounded frames, timeout/kill/reap semantics, sanitized stderr, and capability negotiation. Repository presence is never authorization.
+External native binaries require explicit user-local trust and a separate discovery command. Registration copies reviewed bytes and binds their digest, provider ID and capabilities. The host bounds frames and deadlines, discards stderr and terminates supervised processes. Repository presence is never authorization. Execution is not sandboxed: see [trust boundaries and residual risks](external-providers.md).
 
 Known boundaries: an overprivileged token remains powerful outside Permesh; the process/OS can inspect live memory; a compromised provider can lie; shell redirection determines report permissions; collection is not a transaction. No software here eliminates those risks.
 

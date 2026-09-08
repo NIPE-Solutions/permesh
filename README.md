@@ -79,7 +79,8 @@ requires an explicit mapping or verified identity evidence.
 The GitHub adapter has passed a [live validation exercise](docs/getting-started.md#live-validation).
 Google Workspace directory discovery is available as an [identity source](docs/providers/google.md)
 with externally supplied OAuth access tokens; live tenant qualification is pending.
-AWS and Cloudflare are planned. External provider execution is not available yet.
+AWS and Cloudflare are planned. [External native providers](docs/external-providers.md) can be explicitly trusted
+and inspected through supervised discovery; workspace query integration remains planned.
 
 ## Configuration
 

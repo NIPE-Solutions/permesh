@@ -1,0 +1,35 @@
+[package]
+name = "permesh-provider-external"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints.rust]
+# Only the private Windows ACL module may use audited Win32 FFI.
+unsafe_code = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+
+[dependencies]
+permesh-core.workspace = true
+permesh-provider-sdk.workspace = true
+permesh-provider-protocol = { path = "../permesh-provider-protocol" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["process"] }
+tempfile.workspace = true
+sha2 = { version = "0.11", default-features = false }
+process-wrap = { version = "10.0", default-features = false, features = ["tokio1", "process-group", "job-object", "kill-on-drop"] }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1.1", default-features = false, features = ["process", "std"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Threading"] }

@@ -97,6 +97,8 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
             }
         }
         writeln!(out, "  Unsupported: sessions, credentials, mutations")?;
+    } else if report.command.starts_with("external_") {
+        crate::external_output::write(&mut out, &report.command, result)?;
     } else if report.command == "version" {
         writeln!(
             out,

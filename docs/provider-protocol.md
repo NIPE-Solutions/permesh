@@ -1,8 +1,9 @@
 # External provider protocol — draft 1
 
-This specification describes the offline discovery validator in
-`permesh-provider-protocol` and the synthetic Python peer. It does **not** enable
-plugin execution, establish trust, or promise a stable deployed plugin API.
+This specification describes the shared discovery decoder in
+`permesh-provider-protocol`, its offline validator and the synthetic Python peer.
+The separate [native host](external-providers.md) requires explicit local trust.
+The protocol remains draft and does not promise a stable deployed plugin API.
 Workspace YAML still cannot select an executable. The earlier illustrative draft
 has changed: request IDs are fixed per method, handshake supplies an instance,
 capabilities describe records, and records now use the normalized domain schema.
@@ -29,7 +30,7 @@ budget, not an exact resident-memory guarantee. No raw frame is logged.
 
 ## Requests
 
-One future process handles a handshake followed by one operation. Request IDs
+One process handles a handshake followed by one operation. Request IDs
 are reserved method names: `handshake`, `check`, `discover`, `cancel`. They are
 unique within that process. The synchronous example additionally permits one
 check before discovery for manual experimentation; the discovery validator
@@ -122,17 +123,17 @@ For manual peer checks, a successful health response is
 Cancellation acknowledges `{"protocol":1,"id":"cancel","event":"cancelled"}`.
 Neither is valid inside the discovery transcript validator.
 
-## What remains before execution
+## Decoder and host
 
-The validator accepts a blocking `BufRead` and consumes it through EOF. It does
-not spawn, authenticate, sandbox, time out, cancel or reap a process. A producer
-that stops writing without closing its stream can therefore block this offline
-tool. Use finite transcript files for validation; this API is not an approved
-live-process host.
+`DiscoveryDecoder` accepts bounded frames incrementally and requires a complete,
+valid exchange before returning a snapshot. With expected capabilities supplied,
+it rejects a changed handshake capability set before discovery is requested.
+A rejected frame permanently invalidates that decoder.
 
-Execution remains gated on the [local trust and supervision design](provider-development.md#future-local-trust-registration): executable identity, replacement races,
-minimal environment, native process-tree termination, fixed overall deadlines,
-bounded concurrent stderr draining, and hostile-process tests on all platforms.
-The proposed host deadlines remain 5 seconds for handshake, 60 seconds for an
-operation and 1 second of cancellation grace. Passing transcript tests does not
-satisfy those process security requirements.
+The offline `validate_discovery` API accepts blocking `BufRead`; a producer that
+stops writing can block it. Use finite transcript files. The separate native
+host uses asynchronous pipes, fixed deadlines, concurrent bounded stderr draining,
+and explicit process cleanup. See [host limits and trust](external-providers.md).
+The host closes stdin after the terminal completion event and requires EOF plus
+successful process exit. Cancellation is best effort, followed by termination;
+a cancellation acknowledgment is not accepted as successful discovery.

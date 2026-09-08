@@ -80,7 +80,7 @@ pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<
                 },
             )
             .await?;
-            outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":config.identity.sources,"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider add github --organization YOUR_ORG."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"Execution unsupported; workspace programs are never run","local_overrides":"Not loaded"});
+            outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":config.identity.sources,"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider add github --organization YOUR_ORG."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"Workspace programs are never run; native providers require explicit provider external commands","local_overrides":"Not loaded"});
             Ok(outcome)
         }
         Command::User { .. } | Command::Admins | Command::Orphaned => {

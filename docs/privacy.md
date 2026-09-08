@@ -9,3 +9,10 @@ Human and JSON results can include identities, memberships, repository names, pe
 Do not attach real organization reports or raw error bodies to issues. Reproduce with demo data, omit secrets, and review every field before sharing. Revoking a token is done through its issuer; removing a keychain entry only removes that local copy. There is no project-operated service from which to request deletion of a discovery database.
 
 Build and development tools have their own network behavior: Cargo downloads dependencies, and security checks fetch advisory information. That development activity is distinct from CLI runtime behavior.
+
+Explicitly trusted external providers are separate native programs. Permesh does
+not transmit credentials or workspace configuration to them, and does not retain
+their stderr. They still execute with your operating-system authority and can
+independently read files or contact services. The project's no-backend guarantee
+does not attest third-party code; review its behavior before granting local trust.
+See [external-provider security boundaries](external-providers.md).

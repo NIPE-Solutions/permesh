@@ -39,3 +39,21 @@ On 2026-09-08, cargo-deny 0.20.2 reported advisories, bans, licenses and sources
 Terminal output deliberately uses the standard library (`IsTerminal`, stdout/stderr) and a small internal renderer, rather than a table/progress framework. Vertical records remain readable in narrow terminals; no animation state needs cleanup. Styling is optional and meaning is always present in text. Test coverage uses ordinary Rust tests and local HTTP servers; bounded deterministic permutation/cycle/ambiguity fixtures cover the initial graph risk without a property-testing dependency. Reevaluate property-based generation when providers broaden the input space.
 
 Native candidate qualification adds no runtime or Python package dependencies. Python 3.12's standard library creates allowlisted archives and checksums; [releasing.md](releasing.md#unsigned-native-candidates) records the verified action revision, native runner matrix, determinism limits, and remaining distribution gates. Cargo-dist remains deferred until public distribution policy is settled.
+
+## Explicit native external providers (2026-09-08)
+
+- [process-wrap 10.0.0](https://github.com/watchexec/process-wrap) (Apache-2.0 OR MIT, Rust 1.87): maintained Watchexec command supervision. Select only Tokio, Unix process groups, Windows job objects and kill-on-drop support; disable default tracing and unused session/creation wrappers. Explicit termination and reaping remain host responsibilities, and Unix process groups are not a sandbox against deliberate `setsid` escape.
+- [etcetera 0.11.0](https://github.com/lunacookies/etcetera) (MIT OR Apache-2.0, Rust 1.87): native platform locations with only cfg-if and Windows system bindings. Use the native strategy, selecting Local AppData explicitly on Windows. This avoids directories 6's MPL-2.0 option-ext transitive dependency while preserving the existing permissive-license policy. The CLI exposes an explicit absolute `PERMESH_DATA_DIR` override for isolated local environments.
+- [sha2 0.11.0](https://github.com/RustCrypto/hashes) (MIT OR Apache-2.0, Rust 1.85): SHA-256 identity for explicitly reviewed native binaries; disable optional defaults. It already exists in the resolved dependency graph.
+- [rustix](https://github.com/bytecodealliance/rustix) (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT): safe Unix effective-user lookup to verify ownership of managed trust files; already used transitively. Unix permission checks require no project unsafe code.
+
+These selections were checked using upstream source and `cargo info`. The runtime adds no analytics, update service, plugin marketplace or downloads. Third-party native providers are separately trusted code: their behavior is not established by these dependency checks.
+
+Windows storage uses official [windows-sys](https://github.com/microsoft/windows-rs)
+0.61 bindings already present in the dependency graph. Protected ACL creation and
+validation require a narrow, documented FFI exception in the private Windows trust
+module; [ADR 0009](adr/0009-native-provider-trust.md) records why an additional
+unqualified ACL wrapper was not selected. Native Windows tests are required.
+process-wrap 10's Windows completion-port waiter can return on a nonterminal job
+notification; the host therefore promises termination requests and direct-child
+reaping, not confirmation that every descendant has exited.
