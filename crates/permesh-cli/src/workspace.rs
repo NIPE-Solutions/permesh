@@ -84,7 +84,7 @@ pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outc
     create_file(&path, yaml.as_bytes())?;
     Outcome::new(
         "init",
-        serde_json::json!({"message":"Created workspace","file":path,"next":if demo {"permesh doctor; permesh user alice@example.com"}else{"permesh provider install github --version VERSION"}}),
+        serde_json::json!({"message":"Created workspace","file":path,"next":if demo {"permesh doctor; permesh user alice@example.com"}else{"permesh provider add github"}}),
     )
 }
 fn create_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {

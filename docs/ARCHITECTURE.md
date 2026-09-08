@@ -2,7 +2,7 @@
 
 Status: accepted implementation design; pre-release.
 
-Use a Rust workspace with `permesh-core` (serializable domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, `permesh-provider-google`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded versioned discovery
+Use a Rust workspace with `permesh-core` (normalized domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, `permesh-provider-google`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded versioned discovery
 and health validation. The `permesh-provider-external` crate owns protected native
 registrations, workspace approval fingerprints, private invocation credentials
 and subprocess supervision. Presentation stays in CLI modules.

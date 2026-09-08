@@ -162,8 +162,8 @@ path. Successful conversion sets `changed: true`, `trust_changed: false`,
 `credentials_resolved: false`. No credential references or values are included.
 
 This describes an explicit configuration conversion, not authentication or access
-discovery. Approval records remain stored, but their old whole-workspace
-fingerprints no longer approve the changed configuration. Repeated conversion of
+discovery. Approval records remain stored, but the migrated instance needs an
+approval for its new provider context. Unrelated scoped approvals remain valid. Repeated conversion of
 an already external instance returns input error 2 without rewriting it. See
 [GitHub migration](github-migration.md) or [Google migration](google-migration.md) for behavior and exit codes.
 
