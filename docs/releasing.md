@@ -1,8 +1,18 @@
 # Release qualification
 
-The project is pre-release. No publication workflow or automatic tag release is enabled. A successful local build is not a qualified release.
+The project distributes an explicitly marked alpha for evaluation. Stable v0.1 qualification remains incomplete. No automatic tag publication is enabled; reviewed native artifacts are promoted manually without rebuilding. A successful local build is not a qualified release.
 
-## Required gates
+## Alpha publication policy
+
+For `0.1.0-alpha.1`, require locked fmt/Clippy/tests, minimum Rust, fresh dependency checks, all five native build/test/smoke jobs, independent archive/checksum/notice inspection, exact binary version checks, and a public-catalog install/update smoke test. Private vulnerability reporting must be enabled. Promote only the exact reviewed source tree and original qualified artifact bytes to a draft GitHub prerelease; verify uploaded names, sizes and SHA-256 digests before publication. Tag the merged revision, confirm it has the qualified tree, and record run URLs and hashes in the release notes. Do not mark this release as latest stable.
+
+Interactive Windows/Linux credential-store and terminal acceptance, broader live GitHub fixtures and Google tenant acceptance remain **stable-release gates**, explicitly unqualified in the [alpha notes](releases/0.1.0-alpha.1.md). Unsigned/unnotarized distribution, absent SBOM/attestations and runner-only compatibility are disclosed; none is represented as tested or implemented.
+
+Packaging includes the exact project MIT `LICENSE` and complete source-supplied dependency license/notice texts in `THIRD-PARTY-NOTICES.txt`, collected from the locked target dependency graph. Collection fails on missing or unsafe source notices. Re-check the contents whenever dependencies change. Build jobs have read-only permissions and no release credentials; a maintainer publishes with the [GitHub CLI](https://cli.github.com/manual/gh_release_create) after all gates above pass.
+
+Private vulnerability reporting was enabled and verified via the repository API on 2026-09-08. The reporting route is linked in [SECURITY.md](../SECURITY.md).
+
+## Stable release gates
 
 1. Run locked build, fmt, clippy, unit/integration/doc tests, and the Python example tests on the reviewed revision. Require Ubuntu, macOS, and Windows CI, plus the declared Rust minimum check.
 2. Run cargo-deny 0.20.2 and cargo-audit 0.22.2 with fresh advisory data. Review duplicates, licenses, dependency changes, and every exception. Do not suppress unexplained advisories to make a release green.
@@ -24,11 +34,11 @@ Revision `9ad15045394e69f20d2541949730b806608641e8` passed the following checks:
 - Local macOS Apple Silicon Keychain: a unique synthetic credential was stored through `auth login --token-stdin`, read through `auth status`, independently compared using the OS credential facility, deleted through `auth logout`, and confirmed absent. Configuration remained unchanged and captured command output contained no credential. No provider requests were needed for this check.
 - Live GitHub invalid-credential handling: `doctor --json` returned exit 3 with an incomplete report; a mixed demo/GitHub user query returned exit 4 while preserving demo access. Both used a deliberately invalid synthetic token and retained no token in output. This tests authentication rejection, not actual token revocation or insufficient scopes.
 
-Windows Credential Manager and Linux Secret Service integration, interactive terminal behavior, dedicated live team/pagination/permission/revocation exercises, vulnerability-reporting setup and distribution review remain open. Hosted runner success does not establish native credential-store behavior. Live credentials and access reports are excluded from this evidence.
+At that revision, Windows Credential Manager and Linux Secret Service integration, interactive terminal behavior, dedicated live team/pagination/permission/revocation exercises, vulnerability-reporting setup and distribution review remained open. Current CI now includes synthetic Windows/Linux credential-store round trips and Linux unavailable-service redaction; interactive desktop acceptance is still pending. Private reporting and alpha distribution policy are addressed above. Hosted runner success does not establish native credential-store behavior. Live credentials and access reports are excluded from this evidence.
 
 An [initial live smoke test](getting-started.md#live-validation) passed on macOS Apple Silicon on 2026-09-08 using an uncommitted development build. This supplies early integration evidence for connectivity and observed access, but does not qualify a release revision or complete the broader credentialed exercise in gate 3. Public demo documentation contains no live identities, resource identifiers, access counts, credentials, or raw reports.
 
-## Tool decisions (2026-09-08)
+## Earlier tool evaluation (2026-09-08)
 
 [cargo-dist](https://axodotdev.github.io/cargo-dist/book/) 0.32.0 is the candidate for future cross-platform archives, installers, and release orchestration. Defer adopting its generated workflow until repository identity, target support, signing strategy, and the gates above are settled. Generating an installer now would imply a distribution promise the project has not validated. Review generated workflows and pin their actions; do not execute downloaded installer scripts in CI.
 
@@ -38,7 +48,7 @@ CI installs [cargo-deny](https://embarkstudios.github.io/cargo-deny/) and [cargo
 
 ## Unsigned native candidates
 
-[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (MIT license text), and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
+[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (MIT license text), `THIRD-PARTY-NOTICES.txt`, and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
 
 | Candidate target | Native GitHub runner | Archive |
 | --- | --- | --- |
@@ -52,7 +62,7 @@ Runner labels and architectures were checked against [GitHub's hosted runner ref
 
 The [artifact action](https://github.com/actions/upload-artifact/releases/tag/v7.0.1) is pinned to v7.0.1 commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`, verified via the [upstream tag API](https://api.github.com/repos/actions/upload-artifact/git/ref/tags/v7.0.1) on 2026-09-08. The existing checkout v4 and setup-python v5 pins above were rechecked against their upstream tag APIs. Pin review remains a maintenance responsibility.
 
-The Python standard-library packager is intentionally limited to these five targets, one executable, and two static documents. It rejects input symlinks and unsafe target/version names and requires a new output directory. Tar, gzip and zip metadata are fixed, including executable permissions; identical input bytes produce identical archives under the same Python/compression implementation. This does **not** claim reproducible Rust builds or byte identity across compressor versions. Checksums detect corruption, not publisher authenticity. The project license text does not replace the dependency notice review required before public distribution.
+The Python standard-library packager is intentionally limited to these five targets, one executable, the project license, collected dependency notices, and installation instructions. It rejects input symlinks and unsafe target/version names and requires a new output directory. Tar, gzip and zip metadata are fixed, including executable permissions; identical input bytes produce identical archives under the same Python/compression implementation. This does **not** claim reproducible Rust builds or byte identity across compressor versions. Checksums detect corruption, not publisher authenticity. Dependency notices are included separately; the project license does not replace their terms.
 
 To exercise a local candidate, substitute the host target and workspace version:
 
@@ -61,9 +71,9 @@ cargo test --workspace --locked --target aarch64-apple-darwin
 cargo build --release --locked --package permesh-cli --bin permesh --target aarch64-apple-darwin
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/smoke_candidate.py target/aarch64-apple-darwin/release/permesh
-python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1.0-dev --output candidate-output
+python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1.0-alpha.1 --output candidate-output
 ```
 
-Use `python` and `permesh.exe` on Windows. `candidate-output` must not already exist, and its parent path must be free of symlinks (use a canonical path if your temporary directory is aliased). The smoke helper uses an automatically removed synthetic workspace; it performs no live-provider or credential-store validation. Candidates include local invocation and uninstall instructions. All candidates remain unsigned and unnotarized; successful jobs do not qualify a public release or complete live GitHub, keychain, dependency-notice, signing, attestation, or vulnerability-reporting gates.
+Use `python` and `permesh.exe` on Windows. `candidate-output` must not already exist, and its parent path must be free of symlinks (use a canonical path if your temporary directory is aliased). The smoke helper uses an automatically removed synthetic workspace; it performs no live-provider or credential-store validation. Candidates include local invocation and uninstall instructions. All candidates remain unsigned and unnotarized. Candidate jobs alone do not authorize promotion: complete the alpha publication checks above. Stable native credential-store and live-provider qualification remains open.
 
-Keep cargo-dist deferred for this bounded candidate phase. Its installer and release orchestration would add publication policy that these jobs deliberately do not implement. Reevaluate adoption before public distribution rather than growing this helper into a release framework.
+Keep cargo-dist deferred while releases use manual promotion of these bounded, reviewed artifacts. Reevaluate it when adding installers or package-manager distribution; do not grow this helper into a release framework.

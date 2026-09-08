@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import tomllib
 
 
 def smoke(binary):
@@ -22,7 +23,12 @@ def smoke(binary):
             return result.stdout
 
         run('--help')
-        run('--version')
+        expected = tomllib.loads((Path(__file__).resolve().parents[1] / 'Cargo.toml').read_text())['workspace']['package']['version']
+        if run('--version').strip() != f'permesh {expected}':
+            raise RuntimeError('candidate binary version does not match workspace version')
+        version = json.loads(run('version', '--json'))
+        if version['result']['version'] != expected:
+            raise RuntimeError('candidate JSON version does not match workspace version')
         for shell in ('bash', 'zsh', 'fish', 'powershell', 'elvish'):
             script = run('completion', shell)
             if 'permesh' not in script or 'orphaned' not in script:

@@ -1,25 +1,28 @@
-"""Create a deliberately small unsigned native candidate; Python standard library only."""
+"""Create a deliberately small unsigned native alpha archive; Python standard library only."""
 import argparse
 import gzip
 import hashlib
 import io
+import json
 from pathlib import Path
 import re
 import stat
+import subprocess
 import tarfile
 import zipfile
+
+import dependency_notices
 
 TARGETS = (
     'aarch64-apple-darwin', 'x86_64-apple-darwin',
     'x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
     'x86_64-pc-windows-msvc',
 )
-INSTALL = b'''Permesh unsigned development candidate
+INSTALL = b'''Permesh unsigned alpha prerelease
 
-This is not a qualified public release. Verify the adjacent SHA-256 checksum
-before extracting. A checksum detects corruption, not publisher authenticity.
-The archive contains one executable and the project's MIT license text.
-Dependency notice review remains a public-release gate.
+Verify the adjacent SHA-256 checksum before extracting. A checksum detects
+corruption, not publisher authenticity. This archive contains the executable,
+the project's MIT LICENSE, and THIRD-PARTY-NOTICES.txt with dependency notices.
 
 Run ./permesh --help (Windows: .\\permesh.exe --help) from this directory.
 For an offline trial, create an empty directory, change into it and run the
@@ -29,9 +32,11 @@ copy the executable into a user-owned directory already on your PATH.
 Remove that executable to uninstall. Workspaces and native stored credentials
 are separate; removing the executable does not delete them.
 
-These candidates are unsigned, unnotarized, and not compatibility guarantees
-for older operating systems. Native credential stores and live providers
-require separate qualification. Do not redistribute as a public release.
+This public alpha is unsigned and unnotarized. Operating systems may display
+security warnings or block execution. Compatibility with older operating
+systems is not guaranteed. Native credential stores and live providers need
+qualification in your environment. Commands, configuration, and provider
+interfaces may change during the alpha series; use a disposable test workspace.
 '''
 
 
@@ -53,6 +58,12 @@ def package(root, target, version, output):
     executable = 'permesh.exe' if 'windows' in target else 'permesh'
     entries = [(executable, regular_bytes(root, Path('target') / target / 'release' / executable), 0o755)]
     entries += [(name, regular_bytes(root, Path(name)), 0o644) for name in ('LICENSE',)]
+    metadata = json.loads(subprocess.run(
+        ['cargo', '+stable', 'metadata', '--locked', '--format-version', '1',
+         '--filter-platform', target, '--manifest-path', str(root / 'Cargo.toml')],
+        cwd=root, check=True, capture_output=True, text=True,
+    ).stdout)
+    entries.append(('THIRD-PARTY-NOTICES.txt', dependency_notices.bundle(root, metadata), 0o644))
     entries.append(('INSTALL.txt', INSTALL, 0o644))
     output = Path(output).absolute()
     if any(parent.is_symlink() for parent in (output, *output.parents)):

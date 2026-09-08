@@ -32,7 +32,9 @@ locally and discarded when the command exits.
 
 ## Try it
 
-Permesh is under development. Build from source with Rust 1.91 or newer:
+Download the **[0.1.0-alpha.1 prerelease](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.1)** for macOS, Linux or Windows. Verify its checksum before extracting; see [installation](docs/installation.md). This is an unsigned evaluation release with [known limitations](docs/releases/0.1.0-alpha.1.md).
+
+Or build from a checkout with Rust 1.91 or newer:
 
 ```bash
 cargo install --path crates/permesh-cli --locked

@@ -1,8 +1,8 @@
 # Security policy
 
-This repository is pre-release; no stable release currently receives security support. Do not assume the CLI establishes complete effective authorization or use its output as the sole basis for an access-control decision.
+The current release line is `0.1.0-alpha`. Security fixes target the newest alpha; older alpha builds should be upgraded. No stable release currently receives security support. Do not assume the CLI establishes complete effective authorization or use its output as the sole basis for an access-control decision.
 
-For a suspected vulnerability, use the repository host's private vulnerability reporting feature if enabled. If it is unavailable, contact a listed maintainer through an existing private contact method. A dedicated security address and response SLA have not been established. Do not put tokens, private organization data, or exploit details in public issues. A public issue may request a private reporting channel without disclosing the vulnerability.
+For a suspected vulnerability, [submit a private vulnerability report](https://github.com/NIPE-Solutions/permesh/security/advisories/new). Private reporting is enabled for this repository. Maintainers can receive reports through GitHub; a dedicated security email address and response SLA have not been established. Do not put tokens, private organization data, or exploit details in public issues.
 
 Include the affected revision, operating system, minimal synthetic reproduction, expected security boundary, and observed behavior. Remove credentials and personal data. If a credential was exposed, revoke it with its issuer; deleting a log or issue does not revoke a token.
 
