@@ -35,7 +35,7 @@ pub enum Command {
         #[arg(long)]
         organization: Option<String>,
     },
-    /// Inspect configured provider instances or add GitHub.
+    /// Inspect configured provider instances or add a provider.
     Provider {
         #[command(subcommand)]
         command: ProviderCommand,
@@ -63,12 +63,22 @@ pub enum ProviderCommand {
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {
-    #[arg(value_parser=["github"])]
+    #[arg(value_parser=["github", "google"])]
     pub provider_type: String,
-    #[arg(long, default_value = "github-main")]
-    pub id: String,
-    #[arg(long, required = true)]
+    #[arg(
+        long,
+        help = "Stable instance ID; defaults to github-main or google-main"
+    )]
+    pub id: Option<String>,
+    #[arg(long, help = "GitHub organization (repeat for multiple organizations)")]
     pub organization: Vec<String>,
+    #[arg(long, help = "Explicit Google Workspace customer ID")]
+    pub customer_id: Option<String>,
+    #[arg(
+        long,
+        help = "Use Google directory identities as an authoritative source"
+    )]
+    pub authoritative: bool,
     #[arg(
         long,
         help = "Secret reference; defaults to the instance's native keychain entry"
@@ -85,6 +95,6 @@ pub enum AuthCommand {
     },
     /// Check whether credentials can be resolved, without contacting providers.
     Status { id: Option<String> },
-    /// Delete this instance's local keychain credential; revoke the token separately at GitHub.
+    /// Delete this instance's local keychain credential; revoke the token separately at its provider.
     Logout { id: String },
 }

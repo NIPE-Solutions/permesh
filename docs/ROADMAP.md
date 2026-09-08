@@ -7,7 +7,7 @@ The release is deliberately smaller than the long-term product vision.
 3. **Implemented; initial live smoke test passed** — GitHub observed-access slice: read-only API adapter, pagination, bounded retries, scope diagnostics, inheritance paths, mock HTTP tests, authentication docs. Connectivity, user JSON, and privileged-access JSON passed a live exercise; privileged grants matched an independent API comparison. [Validation scope](getting-started.md#live-validation); full live acceptance remains pending.
 4. **Candidate workflow implemented; qualification pending** — Release qualification: native platform CI, supply-chain checks, credentialed GitHub fixture organization acceptance, release automation and checksums. No public release before this passes.
 5. **Implemented** — Privileged-access inspection: `admins` retains known privileged paths, unknown role semantics, ambiguous identities, and group grants without observed accounts. It does not require an employee directory.
-6. Authoritative identity source: choose a provider after research, active/inactive status, ambiguity fixtures; then orphaned queries with tested service-account distinctions.
+6. **Implemented; live tenant qualification pending** — Google Workspace directory source: explicit customer and authority, immutable identity IDs, conservative status mapping and OAuth access-token references. Orphaned queries and additional authentication flows follow separately.
 7. External providers: implement the documented protocol and local trust registration; hostile-process tests before execution is enabled.
 8. Additional providers: AWS and Cloudflare incrementally, with documented limitations and identical contract tests.
 

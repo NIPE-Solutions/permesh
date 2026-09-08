@@ -17,6 +17,7 @@ permesh-secrets.workspace = true
 permesh-provider-sdk.workspace = true
 permesh-provider-demo.workspace = true
 permesh-provider-github.workspace = true
+permesh-provider-google.workspace = true
 clap.workspace = true
 tokio.workspace = true
 serde.workspace = true

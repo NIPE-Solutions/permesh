@@ -54,6 +54,8 @@ pub struct ProviderConfig {
     #[serde(default)]
     pub organizations: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthConfig>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,6 +63,7 @@ pub struct ProviderConfig {
 pub enum ProviderKind {
     Demo,
     Github,
+    Google,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -167,18 +170,37 @@ impl Config {
             if provider.kind == ProviderKind::Demo && !provider.organizations.is_empty() {
                 return Err(invalid("demo providers do not accept organizations"));
             }
+            if provider.kind != ProviderKind::Google && provider.customer_id.is_some() {
+                return Err(invalid("customer_id is only supported by Google providers"));
+            }
+            if provider.kind == ProviderKind::Google {
+                if !provider.organizations.is_empty() {
+                    return Err(invalid(
+                        "Google providers use customer_id, not organizations",
+                    ));
+                }
+                let customer = provider.customer_id.as_deref().unwrap_or_default();
+                if !(2..=128).contains(&customer.len())
+                    || !customer.starts_with('C')
+                    || !customer.bytes().all(|c| c.is_ascii_alphanumeric())
+                {
+                    return Err(invalid(
+                        "Google providers require an explicit customer_id starting with C followed by letters or digits",
+                    ));
+                }
+            }
             match provider.kind {
                 ProviderKind::Demo if provider.auth.is_some() => {
                     return Err(invalid("demo providers do not accept authentication"));
                 }
-                ProviderKind::Github => {
-                    if provider.organizations.is_empty() {
+                ProviderKind::Github | ProviderKind::Google => {
+                    if provider.kind == ProviderKind::Github && provider.organizations.is_empty() {
                         return Err(invalid("GitHub providers require organizations"));
                     }
                     let auth = provider
                         .auth
                         .as_ref()
-                        .ok_or_else(|| invalid("GitHub providers require auth.token"))?;
+                        .ok_or_else(|| invalid("provider requires auth.token"))?;
                     let reference = SecretRef::parse(&auth.token)
                         .map_err(|_| invalid("auth.token must be an env or keychain reference"))?;
                     if let SecretRef::Keychain { service, .. } = reference
@@ -198,7 +220,7 @@ impl Config {
             if !sources.insert(&source.provider) {
                 return Err(invalid("duplicate identity source"));
             }
-            if provider.kind != ProviderKind::Demo {
+            if !matches!(provider.kind, ProviderKind::Demo | ProviderKind::Google) {
                 return Err(invalid(
                     "identity source provider lacks identity-source capability",
                 ));

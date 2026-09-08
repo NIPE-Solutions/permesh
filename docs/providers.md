@@ -5,8 +5,10 @@ The provider boundary is read-only. Adapters supply capabilities, health and nor
 - **demo**: accounts, authoritative synthetic identities, resources, groups, memberships, grants. No secrets and no network. `init --demo` configures it as the identity authority.
 - **github**: accounts, organization/repository resources, teams, memberships, observed access grants. GitHub.com only; no public-email verification, HR status, session inspection, credentials inventory, or mutations. [Dedicated guide](providers/github.md).
 
+- **google**: customer-wide directory accounts and optionally authoritative identities, using an OAuth access-token reference. No Google resource grants or groups. [Dedicated guide](providers/google.md).
+
 Configure multiple instances by assigning different IDs. A single GitHub instance may list multiple organizations. `provider list` shows configured instances without contacting services. `provider capabilities INSTANCE` also needs no credentials. `provider status [INSTANCE]` and `doctor` resolve local secrets and make lightweight provider health checks; successful health does not guarantee permission to every discovery endpoint.
 
-`user` and `admins` discover each configured provider, validates its graph, correlates identities, and returns access paths. Requests are concurrent across at most four provider instances, sequential within GitHub, and bounded by time and record budgets. A failing provider appears explicitly in both output formats.
+`user` and `admins` discover each configured provider, validates its graph, correlates identities, and returns access paths. Requests are concurrent across at most four provider instances, sequential within each adapter, and bounded by time and record budgets. A failing provider appears explicitly in both output formats.
 
-AWS, Google Workspace, Cloudflare and executable plugins are not implemented in this milestone. They are intentionally absent from help and configuration enums. See [provider development](provider-development.md) for extension design and [roadmap](ROADMAP.md) for release gates.
+AWS, Cloudflare and executable plugins are not implemented in this milestone. They are intentionally absent from help and configuration enums. See [provider development](provider-development.md) for extension design and [roadmap](ROADMAP.md) for release gates.

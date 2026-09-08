@@ -53,6 +53,7 @@ pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outc
         vec![ProviderConfig {
             id: "demo".into(),
             kind: ProviderKind::Demo,
+            customer_id: None,
             organizations: vec![],
             auth: None,
         }]
@@ -112,17 +113,38 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         ));
     }
     let mut config = Config::load(&path)?;
+    let kind = match args.provider_type.as_str() {
+        "github" => ProviderKind::Github,
+        "google" => ProviderKind::Google,
+        _ => return Err(AppError::input("Unsupported provider type")),
+    };
+    if args.authoritative && kind != ProviderKind::Google {
+        return Err(AppError::input(
+            "Only identity-source providers support --authoritative",
+        ));
+    }
+    let id = args
+        .id
+        .clone()
+        .unwrap_or_else(|| format!("{}-main", args.provider_type));
     config.providers.push(ProviderConfig {
-        id: args.id.clone(),
-        kind: ProviderKind::Github,
+        id: id.clone(),
+        kind,
+        customer_id: args.customer_id.clone(),
         organizations: args.organization.clone(),
         auth: Some(AuthConfig {
             token: args
                 .token_ref
                 .clone()
-                .unwrap_or_else(|| format!("keychain://{}/token", args.id)),
+                .unwrap_or_else(|| format!("keychain://{id}/token")),
         }),
     });
+    if args.authoritative {
+        config.identity.sources.push(IdentitySource {
+            provider: id.clone(),
+            authoritative: true,
+        });
+    }
     let yaml = to_yaml(&config)?;
     let parent = path
         .parent()
@@ -139,6 +161,6 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         .map_err(|_| AppError::new(5, "Cannot replace configuration"))?;
     Outcome::new(
         "provider_add",
-        serde_json::json!({"message":"Added GitHub provider. Configuration formatting was normalized; review the Git diff.","next":format!("permesh auth login {}",args.id)}),
+        serde_json::json!({"message":"Added provider. Configuration formatting was normalized; review the Git diff.","next":format!("permesh auth login {id}")}),
     )
 }
