@@ -104,7 +104,12 @@ credentials, delete the native registration or undo already observed results.
 path and does not require valid configuration contents. Standalone `inspect`,
 `trust`, `list`, `remove` and direct `discover` do not. Direct discovery uses draft
 1 and transmits no workspace parameters or credentials. Workspace operations
-require draft 2 and never downgrade to draft 1.
+default to draft 2 and never downgrade to draft 1. Providers implementing
+[negotiated negotiated protocol 1](provider-protocol/negotiated-v1.md) can explicitly select
+`external.discovery_protocol: negotiated_v1` for workspace discovery and health.
+This change requires fresh workspace approval and appears in review output.
+There is no automatic probe or fallback; setup/browser-auth and standalone
+discovery retain their existing contracts.
 
 ## Local storage
 
@@ -140,7 +145,7 @@ attests its behavior nor verifies the truth of its identity assertions.
 The host starts the managed binary without command arguments, in a temporary
 working directory and with a cleared environment (Windows may retain system
 runtime configuration). Draft-1 direct discovery receives no workspace settings
-or credentials. Approved draft-2 operations receive only that instance's
+or credentials. Approved discovery/health operations receive only that instance's
 `configuration` values and resolved named credentials through the dedicated stdin
 pipe, after the provider ID, version and capability set pass handshake validation.
 Credentials are not placed in child environment variables or command arguments.

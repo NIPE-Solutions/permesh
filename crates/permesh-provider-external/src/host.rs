@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 //! Supervision for explicitly trusted native providers. This is not a sandbox.
 use crate::ExternalError;
+use crate::invocation::Contract;
 pub use crate::invocation::Invocation;
 use permesh_core::Snapshot;
+use permesh_provider_protocol::negotiated;
 use permesh_provider_protocol::{
     BrowserAuthDecoder, DiscoveryDecoder, HealthDecoder, MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES,
     Progress, SetupDecoder, handshake_request, handshake_request_versioned,
@@ -105,7 +107,7 @@ async fn discover_with_deadlines(
             handshake,
             invocation: None,
             method: "discover",
-            version: 1,
+            contract: Contract::Legacy(1),
         },
         cancellation,
         deadlines,
@@ -181,7 +183,7 @@ async fn describe_with_deadlines(
             handshake,
             invocation: None,
             method: "describe",
-            version: 3,
+            contract: Contract::Legacy(3),
         },
         cancellation,
         deadlines,
@@ -207,7 +209,7 @@ pub async fn describe_auth(
             handshake,
             invocation: None,
             method: "describe_auth",
-            version: 4,
+            contract: Contract::Legacy(4),
         },
         cancellation,
         Deadlines::default(),
@@ -228,7 +230,7 @@ struct Exchange<'a, D> {
     handshake: Vec<u8>,
     invocation: Option<&'a Invocation>,
     method: &'static str,
-    version: u32,
+    contract: Contract,
 }
 
 /// Discover using draft2; credentials are delivered only after identity/capability validation.
@@ -270,7 +272,7 @@ async fn configured_discovery(
             handshake,
             invocation: Some(invocation),
             method: "discover",
-            version: 2,
+            contract: Contract::Legacy(2),
         },
         cancellation,
         deadlines,
@@ -296,7 +298,101 @@ pub async fn check_configured(
             handshake,
             invocation: Some(invocation),
             method: "check",
-            version: 2,
+            contract: Contract::Legacy(2),
+        },
+        cancellation,
+        Deadlines::default(),
+    )
+    .await
+}
+
+impl Decoder for negotiated::DiscoveryDecoder {
+    type Output = Snapshot;
+    fn push(&mut self, frame: &[u8]) -> Result<Progress, permesh_provider_protocol::ProtocolError> {
+        self.push_frame(frame)
+    }
+    fn finish(self) -> Result<Self::Output, permesh_provider_protocol::ProtocolError> {
+        self.finish()
+    }
+}
+impl Decoder for negotiated::HealthDecoder {
+    type Output = Health;
+    fn push(&mut self, frame: &[u8]) -> Result<Progress, permesh_provider_protocol::ProtocolError> {
+        self.push_frame(frame)
+    }
+    fn finish(self) -> Result<Self::Output, permesh_provider_protocol::ProtocolError> {
+        self.finish()
+    }
+}
+
+/// Discover using negotiated protocol v1; validate identity, capabilities and operation before delivering credentials.
+pub async fn discover_negotiated(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    invocation: &Invocation,
+    cancellation: impl Future<Output = ()>,
+) -> Result<Snapshot, ExternalError> {
+    negotiated_discovery(
+        executable,
+        provider,
+        instance,
+        capabilities,
+        invocation,
+        cancellation,
+        Deadlines::default(),
+    )
+    .await
+}
+async fn negotiated_discovery(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    invocation: &Invocation,
+    cancellation: impl Future<Output = ()>,
+    deadlines: Deadlines,
+) -> Result<Snapshot, ExternalError> {
+    let decoder = negotiated::DiscoveryDecoder::new(provider, instance, Some(capabilities))
+        .map_err(|_| ExternalError::Input)?;
+    let handshake = negotiated::handshake_request(instance, negotiated::Operation::Discover)
+        .map_err(|_| ExternalError::Input)?;
+    supervise(
+        executable,
+        Exchange {
+            decoder,
+            handshake,
+            invocation: Some(invocation),
+            method: "discover",
+            contract: Contract::Negotiated,
+        },
+        cancellation,
+        deadlines,
+    )
+    .await
+}
+/// Check health using negotiated protocol v1 with explicit operation validation before credential delivery.
+pub async fn check_negotiated(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    invocation: &Invocation,
+    cancellation: impl Future<Output = ()>,
+) -> Result<Health, ExternalError> {
+    let decoder = negotiated::HealthDecoder::new(provider, instance, Some(capabilities))
+        .map_err(|_| ExternalError::Input)?;
+    let handshake = negotiated::handshake_request(instance, negotiated::Operation::Check)
+        .map_err(|_| ExternalError::Input)?;
+    supervise(
+        executable,
+        Exchange {
+            decoder,
+            handshake,
+            invocation: Some(invocation),
+            method: "check",
+            contract: Contract::Negotiated,
         },
         cancellation,
         Deadlines::default(),
@@ -327,7 +423,7 @@ async fn supervise_inner<D: Decoder>(
     cancellation: impl Future<Output = ()>,
     deadlines: Deadlines,
 ) -> Result<D::Output, ExternalError> {
-    let version = exchange_spec.version;
+    let contract = exchange_spec.contract;
     if !executable.is_absolute() {
         return Err(ExternalError::Input);
     }
@@ -432,14 +528,13 @@ async fn supervise_inner<D: Decoder>(
                 async {
                     if let Some(input) = &mut stdin {
                         input
-                            .write_all(if version == 4 {
-                                b"{\"protocol\":4,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
-                            } else if version == 3 {
-                                b"{\"protocol\":3,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
-                            } else if version == 2 {
-                                b"{\"protocol\":2,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
-                            } else {
-                                b"{\"protocol\":1,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
+                            .write_all(match contract {
+                                Contract::Negotiated => b"{\"protocol_version\":1,\"id\":\"cancel\",\"method\":\"cancel\"}\n",
+                                Contract::Legacy(4) => b"{\"protocol\":4,\"id\":\"cancel\",\"method\":\"cancel\"}\n",
+                                Contract::Legacy(3) => b"{\"protocol\":3,\"id\":\"cancel\",\"method\":\"cancel\"}\n",
+                                Contract::Legacy(2) => b"{\"protocol\":2,\"id\":\"cancel\",\"method\":\"cancel\"}\n",
+                                Contract::Legacy(1) => b"{\"protocol\":1,\"id\":\"cancel\",\"method\":\"cancel\"}\n",
+                                Contract::Legacy(_) => return Err(ExternalError::Input),
                             })
                             .await
                             .map_err(|_| ExternalError::Protocol)?;
@@ -529,7 +624,7 @@ async fn exchange<D: Decoder>(
         handshake,
         invocation,
         method,
-        version,
+        contract,
     } = spec;
     let mut frame = Zeroizing::new(Vec::new());
     let mut chunk = [0u8; 8192];
@@ -581,16 +676,17 @@ async fn exchange<D: Decoder>(
                     Progress::Handshake => {
                         negotiated = true;
                         let request = match invocation {
-                            Some(invocation) => invocation.request(method)?,
-                            None if version == 4 => Zeroizing::new(b"{\"protocol\":4,\"id\":\"describe_auth\",\"method\":\"describe_auth\"}\n".to_vec()),
-                            None if version == 3 => Zeroizing::new(
+                            Some(invocation) => invocation.request(method, contract)?,
+                            None if matches!(contract, Contract::Legacy(4)) => Zeroizing::new(b"{\"protocol\":4,\"id\":\"describe_auth\",\"method\":\"describe_auth\"}\n".to_vec()),
+                            None if matches!(contract, Contract::Legacy(3)) => Zeroizing::new(
                                 b"{\"protocol\":3,\"id\":\"describe\",\"method\":\"describe\"}\n"
                                     .to_vec(),
                             ),
-                            None => Zeroizing::new(
+                            None if matches!(contract, Contract::Legacy(1)) => Zeroizing::new(
                                 b"{\"protocol\":1,\"id\":\"discover\",\"method\":\"discover\"}\n"
                                     .to_vec(),
                             ),
+                            None => return Err(ExternalError::Input),
                         };
                         stdin
                             .as_mut()

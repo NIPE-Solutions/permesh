@@ -2,6 +2,7 @@
 //! Offline validation for draft external discovery exchanges. Does not execute programs.
 mod framing;
 mod mapping;
+pub mod negotiated;
 pub mod records;
 mod session;
 mod wire;

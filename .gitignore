@@ -3,7 +3,7 @@
 permesh.local.yaml
 *.local.json
 /candidate-output/
-/scripts/__pycache__/
+__pycache__/
 
 .idea/
 

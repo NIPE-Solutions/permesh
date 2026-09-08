@@ -52,7 +52,8 @@ path certainty without changing the stored source grant.
 Existing official native provider packages retain their pinned SDK and frozen
 wire DTOs. They continue to communicate through the legacy decoder. Do not update
 a native provider's SDK and project unrepresentable new dimensions back into old
-wire records. A subsequent negotiated protocol must carry those dimensions first.
+wire records. The opt-in [protocol-1 contract](../provider-protocol/negotiated-v1.md) carries those
+dimensions, but each native emitter must adopt it and pass qualification first.
 The bundled adapters can supply the new internal model directly.
 
 ## Legacy ingress

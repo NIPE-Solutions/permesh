@@ -63,3 +63,43 @@ fn external_config_is_bounded_and_disallowed_on_builtin_providers() {
     }
     assert!(load(&good.replace("[a, b]", &nested)).is_err());
 }
+
+#[test]
+fn discovery_protocol_is_explicit_and_legacy_serialization_is_unchanged() {
+    let legacy = load(&source()).unwrap();
+    let implicit = serde_json::to_value(&legacy).unwrap();
+    let explicit = load(&source().replace(
+        "provider: fixture",
+        "provider: fixture\n      discovery_protocol: legacy",
+    ))
+    .unwrap();
+    assert_eq!(implicit, serde_json::to_value(explicit).unwrap());
+    assert!(
+        implicit["providers"][0]["external"]
+            .get("discovery_protocol")
+            .is_none()
+    );
+    let negotiated = load(&source().replace(
+        "provider: fixture",
+        "provider: fixture\n      discovery_protocol: negotiated_v1",
+    ))
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&negotiated).unwrap()["providers"][0]["external"]["discovery_protocol"],
+        "negotiated_v1"
+    );
+    assert!(
+        to_yaml(&negotiated)
+            .unwrap()
+            .contains("discovery_protocol: negotiated_v1")
+    );
+    for unsupported in ["auto", "5", "negotiated_v6", "legacy_v2"] {
+        assert!(
+            load(&source().replace(
+                "provider: fixture",
+                &format!("provider: fixture\n      discovery_protocol: {unsupported}")
+            ))
+            .is_err()
+        );
+    }
+}

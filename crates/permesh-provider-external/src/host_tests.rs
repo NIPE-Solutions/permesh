@@ -580,3 +580,310 @@ async fn browser_description_cancellation_uses_draft_four_and_waits_for_cleanup(
     );
     assert!(directory.path().join("cancelled").exists());
 }
+
+#[tokio::test]
+async fn negotiated_discovery_preserves_rich_fields_and_partial_health() {
+    use permesh_core::{Affiliation, Certainty, EvidenceKind, IdentityKind, IdentityStatus};
+    for mode in ["normal", "partial"] {
+        let invocation = configured(mode);
+        let snapshot = discover_negotiated(
+            &executable(),
+            "fixture",
+            "rich-main",
+            &all_capabilities(),
+            &invocation,
+            std::future::pending(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(snapshot.complete, mode == "normal");
+        assert_eq!(snapshot.accounts[0].kind, IdentityKind::Service);
+        assert_eq!(snapshot.accounts[0].affiliation, Affiliation::External);
+        assert_eq!(snapshot.accounts[0].status, IdentityStatus::Suspended);
+        assert_eq!(snapshot.identities[0].affiliation, Affiliation::Internal);
+        assert_eq!(snapshot.identities[0].status, IdentityStatus::Inactive);
+        let child = snapshot
+            .resources
+            .iter()
+            .find(|resource| resource.key.id == "child")
+            .unwrap();
+        assert_eq!(child.kind.as_deref(), Some("fixture.repository"));
+        assert_eq!(child.parent.as_ref().unwrap().id, "root");
+        assert_eq!(
+            snapshot.grants[0].evidence_kind,
+            EvidenceKind::PolicyAttachment
+        );
+        assert_eq!(snapshot.grants[0].certainty, Certainty::Derived);
+        let health = check_negotiated(
+            &executable(),
+            "fixture",
+            "rich-main",
+            &all_capabilities(),
+            &invocation,
+            std::future::pending(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(health.limitations.len(), usize::from(mode == "partial"));
+        assert!(!format!("{snapshot:?} {health:?}").contains("synthetic-fixture-token"));
+    }
+}
+
+#[tokio::test]
+async fn negotiated_handshake_rejection_withholds_credentials_for_both_operations() {
+    for mode in [
+        "wrong-provider",
+        "wrong-caps",
+        "downgrade",
+        "wrong-operation",
+        "legacy-family",
+    ] {
+        for check in [false, true] {
+            let (directory, peer) = isolated_peer();
+            let invocation = configured("normal");
+            let result = if check {
+                check_negotiated(
+                    &peer,
+                    "fixture",
+                    mode,
+                    &all_capabilities(),
+                    &invocation,
+                    std::future::pending(),
+                )
+                .await
+                .map(|_| ())
+            } else {
+                discover_negotiated(
+                    &peer,
+                    "fixture",
+                    mode,
+                    &all_capabilities(),
+                    &invocation,
+                    std::future::pending(),
+                )
+                .await
+                .map(|_| ())
+            };
+            assert!(
+                matches!(result, Err(ExternalError::Protocol)),
+                "{mode}: {result:?}"
+            );
+            assert!(!directory.path().join("delivered").exists());
+        }
+    }
+}
+
+#[tokio::test]
+async fn negotiated_errors_and_secret_reflections_never_return_partial_data() {
+    for mode in [
+        "echo",
+        "echo-escaped",
+        "echo-key",
+        "error-after-record",
+        "incomplete",
+        "extra",
+    ] {
+        let error = discover_negotiated(
+            &executable(),
+            "fixture",
+            "rich-main",
+            &all_capabilities(),
+            &configured(mode),
+            std::future::pending(),
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(error, ExternalError::Protocol),
+            "{mode}: {error:?}"
+        );
+        assert!(!format!("{error:?} {error}").contains("synthetic-fixture-token"));
+    }
+    for mode in ["checkfail", "echo", "echo-escaped", "echo-key", "extra"] {
+        assert!(
+            matches!(
+                check_negotiated(
+                    &executable(),
+                    "fixture",
+                    "rich-main",
+                    &all_capabilities(),
+                    &configured(mode),
+                    std::future::pending()
+                )
+                .await,
+                Err(ExternalError::Protocol)
+            ),
+            "{mode}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn negotiated_cancellation_timeout_limits_and_cleanup_reuse_supervision() {
+    let (directory, peer) = isolated_peer();
+    let result = negotiated_discovery(
+        &peer,
+        "fixture",
+        "rich-main",
+        &all_capabilities(),
+        &configured("cancel"),
+        wait_for_marker(directory.path().join("ready")),
+        deadlines(),
+    )
+    .await;
+    assert!(
+        matches!(result, Err(ExternalError::Cancelled)),
+        "{result:?}"
+    );
+    assert!(directory.path().join("cancelled").exists());
+    for mode in ["handshake-hang", "hang", "complete-hang"] {
+        let result = negotiated_discovery(
+            &executable(),
+            "fixture",
+            mode,
+            &all_capabilities(),
+            &configured(mode),
+            std::future::pending(),
+            Deadlines {
+                handshake: Duration::from_millis(500),
+                operation: Duration::from_millis(900),
+                ..deadlines()
+            },
+        )
+        .await;
+        assert!(
+            matches!(result, Err(ExternalError::Timeout)),
+            "{mode}: {result:?}"
+        );
+    }
+    for (mode, stderr) in [("stdout-flood", false), ("stderr-flood", true)] {
+        let result = discover_negotiated(
+            &executable(),
+            "fixture",
+            "rich-main",
+            &all_capabilities(),
+            &configured(mode),
+            std::future::pending(),
+        )
+        .await;
+        assert!(if stderr {
+            matches!(result, Err(ExternalError::StderrLimit))
+        } else {
+            matches!(result, Err(ExternalError::Protocol))
+        });
+    }
+    discover_negotiated(
+        &peer,
+        "fixture",
+        "rich-main",
+        &all_capabilities(),
+        &configured("environment"),
+        std::future::pending(),
+    )
+    .await
+    .unwrap();
+    let cwd = std::fs::read_to_string(directory.path().join("working-directory")).unwrap();
+    assert!(!Path::new(&cwd).exists());
+}
+
+async fn negotiated_rejects_valid_reflected_snapshot(mode: &str) {
+    let result = discover_negotiated(
+        &executable(),
+        "fixture",
+        "rich-main",
+        &all_capabilities(),
+        &configured(mode),
+        std::future::pending(),
+    )
+    .await;
+    assert!(
+        matches!(result, Err(ExternalError::Protocol)),
+        "an otherwise valid resource and completion must be rejected when its name reflects a credential"
+    );
+}
+#[tokio::test]
+async fn negotiated_valid_plain_reflection_requires_guard() {
+    negotiated_rejects_valid_reflected_snapshot("echo").await;
+}
+#[tokio::test]
+async fn negotiated_valid_escaped_reflection_requires_guard() {
+    negotiated_rejects_valid_reflected_snapshot("echo-escaped").await;
+}
+
+#[tokio::test]
+async fn negotiated_wrong_operation_writes_only_handshake_to_stdin() {
+    for operation in [
+        negotiated::Operation::Discover,
+        negotiated::Operation::Check,
+    ] {
+        let mut child = Command::new(executable())
+            .arg("--capture-input")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap();
+        let mut stdin = child.stdin.take();
+        let handshake = negotiated::handshake_request("rich-main", operation).unwrap();
+        let wrong_operation = match operation {
+            negotiated::Operation::Discover => "check",
+            negotiated::Operation::Check => "discover",
+        };
+        let response = format!(
+            "{}\n",
+            serde_json::json!({
+                "protocol_version":1,"id":"handshake","event":"handshake","provider":"fixture",
+                "capabilities":[],"operations":[wrong_operation],"draft":true,
+            })
+        );
+        let invocation = configured("normal");
+        let mut total = 0;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let result = match operation {
+            negotiated::Operation::Discover => exchange(
+                &mut stdin,
+                response.as_bytes(),
+                &mut total,
+                Exchange {
+                    decoder: negotiated::DiscoveryDecoder::new("fixture", "rich-main", Some(&[]))
+                        .unwrap(),
+                    handshake: handshake.clone(),
+                    invocation: Some(&invocation),
+                    method: "discover",
+                    contract: Contract::Negotiated,
+                },
+                deadline,
+            )
+            .await
+            .map(|_| ()),
+            negotiated::Operation::Check => exchange(
+                &mut stdin,
+                response.as_bytes(),
+                &mut total,
+                Exchange {
+                    decoder: negotiated::HealthDecoder::new("fixture", "rich-main", Some(&[]))
+                        .unwrap(),
+                    handshake: handshake.clone(),
+                    invocation: Some(&invocation),
+                    method: "check",
+                    contract: Contract::Negotiated,
+                },
+                deadline,
+            )
+            .await
+            .map(|_| ()),
+        };
+        stdin.take();
+        let output = tokio::time::timeout(Duration::from_secs(5), child.wait_with_output())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(output.status.success());
+        assert!(matches!(result, Err(ExternalError::Protocol)));
+        assert_eq!(
+            output.stdout, handshake,
+            "a rejected operation must never write invocation bytes"
+        );
+    }
+}

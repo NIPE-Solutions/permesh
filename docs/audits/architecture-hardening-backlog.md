@@ -9,8 +9,8 @@ negative tests, documentation and migration notes before it is complete.
 | 1. Baseline | P0 | Audit both repositories; identify compatibility surfaces and risks. | Evidence-backed audit and ordered breaking-change ledger exist before refactoring. | Complete |
 | 2. Boundary freeze | P0 / 1 | Historical wire transcripts; wire-owned records/capabilities and private validated mapping; CLI-owned query/snapshot/control DTOs; official emitter projection; versioning ADR. | Old transcripts and full JSON fixtures survive extraction; malformed input still fails closed; no implicit schema change. | Complete; CLI PR 25 and provider PR 11 qualified |
 | 3. Concrete defects | P1–P2 / 1 | Bounded revision-aware config writes; correct unsupported operation errors. | Regressions reproduce original failures and pass; rejected writes preserve original file; official responses decode correctly. | Complete; PRs 23 and provider 10 qualified |
-| 4. Domain semantics | P0 / 2 | Independent kind/affiliation/lifecycle; resource type/parent; evidence kind/certainty; normalization guidance. | External inactive humans and inactive service principals are representable; parent cycles rejected; assignments never presented as proved effective access; stable IDs retained. | Implemented; prerelease contract |
-| 5. Negotiated protocol | P0 / 2,4 | Explicit version/operation capability contract, diagnostics, independent DTO validation, conformance fixtures. | Old drafts remain accepted unchanged; unknown version/operation/capability behavior documented and tested; provider SDK does not require internal serialization knowledge. | Planned |
+| 4. Domain semantics | P0 / 2 | Independent kind/affiliation/lifecycle; resource type/parent; evidence kind/certainty; normalization guidance. | External inactive humans and inactive service principals are representable; parent cycles rejected; assignments never presented as proved effective access; stable IDs retained. | Complete; CLI PR 26 qualified; prerelease contract |
+| 5. Negotiated protocol | P0 / 2,4 | Explicit version/operation capability contract, diagnostics, independent DTO validation, conformance fixtures. | Old drafts remain accepted unchanged; unknown version/operation/capability behavior documented and tested; provider SDK does not require internal serialization knowledge. | Wire-5 discovery/health implemented; provider rollout and remaining operation/SDK conformance work open |
 | 6. Scoped approval | P1 / 1 | Provider context fingerprint and migration; remaining substitution/pre-cancellation tests. | Unrelated provider edits preserve approval; config, credential, digest or registration changes revoke it; no credential delivery before approval. | Fingerprint implemented; integrity follow-up open |
 | 7. Official onboarding | P1 / 6 | Add/install/verify/trust/setup/approve orchestration; concise consent; resumable prompts and CI flags. | Add/auth/query requires no manual hashes; rejection executes nothing; updates never silently adopt pins; expert workflow preserved. | Complete for GitHub; CLI PR 25 qualified |
 | 8. Enterprise network | P1 / 5,6 | Explicit proxy/CA/endpoint context; validation and provider support negotiation. | Tests prove no ambient inheritance; changed network context invalidates approval; secrets never enter Git or diagnostics. | Planned |
@@ -79,7 +79,9 @@ that estimate. Oversized expansion fails explicitly rather than truncating.
 
 The domain migration now implements independent principal dimensions, resource
 containment and access-evidence semantics with access JSON schema 2. Legacy
-wire remains unchanged, so native providers cannot yet emit every new dimension.
-Negotiated operations/records and final contract stability review remain P0.
-See [migration details](../migrations/domain-schema-2.md). This slice requires its
-own complete verification before merge; none of these contracts is declared stable.
+wire remains unchanged. PR 26 passed cross-platform CI, dependency checks and five
+native candidate targets before merge. Opt-in negotiated protocol 1 now carries the new dimensions
+for configured discovery and health; official emitter rollout and final contract
+stability review remain P0.
+See [migration details](../migrations/domain-schema-2.md). Each new slice requires complete verification before merge; none of these
+contracts is declared stable.

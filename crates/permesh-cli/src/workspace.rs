@@ -135,6 +135,7 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
             ));
         }
         Some(permesh_config::ExternalConfig {
+            discovery_protocol: permesh_config::DiscoveryProtocol::Legacy,
             provider: args
                 .provider
                 .clone()

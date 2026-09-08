@@ -9,11 +9,28 @@ const MAX_PARAMETERS_BYTES: usize = 65_536;
 const MAX_PARAMETER_DEPTH: usize = 16;
 const MAX_CREDENTIALS: usize = 16;
 
+/// Explicit discovery/health wire family. Default serialization remains byte-compatible
+/// with existing workspace approval contexts; selecting negotiated v1 requires fresh approval.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscoveryProtocol {
+    #[default]
+    Legacy,
+    NegotiatedV1,
+}
+impl DiscoveryProtocol {
+    fn is_legacy(&self) -> bool {
+        matches!(self, Self::Legacy)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExternalConfig {
     pub provider: String,
     pub sha256: String,
+    #[serde(default, skip_serializing_if = "DiscoveryProtocol::is_legacy")]
+    pub discovery_protocol: DiscoveryProtocol,
     #[serde(default)]
     pub configuration: BTreeMap<String, Value>,
     #[serde(default)]

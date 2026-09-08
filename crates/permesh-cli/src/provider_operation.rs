@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 use crate::{blocking::BlockingPool, cancellation::Cancellation, error::AppError};
-use permesh_config::{Config, ProviderConfig, ProviderKind};
+use permesh_config::{Config, DiscoveryProtocol, ProviderConfig, ProviderKind};
 use permesh_core::Snapshot;
 use permesh_provider_external::{ExternalError, host};
 use std::{path::Path, time::Duration};
@@ -27,6 +27,11 @@ pub async fn run(
     }
     let id = provider.id.clone();
     let observation = if provider.kind == ProviderKind::External {
+        let protocol = provider
+            .external
+            .as_ref()
+            .ok_or_else(|| AppError::input("External provider configuration is missing"))?
+            .discovery_protocol;
         let config = config.clone();
         let path = path.to_owned();
         let prepared = tokio::select! {
@@ -37,15 +42,30 @@ pub async fn run(
         let (executable, registration, invocation) = prepared;
         // The supervisor owns its deadlines. Never drop it before process cleanup finishes.
         if discovery {
-            let snapshot = host::discover_configured(
-                &executable,
-                &registration.id,
-                &id,
-                &registration.capabilities,
-                &invocation,
-                cancellation.cancelled(),
-            )
-            .await
+            let snapshot = match protocol {
+                DiscoveryProtocol::Legacy => {
+                    host::discover_configured(
+                        &executable,
+                        &registration.id,
+                        &id,
+                        &registration.capabilities,
+                        &invocation,
+                        cancellation.cancelled(),
+                    )
+                    .await
+                }
+                DiscoveryProtocol::NegotiatedV1 => {
+                    host::discover_negotiated(
+                        &executable,
+                        &registration.id,
+                        &id,
+                        &registration.capabilities,
+                        &invocation,
+                        cancellation.cancelled(),
+                    )
+                    .await
+                }
+            }
             .map_err(external_error)?;
             (
                 "Discovery completed".into(),
@@ -53,15 +73,30 @@ pub async fn run(
                 Some(snapshot),
             )
         } else {
-            let health = host::check_configured(
-                &executable,
-                &registration.id,
-                &id,
-                &registration.capabilities,
-                &invocation,
-                cancellation.cancelled(),
-            )
-            .await
+            let health = match protocol {
+                DiscoveryProtocol::Legacy => {
+                    host::check_configured(
+                        &executable,
+                        &registration.id,
+                        &id,
+                        &registration.capabilities,
+                        &invocation,
+                        cancellation.cancelled(),
+                    )
+                    .await
+                }
+                DiscoveryProtocol::NegotiatedV1 => {
+                    host::check_negotiated(
+                        &executable,
+                        &registration.id,
+                        &id,
+                        &registration.capabilities,
+                        &invocation,
+                        cancellation.cancelled(),
+                    )
+                    .await
+                }
+            }
             .map_err(external_error)?;
             (health.message, health.limitations, None)
         }
