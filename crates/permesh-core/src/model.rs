@@ -23,7 +23,6 @@ macro_rules! domain_enum {
 }
 domain_enum!(IdentityKind {
     Human,
-    External,
     Service,
     Bot,
     Unknown
@@ -31,8 +30,12 @@ domain_enum!(IdentityKind {
 domain_enum!(IdentityStatus {
     Active,
     Inactive,
+    Suspended,
+    Unknown
+});
+domain_enum!(Affiliation {
+    Internal,
     External,
-    Service,
     Unknown
 });
 domain_enum!(Privilege {
@@ -42,8 +45,15 @@ domain_enum!(Privilege {
     Owner,
     Unknown
 });
+domain_enum!(EvidenceKind {
+    Permission,
+    Assignment,
+    PolicyAttachment,
+    Unknown
+});
 domain_enum!(Certainty {
     Observed,
+    Derived,
     Inferred,
     Unknown
 });
@@ -52,6 +62,7 @@ domain_enum!(Certainty {
 pub struct Identity {
     pub id: String,
     pub kind: IdentityKind,
+    pub affiliation: Affiliation,
     pub status: IdentityStatus,
     pub verified_emails: Vec<String>,
 }
@@ -60,12 +71,19 @@ pub struct Account {
     pub key: EntityKey,
     pub login: String,
     pub kind: IdentityKind,
+    pub affiliation: Affiliation,
+    /// Lifecycle observed for this provider account, independent of its identity.
+    pub status: IdentityStatus,
     pub verified_emails: Vec<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Resource {
     pub key: EntityKey,
     pub name: String,
+    /// Namespaced provider type; absence means unknown.
+    pub kind: Option<String>,
+    /// Observed containment only; this does not imply grant inheritance.
+    pub parent: Option<EntityKey>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Group {
@@ -97,6 +115,7 @@ pub struct Grant {
     pub role: String,
     pub privilege: Privilege,
     pub certainty: Certainty,
+    pub evidence_kind: EvidenceKind,
     pub provenance: Provenance,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]

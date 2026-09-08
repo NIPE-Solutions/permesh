@@ -4,6 +4,9 @@ The Google provider reads directory identities. It does not enumerate groups,
 application permissions, Drive sharing, Google Cloud IAM, or effective access.
 This adapter is covered by mock API tests; live tenant qualification is pending.
 
+This page describes the bundled `type: google` adapter. Native Google packages
+use their own pinned SDK and wire contract; see [migration](../google-migration.md).
+
 ## Permissions and authentication
 
 Enable the Admin SDK API in an organization-controlled Google Cloud project.
@@ -99,10 +102,11 @@ Both provider instances must be configured. An alias alone carries unknown statu
 if the directory identity could not be discovered. A failed authority cannot
 establish that somebody is inactive.
 
-- `suspended: true` or `archived: true` maps to `inactive`.
+- `archived: true` maps to `inactive`, including when also suspended.
+- Otherwise `suspended: true` maps to `suspended`.
 - Both fields explicitly false map to `active`.
 - Missing status fields map to `unknown`; malformed values mark discovery incomplete.
-- Identity kind remains `unknown`: the directory does not establish human,
+- Identity and account kind/affiliation remain `unknown`: the directory does not establish human,
   contractor, bot, or service-account intent.
 
 Active means the observed account is neither suspended nor archived. It is not an

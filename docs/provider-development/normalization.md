@@ -4,9 +4,11 @@ Permesh answers who has access, through which path, and how much of that answer
 the provider could observe. A snapshot is evidence gathered over an interval,
 not a transaction across provider APIs or proof of every effective permission.
 
-This guide describes the current draft record contract. The independent identity,
-resource and evidence extensions in ADRs 0018–0020 remain proposals; do not emit
-their fields into drafts 1 or 2.
+This guide distinguishes the new internal model from the legacy wire contract.
+ADRs 0018–0020 are implemented in core, but their new fields cannot be emitted
+in drafts 1 or 2. Native providers must retain their pinned compatible SDK/wire
+projection until a negotiated contract supports the new dimensions. See the
+[migration guide](../migrations/domain-schema-2.md).
 
 ## Identities and accounts
 
@@ -22,9 +24,16 @@ login with an employee whose name looks similar, or promote public profile email
 to a verified organization identity. Host configuration selects authorities and
 reviewed aliases; adapters do not own cross-provider correlation.
 
-The legacy kind/status enums overlap. Do not invent employment or lifecycle to
-fill those fields. Preserve unknowns. Future independent affiliation/lifecycle
-fields will require explicit wire negotiation, not extra undeclared JSON fields.
+Internally, kind (human/service/bot/unknown), affiliation (internal/external/unknown)
+and lifecycle (active/inactive/suspended/unknown) are independent for identities
+and accounts. A service principal may be inactive; an external human may be active.
+Account lifecycle does not overwrite the canonical authority.
+
+The old wire enums overlap. Their explicit ingress mapper recovers only evidence
+they can express: external does not mean human, and service does not mean active.
+Do not append new fields to a strict legacy envelope. Do not squeeze suspended
+into inactive when authoring a new contract, or infer internal affiliation merely
+from directory membership.
 
 ## Resources, groups and relationships
 
@@ -34,9 +43,11 @@ source and UTC timestamp. Do not flatten nested teams into direct grants.
 Duplicate identical observations may be deduplicated; conflicting observations
 must reduce completeness or fail discovery rather than silently choosing one.
 
-Current resources have key and name only. Clearly label evidence scopes in
-provider documentation, especially AWS policies and Cloudflare wildcard scopes.
-Future parent-resource containment must not imply permission inheritance.
+Internal resources include optional provider-owned kinds such as `aws.account`
+and a parent key. Legacy resources map to unknown kind and no observed parent.
+Clearly label evidence scopes, especially AWS policies and Cloudflare wildcard
+scopes. Containment never implies permission inheritance. Parent links must
+resolve in the same snapshot and form an acyclic graph; discovery order is irrelevant.
 Validate references after collection; do not emit dangling relations when a
 restricted API hides a referenced account or group.
 
@@ -47,11 +58,18 @@ Keep the native role alongside normalized privilege. GitHub `maintain` may map t
 attachment alone does not prove effective admin authorization and should retain
 unknown privilege unless the adapter has stronger evidence.
 
+Classify internal evidence as `permission`, `assignment`, `policy_attachment` or
+`unknown`. The native role remains separate from this category and normalized
+privilege. Legacy wire records default to unknown evidence kind: method strings
+and policy names are not a substitute for an explicit contract.
+
 `observed` means the source reported the record. It does not mean every request
-will be authorized. `inferred` must be justified in provider documentation;
-`unknown` must remain available. A path through observed memberships explains
-the relationships, but does not account for hidden denies, branch protection,
-session conditions or policies the API did not expose.
+will be authorized. A path joining observed membership with an observed grant
+is `derived`, while the original grant remains observed. `inferred` must be
+justified in provider documentation; `unknown` remains available. Neither
+derivation nor resource containment accounts for hidden denies, branch protection,
+session conditions or unobserved policies. New certainty values also require wire
+negotiation before native providers can emit them.
 
 Good: report a policy attachment with its ARN, native name and documented limits.
 Bad: transform that attachment into an assertion that all AWS actions are allowed.
@@ -74,6 +92,8 @@ exchange must not be disguised as an empty successful snapshot.
 
 - Stable keys survive renames and reordered API pages.
 - No duplicates, cross-instance references or unexplained conflicting records.
+- Independent lifecycle and affiliation evidence; inactive service principals remain visible.
+- Valid resource kinds, parent references and acyclic containment; no invented access edges.
 - Pagination, rate limits, denial, malformed payloads and cancellation have mock tests.
 - Native runtime output decodes through the host, including negative operations.
 - Unknown privilege, partial completion and source limitations survive the query.

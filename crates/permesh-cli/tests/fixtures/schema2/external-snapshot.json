@@ -1,0 +1,58 @@
+{
+  "provider": "instance",
+  "identities": [],
+  "accounts": [
+    {
+      "key": {
+        "provider": "instance",
+        "id": "guest"
+      },
+      "login": "guest",
+      "kind": "unknown",
+      "status": "unknown",
+      "affiliation": "external",
+      "verified_emails": []
+    }
+  ],
+  "resources": [
+    {
+      "key": {
+        "provider": "instance",
+        "id": "r"
+      },
+      "name": "Resource",
+      "kind": null,
+      "parent": null
+    }
+  ],
+  "groups": [],
+  "memberships": [],
+  "grants": [
+    {
+      "id": "g",
+      "subject": {
+        "kind": "account",
+        "key": {
+          "provider": "instance",
+          "id": "guest"
+        }
+      },
+      "resource": {
+        "provider": "instance",
+        "id": "r"
+      },
+      "role": "Reader",
+      "privilege": "standard",
+      "certainty": "observed",
+      "evidence_kind": "unknown",
+      "provenance": {
+        "method": "fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      }
+    }
+  ],
+  "complete": false,
+  "limitations": [
+    "External provider reports limited visibility"
+  ]
+}

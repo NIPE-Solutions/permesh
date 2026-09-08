@@ -11,7 +11,11 @@ use std::path::PathBuf;
 pub struct Cli {
     #[arg(long, global = true, value_name = "FILE")]
     pub config: Option<PathBuf>,
-    #[arg(long, global = true, help = "Emit output schema 1 JSON")]
+    #[arg(
+        long,
+        global = true,
+        help = "Emit JSON (access schema 2; control schema 1)"
+    )]
     pub json: bool,
     #[arg(long, global = true, value_enum, default_value = "auto")]
     pub color: Color,

@@ -1,8 +1,18 @@
 // SPDX-License-Identifier: MIT
 use crate::{EntityKey, Snapshot, Subject};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const MAX_SNAPSHOT_RECORDS: usize = 1_000_000;
+const MAX_RESOURCE_KIND_BYTES: usize = 128;
+const MAX_RESOURCE_KIND_SEGMENT_BYTES: usize = 64;
+
+#[derive(Clone, Copy)]
+enum VisitState {
+    Unvisited,
+    Visiting,
+    Complete,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DomainError {
     #[error("provider snapshot exceeds the record limit")]
@@ -15,6 +25,10 @@ pub enum DomainError {
     Identifier,
     #[error("provider snapshot contains a dangling relationship")]
     Reference,
+    #[error("provider snapshot contains an invalid resource kind")]
+    ResourceKind,
+    #[error("provider snapshot contains cyclic resource containment")]
+    ResourceCycle,
     #[error("access path traversal exceeds the safety limit")]
     PathLimit,
     #[error("identity lookup is ambiguous; configure an explicit provider account mapping")]
@@ -52,6 +66,7 @@ impl Snapshot {
         let accounts = keys(self.accounts.iter().map(|v| &v.key).collect())?;
         let groups = keys(self.groups.iter().map(|v| &v.key).collect())?;
         let resources = keys(self.resources.iter().map(|v| &v.key).collect())?;
+        validate_resources(self)?;
         let has_subject = |s: &Subject| match s {
             Subject::Account(k) => accounts.contains(k),
             Subject::Group(k) => groups.contains(k),
@@ -97,6 +112,65 @@ fn validate_provenance(provenance: &crate::Provenance) -> Result<(), DomainError
     .map_err(|_| DomainError::Provenance)?;
     if !timestamp.offset().is_utc() {
         return Err(DomainError::Provenance);
+    }
+    Ok(())
+}
+
+// Index parents once and mark each chain iteratively. Completed chains are never
+// walked again, so deeply nested or shuffled resources do not exhaust the stack
+// or cause quadratic traversal work.
+fn validate_resources(snapshot: &Snapshot) -> Result<(), DomainError> {
+    let index: BTreeMap<_, _> = snapshot
+        .resources
+        .iter()
+        .enumerate()
+        .map(|(i, resource)| (&resource.key, i))
+        .collect();
+    let mut parents = Vec::with_capacity(snapshot.resources.len());
+    for resource in &snapshot.resources {
+        if let Some(kind) = &resource.kind {
+            let mut segments = 0;
+            if kind.len() > MAX_RESOURCE_KIND_BYTES
+                || !kind.split('.').all(|segment| {
+                    segments += 1;
+                    let bytes = segment.as_bytes();
+                    !bytes.is_empty()
+                        && bytes.len() <= MAX_RESOURCE_KIND_SEGMENT_BYTES
+                        && bytes[0].is_ascii_lowercase()
+                        && bytes.iter().all(|b| {
+                            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-')
+                        })
+                })
+                || segments < 2
+            {
+                return Err(DomainError::ResourceKind);
+            }
+        }
+        parents.push(
+            resource
+                .parent
+                .as_ref()
+                .map(|key| index.get(key).copied().ok_or(DomainError::Reference))
+                .transpose()?,
+        );
+    }
+    let mut state = vec![VisitState::Unvisited; parents.len()];
+    let mut chain = Vec::new();
+    for start in 0..parents.len() {
+        let mut current = Some(start);
+        while let Some(node) = current {
+            match state[node] {
+                VisitState::Complete => break,
+                VisitState::Visiting => return Err(DomainError::ResourceCycle),
+                VisitState::Unvisited => {}
+            }
+            state[node] = VisitState::Visiting;
+            chain.push(node);
+            current = parents[node];
+        }
+        for node in chain.drain(..) {
+            state[node] = VisitState::Complete;
+        }
     }
     Ok(())
 }

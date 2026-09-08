@@ -49,6 +49,14 @@ fn adding_external_instance_is_configuration_only_and_queries_fail_closed() {
         assert_eq!(output.status.code(), Some(3), "{output:?}");
         let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(value["complete"], false);
+        assert_eq!(
+            value["schema_version"],
+            if matches!(args[0], "user" | "admins" | "orphaned") {
+                2
+            } else {
+                1
+            }
+        );
     }
     assert!(!root.path().join("state").exists());
     assert_eq!(before, std::fs::read(path).unwrap());

@@ -92,7 +92,7 @@ fn unavailable_authority_makes_all_accounts_unassessed() {
             .iter()
             .all(|a| a["reason"] == "unassessed")
     );
-    assert_eq!(data["result"]["accounts"].as_array().unwrap().len(), 4);
+    assert_eq!(data["result"]["accounts"].as_array().unwrap().len(), 6);
     let path = dir.path().join("permesh.yaml");
     let mut config = permesh_config::Config::load(&path).unwrap();
     config.providers.retain(|p| p.id != "demo");

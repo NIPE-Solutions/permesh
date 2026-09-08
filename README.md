@@ -12,25 +12,32 @@ Permesh
 
 Identity
   alice@example.com
-  active
+  Identity classification: human / active / internal
   demo · alice-dev
+  Account classification: human / active / internal
 
-Access
+Access evidence
 
 demo
   acme/payments-api
     Write (standard)
     via team/backend
-    certainty: observed
+    evidence: assignment
+    grant certainty: observed
+    path certainty: derived
 ```
 
-*Example from the offline demo. All names and access records are synthetic.*
+*Excerpt from the current source checkout’s offline demo. All names and access records are synthetic.*
 
 Permesh is read-only. Provider configuration and identity mappings can live in
 Git; credentials stay in your environment or OS keychain. Results are processed
 locally and discarded when the command exits.
 
 ## Try it
+
+The source checkout includes unreleased domain hardening and access JSON schema 2.
+Published alpha.2 retains its earlier schema and workflow; see the
+[migration notes](docs/migrations/domain-schema-2.md) when upgrading from it.
 
 Download the **[0.1.0-alpha.2 prerelease](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.2)** for macOS, Linux or Windows. Verify its provenance and checksum before extracting; see [installation](docs/installation.md). This evaluation release has [known limitations](docs/releases/0.1.0-alpha.2.md).
 

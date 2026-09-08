@@ -29,7 +29,7 @@ fn admins_reports_bob_and_preserves_role_and_provenance_in_json() {
         String::from_utf8_lossy(&output.stderr)
     );
     let v: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(v["schema_version"], 1);
+    assert_eq!(v["schema_version"], 2);
     assert_eq!(v["command"], "admins");
     assert_eq!(v["complete"], true);
     assert_eq!(v["result"]["access"].as_array().unwrap().len(), 1);

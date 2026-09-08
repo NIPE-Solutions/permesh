@@ -42,7 +42,7 @@ def smoke(binary):
             raise RuntimeError('demo user access missing')
         for command in [('user', 'alice@example.com'), ('admins',), ('orphaned',)]:
             report = json.loads(run('--config', str(config), *command, '--json'))
-            if report['schema_version'] != 1 or report['complete'] is not True or not report['result']['access']:
+            if report['schema_version'] != 2 or report['complete'] is not True or not report['result']['access']:
                 raise RuntimeError('unexpected demo report')
         reasons = {record['reason'] for record in report['result']['accounts']}
         if report['result']['authority_complete'] is not True or 'inactive_identity' not in reasons or not reasons.intersection({'bot', 'service_account'}):

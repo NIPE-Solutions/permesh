@@ -4,6 +4,8 @@ use permesh_core::*;
 
 fn account(id: &str, kind: IdentityKind) -> Account {
     Account {
+        affiliation: Affiliation::Unknown,
+        status: IdentityStatus::Unknown,
         key: EntityKey::new("app", id),
         login: id.into(),
         kind,
@@ -12,6 +14,7 @@ fn account(id: &str, kind: IdentityKind) -> Account {
 }
 fn identity(id: &str, kind: IdentityKind, status: IdentityStatus) -> Identity {
     Identity {
+        affiliation: Affiliation::Unknown,
         id: id.into(),
         kind,
         status,
@@ -28,9 +31,12 @@ fn classifies_accounts_without_grants_and_preserves_uncertainty() {
         identity("active", IdentityKind::Human, IdentityStatus::Active),
         identity("inactive", IdentityKind::Human, IdentityStatus::Inactive),
         identity("unknown", IdentityKind::Human, IdentityStatus::Unknown),
-        identity("service", IdentityKind::Service, IdentityStatus::Service),
-        identity("external", IdentityKind::Human, IdentityStatus::External),
-        identity("bot", IdentityKind::Service, IdentityStatus::Service),
+        identity("service", IdentityKind::Service, IdentityStatus::Unknown),
+        Identity {
+            affiliation: Affiliation::External,
+            ..identity("external", IdentityKind::Human, IdentityStatus::Unknown)
+        },
+        identity("bot", IdentityKind::Service, IdentityStatus::Unknown),
         identity("inactive-bot", IdentityKind::Bot, IdentityStatus::Inactive),
     ];
     let mut app = Snapshot::new("app");
@@ -54,8 +60,10 @@ fn classifies_accounts_without_grants_and_preserves_uncertainty() {
         .push(account("unmapped-service", IdentityKind::Service));
     app.accounts
         .push(account("unmapped-bot", IdentityKind::Bot));
-    app.accounts
-        .push(account("unmapped-external", IdentityKind::External));
+    app.accounts.push(Account {
+        affiliation: Affiliation::External,
+        ..account("unmapped-external", IdentityKind::Unknown)
+    });
     let aliases = [
         (
             "alias-only".into(),
@@ -209,6 +217,8 @@ fn keeps_direct_and_cyclic_group_paths_with_original_evidence_in_stable_order() 
         observed_at: "2026-01-01T00:00:00Z".into(),
     };
     app.resources.push(Resource {
+        kind: None,
+        parent: None,
         key: EntityKey::new("app", "repo"),
         name: "repository".into(),
     });
@@ -244,6 +254,7 @@ fn keeps_direct_and_cyclic_group_paths_with_original_evidence_in_stable_order() 
         ("active", Subject::Account(EntityKey::new("app", "active"))),
     ] {
         app.grants.push(Grant {
+            evidence_kind: EvidenceKind::Unknown,
             id: id.into(),
             subject,
             resource: EntityKey::new("app", "repo"),
@@ -307,17 +318,23 @@ fn inactive_service_and_external_override_kind_and_ambiguous_bot_stays_ambiguous
             IdentityKind::Service,
             IdentityStatus::Inactive,
         ),
-        identity(
-            "inactive-external",
-            IdentityKind::External,
-            IdentityStatus::Inactive,
-        ),
+        Identity {
+            affiliation: Affiliation::External,
+            ..identity(
+                "inactive-external",
+                IdentityKind::Unknown,
+                IdentityStatus::Inactive,
+            )
+        },
         identity("ambiguous-bot", IdentityKind::Bot, IdentityStatus::Inactive),
     ];
     let mut app = Snapshot::new("app");
     app.accounts = vec![
         account("inactive-service", IdentityKind::Service),
-        account("inactive-external", IdentityKind::External),
+        Account {
+            affiliation: Affiliation::External,
+            ..account("inactive-external", IdentityKind::Unknown)
+        },
         account("ambiguous-bot", IdentityKind::Bot),
     ];
     let aliases = [(
@@ -375,10 +392,13 @@ fn exponentially_branching_memberships_fail_with_path_limit_instead_of_truncatin
         previous = next;
     }
     app.resources.push(Resource {
+        kind: None,
+        parent: None,
         key: EntityKey::new("app", "r"),
         name: "Resource".into(),
     });
     app.grants.push(Grant {
+        evidence_kind: EvidenceKind::Unknown,
         id: "g".into(),
         subject: previous[0].clone(),
         resource: EntityKey::new("app", "r"),

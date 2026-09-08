@@ -45,6 +45,8 @@ pub(crate) fn membership(value: &Membership) -> usize {
 pub(crate) fn resource(value: &Resource) -> usize {
     total(&[
         size_of::<Resource>(),
+        value.kind.as_ref().map_or(0, String::len),
+        value.parent.as_ref().map_or(0, key_heap),
         key_heap(&value.key),
         value.name.len(),
     ])

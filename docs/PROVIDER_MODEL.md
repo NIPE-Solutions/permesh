@@ -10,8 +10,8 @@ GitHub scope: organization members/owners, organization repositories, teams and 
 
 External provider protocol is specified in [provider-protocol.md](provider-protocol.md). Pure versioned discovery/health validation is implemented in `permesh-provider-protocol`.
 `permesh-provider-external` runs only managed native copies: draft 1 for standalone
-discovery and draft 2 for approved workspace operations. Approval binds full
-configuration and registration before secret resolution; credentials are sent
+discovery and draft 2 for approved workspace operations. Approval binds the selected provider context
+and registration before secret resolution; credentials are sent
 only after an exact handshake. External identities require explicitly approved
 source selection and registered identity capability. No empty official AWS/Cloudflare crates are created. Google supplies only directory accounts and identities; it does not invent access grants. See [Google scope](providers/google.md).
 
@@ -19,3 +19,14 @@ External [declarative setup](provider-setup.md) uses draft 3 solely to describe
 typed conditional fields. SDK setup schema 1 is evaluated locally by the CLI;
 no answers or credentials are sent in this exchange. Setup does not extend the
 read-capability set or approve configured workspace execution.
+
+## Domain and wire evolution
+
+Core records now separate kind, affiliation and lifecycle, validate resource
+containment and retain explicit evidence kinds. Native wire drafts cannot yet
+express every new field. The host maps legacy omissions to unknown rather than
+inferring semantics from names; official packages keep their compatible pinned
+SDK until a negotiated contract can transmit the new dimensions. Providers must
+not silently discard suspension, affiliation or policy-attachment evidence when
+upgrading. See [normalization](provider-development/normalization.md) and
+[migration](migrations/domain-schema-2.md).

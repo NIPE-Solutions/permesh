@@ -33,7 +33,7 @@ impl Outcome {
         let timestamp = now()?;
         Ok(Self {
             report: Report {
-                schema_version: 1,
+                schema_version: schema_version(command),
                 command: command.into(),
                 complete: true,
                 started_at: timestamp.clone(),
@@ -43,5 +43,28 @@ impl Outcome {
             },
             code: 0,
         })
+    }
+}
+
+/// Access reports migrated together; control reports retain their independent contract.
+pub(crate) fn schema_version(command: &str) -> u32 {
+    match command {
+        "user" | "admins" | "orphaned" | "external_discover" => 2,
+        _ => 1,
+    }
+}
+pub(crate) fn command_schema_version(command: &crate::args::Command) -> u32 {
+    use crate::args::{Command, ProviderCommand};
+    match command {
+        Command::User { .. }
+        | Command::Admins
+        | Command::Orphaned
+        | Command::Provider {
+            command:
+                ProviderCommand::External {
+                    command: crate::external::ExternalCommand::Discover { .. },
+                },
+        } => 2,
+        _ => 1,
     }
 }

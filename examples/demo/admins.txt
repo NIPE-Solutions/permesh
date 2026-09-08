@@ -1,13 +1,17 @@
 Permesh
 
-Privileged access
+Privileged access evidence
 
 demo · bob-admin
+  Account classification: human / active / internal
+  Identity classification: human / active / internal
   Identity: bob@example.com
   acme/infrastructure
     Admin (admin)
     via synthetic demo fixture
-    certainty: observed
+    evidence: permission
+    grant certainty: observed
+    path certainty: observed
 
 Summary
   1 accounts with known privileged paths

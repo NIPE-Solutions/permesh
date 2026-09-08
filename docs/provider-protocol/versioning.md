@@ -76,3 +76,13 @@ downgrade behavior is introduced by the boundary extraction.
 
 See [ADR 0016](../adr/0016-wire-contracts.md) and the
 [current protocol](../provider-protocol.md).
+
+## Domain schema migration
+
+The host now maps legacy records into independent principal dimensions, optional
+resource containment and explicit evidence categories. This does not add fields
+or enum values to any legacy wire draft. Unexpressed values remain unknown.
+Access CLI JSON uses its own schema 2; this is not a protocol version increment.
+See [migration mappings](../migrations/domain-schema-2.md). Native provider SDK
+updates must wait for representable negotiated records rather than silently
+dropping new semantics into a legacy projection.

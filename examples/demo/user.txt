@@ -2,23 +2,28 @@ Permesh
 
 Identity
   alice@example.com
-  active
+  Identity classification: human / active / internal
   demo · alice-dev
+  Account classification: human / active / internal
 
-Access
+Access evidence
 
 demo
   acme/payments-api
     Write (standard)
     via team/backend
-    certainty: observed
+    evidence: assignment
+    grant certainty: observed
+    path certainty: derived
   acme/infrastructure
     Read (standard)
     via synthetic demo fixture
-    certainty: observed
+    evidence: permission
+    grant certainty: observed
+    path certainty: observed
 
 Summary
-  2 observed access paths
+  2 access evidence paths
 
 Providers
   demo · demo: connected

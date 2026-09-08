@@ -46,7 +46,7 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         };
         writeln!(out, "Identity\n  {}", safe(name))?;
         if result["identity"].is_object() {
-            writeln!(out, "  {}", safe(field(&result["identity"], "status")))?;
+            write_classification(&mut out, "Identity", &result["identity"])?;
         }
         if let Some(accounts) = result["accounts"].as_array() {
             for a in accounts {
@@ -56,9 +56,10 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
                     safe(field(&a["key"], "provider")),
                     safe(field(a, "login"))
                 )?;
+                write_classification(&mut out, "Account", a)?;
             }
         }
-        writeln!(out, "\nAccess")?;
+        writeln!(out, "\nAccess evidence")?;
         let mut count = 0;
         if let Some(access) = result["access"].as_array() {
             let mut current = String::new();
@@ -72,7 +73,7 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
                 count += 1;
             }
         }
-        writeln!(out, "\nSummary\n  {count} observed access paths")?;
+        writeln!(out, "\nSummary\n  {count} access evidence paths")?;
     } else if report.command == "admins" {
         crate::admins_output::write_admins(&mut out, result, dot)?;
     } else if report.command == "orphaned" {
@@ -153,12 +154,12 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
     }
     Ok(())
 }
-pub fn write_error(error: &AppError, json: bool) -> io::Result<()> {
+pub fn write_error(error: &AppError, json: bool, schema_version: u32) -> io::Result<()> {
     if json {
         let mut out = io::stdout().lock();
         serde_json::to_writer(
             &mut out,
-            &serde_json::json!({"schema_version":1,"error":error}),
+            &serde_json::json!({"schema_version":schema_version,"error":error}),
         )?;
         writeln!(out)
     } else {
@@ -196,12 +197,39 @@ pub(crate) fn write_path(out: &mut impl Write, path: &serde_json::Value) -> io::
     } else {
         writeln!(out, "    via {}", groups.join(" -> "))?;
     }
+    write_grant_evidence(out, &path["grant"])?;
     writeln!(
         out,
-        "    certainty: {}",
-        safe(field(&path["grant"], "certainty"))
+        "    path certainty: {}",
+        safe(field(path, "certainty"))
     )?;
     Ok(())
+}
+
+/// Keep independent classifications visible in every account-oriented report.
+pub(crate) fn write_classification(
+    out: &mut impl Write,
+    label: &str,
+    value: &serde_json::Value,
+) -> io::Result<()> {
+    writeln!(
+        out,
+        "  {label} classification: {} / {} / {}",
+        safe(field(value, "kind")),
+        safe(field(value, "status")),
+        safe(field(value, "affiliation"))
+    )
+}
+pub(crate) fn write_grant_evidence(
+    out: &mut impl Write,
+    grant: &serde_json::Value,
+) -> io::Result<()> {
+    writeln!(
+        out,
+        "    evidence: {}\n    grant certainty: {}",
+        safe(field(grant, "evidence_kind")),
+        safe(field(grant, "certainty"))
+    )
 }
 
 #[cfg(test)]

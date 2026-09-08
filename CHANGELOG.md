@@ -4,13 +4,16 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- **Access JSON schema 2:** user, admins, orphaned and standalone external discovery now expose independent principal kind, affiliation and lifecycle, resource kind/parent, access evidence kind and path certainty. Control JSON and legacy provider wire formats stay unchanged; see [migration guidance](docs/migrations/domain-schema-2.md).
+- Model suspension separately from inactivity, including in the bundled Google adapter. Orphan review prioritizes inactive/suspended identities even for service, bot and external principals. Resource containment is validated and never invents access inheritance.
+
 - Prune membership branches that cannot reach observed grants in user and orphaned queries, keeping accounts without grants reviewable without consuming access-path limits. Preserve observed paths, provenance and ordering; compare path sort keys without allocating temporary vectors. Bound cumulative path-copy work to prevent large labels multiplying into unbounded materialized results; exhaustion fails explicitly.
 - Separate legacy provider discovery records and CLI schema-1 query, snapshot and control-command output from internal domain serialization. Frozen protocol and JSON fixtures preserve existing field and enum contracts.
 - Guide official GitHub add through verified download, explicit native-code trust, declarative setup and separate workspace approval. Automation requires an answer file and explicit risk acceptance; authentication stays separate and current-host pins remain unchanged.
 
 - Scope workspace approval to the selected provider, credential references, relevant identity aliases/authority and registration. **Existing full-workspace approvals require one fresh review and approval.** Unrelated provider and organization changes then preserve approval; changed security inputs still fail closed.
 - Reject provider-add YAML updates that exceed the workspace load limit. Provider add/setup share captured-revision checks so detected concurrent edits leave the current configuration intact.
-- Add an implementation-backed architecture audit, prioritized hardening backlog and explicit migration decisions. Domain and negotiated protocol proposals remain unstabilized.
+- Add an implementation-backed architecture audit, prioritized hardening backlog and explicit migration decisions. Domain semantics and negotiated protocol work remain unstabilized.
 
 ## 0.1.0-alpha.2
 

@@ -133,10 +133,10 @@ fn every_legacy_enum_value_keeps_its_wire_spelling_and_domain_meaning() {
             )+
         };
     }
-    cases!(IdentityKind, kind, identities, "human", "\"human\"" => Human, "\"external\"" => External,
+    cases!(IdentityKind, kind, identities, "human", "\"human\"" => Human, "\"external\"" => Unknown,
         "\"service\"" => Service, "\"bot\"" => Bot, "\"unknown\"" => Unknown);
     cases!(IdentityStatus, status, identities, "active", "\"active\"" => Active, "\"inactive\"" => Inactive,
-        "\"external\"" => External, "\"service\"" => Service, "\"unknown\"" => Unknown);
+        "\"external\"" => Unknown, "\"service\"" => Unknown, "\"unknown\"" => Unknown);
     cases!(Privilege, privilege, grants, "standard", "\"standard\"" => Standard, "\"elevated\"" => Elevated,
         "\"admin\"" => Admin, "\"owner\"" => Owner, "\"unknown\"" => Unknown);
     cases!(Certainty, certainty, grants, "observed", "\"observed\"" => Observed, "\"inferred\"" => Inferred,

@@ -1,6 +1,6 @@
 # ADR 0018: Independent identity dimensions
 
-Status: Proposed for the domain migration slice
+Status: Accepted for the domain model; new wire emission remains unnegotiated
 
 ## Decision
 
@@ -28,3 +28,6 @@ providers need negotiated record support before emitting new dimensions.
 Orphan review checks inactivity/suspension before intentional service/bot/external
 classification. An inactive service identity with access still merits review;
 an unmatched active service account is not automatically a former employee.
+
+The implementation uses access JSON schema 2 and retains legacy wire DTOs with
+conservative ingress mapping. See the [migration guide](../migrations/domain-schema-2.md).

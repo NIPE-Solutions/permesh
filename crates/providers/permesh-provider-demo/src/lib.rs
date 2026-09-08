@@ -16,13 +16,14 @@ impl DemoProvider {
             method: "synthetic demo fixture".into(),
             observed_at: "2026-01-01T00:00:00Z".into(),
         };
-        for (id, email, login, kind, status) in [
+        for (id, email, login, kind, status, affiliation) in [
             (
                 "100",
                 "alice@example.com",
                 "alice-dev",
                 IdentityKind::Human,
                 IdentityStatus::Active,
+                Affiliation::Internal,
             ),
             (
                 "101",
@@ -30,6 +31,7 @@ impl DemoProvider {
                 "bob-admin",
                 IdentityKind::Human,
                 IdentityStatus::Active,
+                Affiliation::Internal,
             ),
             (
                 "102",
@@ -37,25 +39,47 @@ impl DemoProvider {
                 "former-dev",
                 IdentityKind::Human,
                 IdentityStatus::Inactive,
+                Affiliation::Internal,
             ),
             (
                 "103",
                 "build@example.com",
                 "build-bot",
                 IdentityKind::Bot,
-                IdentityStatus::Service,
+                IdentityStatus::Active,
+                Affiliation::Internal,
+            ),
+            (
+                "104",
+                "contractor@example.com",
+                "contractor-dev",
+                IdentityKind::Human,
+                IdentityStatus::Active,
+                Affiliation::External,
+            ),
+            (
+                "105",
+                "automation@example.com",
+                "automation-service",
+                IdentityKind::Service,
+                IdentityStatus::Active,
+                Affiliation::Internal,
             ),
         ] {
             s.identities.push(Identity {
                 id: email.into(),
                 kind,
                 status,
+                affiliation,
                 verified_emails: vec![email.into()],
             });
             s.accounts.push(Account {
                 key: key(id),
                 login: login.into(),
                 kind,
+                // Accounts remain active even after the authoritative identity departs.
+                status: IdentityStatus::Active,
+                affiliation,
                 verified_emails: vec![email.into()],
             });
         }
@@ -63,11 +87,19 @@ impl DemoProvider {
             key: key("team-10"),
             name: "team/backend".into(),
         });
+        s.resources.push(Resource {
+            key: key("org-1"),
+            name: "acme".into(),
+            kind: Some("demo.organization".into()),
+            parent: None,
+        });
         for (id, name) in [
             ("repo-20", "acme/payments-api"),
             ("repo-21", "acme/infrastructure"),
         ] {
             s.resources.push(Resource {
+                kind: Some("demo.repository".into()),
+                parent: Some(key("org-1")),
                 key: key(id),
                 name: name.into(),
             });
@@ -113,9 +145,28 @@ impl DemoProvider {
                 "Write",
                 Privilege::Standard,
             ),
+            (
+                "grant-6",
+                Subject::Account(key("104")),
+                "repo-20",
+                "Read",
+                Privilege::Standard,
+            ),
+            (
+                "grant-7",
+                Subject::Account(key("105")),
+                "repo-21",
+                "Write",
+                Privilege::Standard,
+            ),
         ] {
             s.grants.push(Grant {
                 id: id.into(),
+                evidence_kind: if matches!(&subject, Subject::Group(_)) {
+                    EvidenceKind::Assignment
+                } else {
+                    EvidenceKind::Permission
+                },
                 subject,
                 resource: key(resource),
                 role: role.into(),

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! CLI-owned output schema 1. Domain serde implementations are not this contract.
+//! CLI-owned output schema 2. Domain serde implementations are not this contract.
 //!
 //! Borrow payload strings while mapping every field and enum explicitly. Preserve
 //! the query's ordering and evidence; presentation must not reclassify or truncate.
@@ -29,6 +29,7 @@ struct Identity<'a> {
     id: &'a str,
     kind: &'static str,
     status: &'static str,
+    affiliation: &'static str,
     verified_emails: &'a [String],
 }
 impl<'a> From<&'a core::Identity> for Identity<'a> {
@@ -37,6 +38,7 @@ impl<'a> From<&'a core::Identity> for Identity<'a> {
             id: &value.id,
             kind: identity_kind(value.kind),
             status: identity_status(value.status),
+            affiliation: affiliation(value.affiliation),
             verified_emails: &value.verified_emails,
         }
     }
@@ -47,6 +49,8 @@ struct Account<'a> {
     key: EntityKey<'a>,
     login: &'a str,
     kind: &'static str,
+    status: &'static str,
+    affiliation: &'static str,
     verified_emails: &'a [String],
 }
 impl<'a> From<&'a core::Account> for Account<'a> {
@@ -55,6 +59,8 @@ impl<'a> From<&'a core::Account> for Account<'a> {
             key: (&value.key).into(),
             login: &value.login,
             kind: identity_kind(value.kind),
+            status: identity_status(value.status),
+            affiliation: affiliation(value.affiliation),
             verified_emails: &value.verified_emails,
         }
     }
@@ -64,12 +70,16 @@ impl<'a> From<&'a core::Account> for Account<'a> {
 struct Resource<'a> {
     key: EntityKey<'a>,
     name: &'a str,
+    kind: Option<&'a str>,
+    parent: Option<EntityKey<'a>>,
 }
 impl<'a> From<&'a core::Resource> for Resource<'a> {
     fn from(value: &'a core::Resource) -> Self {
         Self {
             key: (&value.key).into(),
             name: &value.name,
+            kind: value.kind.as_deref(),
+            parent: value.parent.as_ref().map(Into::into),
         }
     }
 }
@@ -126,6 +136,7 @@ struct Grant<'a> {
     role: &'a str,
     privilege: &'static str,
     certainty: &'static str,
+    evidence_kind: &'static str,
     provenance: Provenance<'a>,
 }
 impl<'a> From<&'a core::Grant> for Grant<'a> {
@@ -137,6 +148,7 @@ impl<'a> From<&'a core::Grant> for Grant<'a> {
             role: &value.role,
             privilege: privilege(value.privilege),
             certainty: certainty(value.certainty),
+            evidence_kind: evidence_kind(value.evidence_kind),
             provenance: (&value.provenance).into(),
         }
     }
@@ -144,6 +156,7 @@ impl<'a> From<&'a core::Grant> for Grant<'a> {
 
 #[derive(Serialize)]
 struct AccessPath<'a> {
+    certainty: &'static str,
     account: EntityKey<'a>,
     groups: Vec<Group<'a>>,
     memberships: Vec<Membership<'a>>,
@@ -153,6 +166,7 @@ struct AccessPath<'a> {
 impl<'a> From<&'a core::AccessPath> for AccessPath<'a> {
     fn from(value: &'a core::AccessPath) -> Self {
         Self {
+            certainty: certainty(value.certainty()),
             account: (&value.account).into(),
             groups: rows(&value.groups),
             memberships: rows(&value.memberships),
@@ -330,7 +344,6 @@ impl<'a> From<&'a core::IdentityResolution> for IdentityResolution<'a> {
 fn identity_kind(value: core::IdentityKind) -> &'static str {
     match value {
         core::IdentityKind::Human => "human",
-        core::IdentityKind::External => "external",
         core::IdentityKind::Service => "service",
         core::IdentityKind::Bot => "bot",
         core::IdentityKind::Unknown => "unknown",
@@ -341,8 +354,7 @@ fn identity_status(value: core::IdentityStatus) -> &'static str {
     match value {
         core::IdentityStatus::Active => "active",
         core::IdentityStatus::Inactive => "inactive",
-        core::IdentityStatus::External => "external",
-        core::IdentityStatus::Service => "service",
+        core::IdentityStatus::Suspended => "suspended",
         core::IdentityStatus::Unknown => "unknown",
     }
 }
@@ -360,6 +372,7 @@ fn privilege(value: core::Privilege) -> &'static str {
 fn certainty(value: core::Certainty) -> &'static str {
     match value {
         core::Certainty::Observed => "observed",
+        core::Certainty::Derived => "derived",
         core::Certainty::Inferred => "inferred",
         core::Certainty::Unknown => "unknown",
     }
@@ -368,6 +381,7 @@ fn certainty(value: core::Certainty) -> &'static str {
 fn orphan_reason(value: core::OrphanReason) -> &'static str {
     match value {
         core::OrphanReason::InactiveIdentity => "inactive_identity",
+        core::OrphanReason::SuspendedIdentity => "suspended_identity",
         core::OrphanReason::UnknownIdentity => "unknown_identity",
         core::OrphanReason::UnknownStatus => "unknown_status",
         core::OrphanReason::AmbiguousIdentity => "ambiguous_identity",
@@ -375,5 +389,21 @@ fn orphan_reason(value: core::OrphanReason) -> &'static str {
         core::OrphanReason::ServiceAccount => "service_account",
         core::OrphanReason::Bot => "bot",
         core::OrphanReason::Unassessed => "unassessed",
+    }
+}
+
+fn affiliation(value: core::Affiliation) -> &'static str {
+    match value {
+        core::Affiliation::Internal => "internal",
+        core::Affiliation::External => "external",
+        core::Affiliation::Unknown => "unknown",
+    }
+}
+fn evidence_kind(value: core::EvidenceKind) -> &'static str {
+    match value {
+        core::EvidenceKind::Permission => "permission",
+        core::EvidenceKind::Assignment => "assignment",
+        core::EvidenceKind::PolicyAttachment => "policy_attachment",
+        core::EvidenceKind::Unknown => "unknown",
     }
 }
