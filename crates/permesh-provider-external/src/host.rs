@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Supervision for explicitly trusted native providers. This is not a sandbox.
 use crate::ExternalError;
 pub use crate::invocation::Invocation;

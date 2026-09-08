@@ -31,7 +31,7 @@ separately reviewed host dependencies below.
 
 CI uses cargo-deny 0.20.2 and cargo-audit 0.22.2, observed published 2026-07-09 and 2026-06-05 respectively. Exact installer versions and each tool's own lockfile reduce drift; advisory databases deliberately refresh. A passing scan cannot establish absence of unknown vulnerabilities. Decisions about cargo-dist 0.32.0 and cargo-nextest 0.9.143 are in [releasing.md](releasing.md).
 
-The MIT text was obtained from [SPDX's MIT license text](https://github.com/spdx/license-list-data/blob/main/text/MIT.txt), with the project copyright holder substituted. The full Apache text was obtained from the [Apache Software Foundation](https://www.apache.org/licenses/LICENSE-2.0.txt). Project licensing is MIT OR Apache-2.0; dependency licenses remain their own.
+The MIT text was obtained from [SPDX's MIT license text](https://github.com/spdx/license-list-data/blob/main/text/MIT.txt), with the project copyright holder substituted. Project licensing is [MIT](../LICENSE); dependency licenses and their required notices remain their own. The original MIT OR Apache-2.0 choice, whose Apache text came from the [Apache Software Foundation](https://www.apache.org/licenses/LICENSE-2.0.txt), is superseded for the current project by [ADR 0013](adr/0013-mit-license.md). Earlier revisions retain their original license terms.
 
 ## Local verification record
 

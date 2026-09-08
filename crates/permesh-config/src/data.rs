@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::{Error, Result};
 use serde::{Deserialize, de::DeserializeOwned};
 use std::{collections::BTreeMap, fs::File, io::Read, path::Path};

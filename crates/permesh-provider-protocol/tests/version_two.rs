@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 #![allow(clippy::unwrap_used)]
 use permesh_provider_protocol::{
     DiscoveryDecoder, HealthDecoder, Progress, ProtocolError, handshake_request_versioned,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::{args::Color, error::AppError, report::Report};
 use std::io::{self, IsTerminal, Write};
 /// Escape provider-controlled terminal characters, including bidi controls.

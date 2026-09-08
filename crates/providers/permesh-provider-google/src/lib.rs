@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Read-only Google Workspace Directory identity source.
 use permesh_core::{Account, EntityKey, Identity, IdentityKind, IdentityStatus, Snapshot};
 use permesh_provider_sdk::{

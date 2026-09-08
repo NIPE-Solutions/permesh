@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use permesh_provider_external::trust::{Registry, inspect};
 use permesh_provider_sdk::Capability;
 use std::{fs, path::PathBuf};

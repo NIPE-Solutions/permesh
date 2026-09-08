@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Cancellation stops waiting; an in-flight native operation cannot be undone.
 use crate::error::AppError;
 use std::sync::Arc;

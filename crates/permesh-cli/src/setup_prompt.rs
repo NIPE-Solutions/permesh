@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::{cancellation::Cancellation, error::AppError, output::safe};
 use permesh_provider_sdk::setup::{Input, SetupField, SetupSpec};
 use serde_json::Value;

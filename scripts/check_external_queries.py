@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT OR Apache-2.0
+# SPDX-License-Identifier: MIT
 """Offline native-provider workspace queries, approval boundaries and credential delivery."""
 import hashlib
 import json

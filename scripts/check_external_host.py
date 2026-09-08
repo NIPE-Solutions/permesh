@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT OR Apache-2.0
+# SPDX-License-Identifier: MIT
 """Exercise explicit local registration and discovery with the native test peer."""
 import hashlib
 import json

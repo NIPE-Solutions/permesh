@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT OR Apache-2.0
+# SPDX-License-Identifier: MIT
 """Offline end-to-end provider forms, local answers and reviewed workspace setup."""
 import hashlib
 import json

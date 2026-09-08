@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Bounded metadata for explicitly selected official provider releases.
 use crate::DistributionError;
 use permesh_provider_sdk::Capability;

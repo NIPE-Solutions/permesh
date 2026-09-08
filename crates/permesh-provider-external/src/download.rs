@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Explicit downloads from the official catalog and GitHub release assets.
 use crate::{
     DistributionError,

@@ -138,7 +138,7 @@ Report vulnerabilities through the process in [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT OR Apache-2.0](LICENSE), at your option.
+[MIT](LICENSE).
 
 Official provider packages are maintained in
 [permesh-providers](https://github.com/NIPE-Solutions/permesh-providers).

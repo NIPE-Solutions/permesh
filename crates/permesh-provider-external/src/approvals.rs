@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Protected local approvals bind a complete reviewed configuration to one
 //! canonical workspace file and registered provider. They contain no settings or
 //! credential references, only a versioned fingerprint of those reviewed inputs.

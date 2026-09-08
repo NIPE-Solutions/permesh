@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! The only unsafe module in this crate. Win32 does not expose secure-at-create
 //! ACLs through std. Every pointer below is borrowed from a live owned allocation
 //! or handle; the public-to-crate boundary uses paths, files, and static errors.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::{MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES, ProtocolError};
 use serde::{
     Deserialize, Deserializer,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Explicit native-store checks; ordinary cargo test never touches credentials.
 #![allow(clippy::unwrap_used)]
 use permesh_secrets::{Secret, SecretRef, SecretResolver, delete, store};

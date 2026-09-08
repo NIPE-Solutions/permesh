@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::{args::Cli, error::AppError, report::Outcome};
 use permesh_config::{Config, ExternalConfig, IdentitySource, ProviderConfig, ProviderKind};
 use permesh_provider_external::trust::Registration;

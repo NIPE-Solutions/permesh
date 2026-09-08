@@ -4,6 +4,8 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
+- Standardize the main repository on MIT with one license file and consistent package metadata and SPDX identifiers. Earlier revisions and third-party dependencies retain their existing terms.
+
 - Add declarative external-provider setup: validated SDK schema 1, draft-3 description exchanges, CLI-owned conditional prompts and strict YAML answers. Setup requires an already trusted binary, writes settings and credential references only, and leaves workspace approval explicit.
 
 - Add approved native external providers to workspace user/admins/orphaned queries and doctor/status health checks. Local approval binds the canonical configuration path, full normalized configuration and registered binary metadata; clones, edits and revocation fail closed before external credential resolution or launch.
@@ -26,7 +28,7 @@ User-visible changes are recorded here. No public release has been qualified.
 - Preserve immutable account IDs, verified/explicit identity evidence, inheritance paths, provenance, privilege semantics and partial failures.
 - Bound provider requests, retries, response sizes and native I/O; make Ctrl+C cancel waits without blocking runtime shutdown.
 - Define strict configuration, redacted secret references, provider observations, and versioned output boundaries.
-- Add contributor and security documentation, dual licenses, platform CI, and dependency policy.
+- Add contributor and security documentation, project licensing, platform CI, and dependency policy.
 - Document a draft external-provider protocol and a synthetic Python example; the CLI does not execute it.
 
 Release remains gated on the checks in [releasing.md](docs/releasing.md). This entry is not a statement that all release gates have passed.

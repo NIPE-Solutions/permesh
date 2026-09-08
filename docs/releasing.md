@@ -9,7 +9,7 @@ The project is pre-release. No publication workflow or automatic tag release is 
 3. Complete a credentialed GitHub fixture-organization exercise: member/team/direct observations, private visibility, denied permissions, token revocation, pagination, and explicit completeness limitations. Keep tokens and private output out of CI artifacts.
 4. Verify native credential stores and terminal behavior on the supported platforms. Headless Linux keychain failure must be actionable and redacted.
 5. Review security-sensitive paths and confirm the advertised CLI/JSON matches actual behavior. Record known limitations, supported targets, version, and release notes.
-6. Establish a private vulnerability-reporting route and confirm maintainers can receive reports. Verify the MIT and Apache-2.0 texts ship with binary archives.
+6. Establish a private vulnerability-reporting route and confirm maintainers can receive reports. Verify the MIT license text ships with binary archives.
 7. Before publication, prepare reproducible target builds where possible, archive contents, checksums, provenance/attestation policy, installation/uninstallation instructions, and an independently reviewed release workflow with minimal scoped write permissions. Signing/notarization and Windows reputation remain explicit distribution decisions.
 
 No release gate is marked complete by this document. Record actual revision, commands, date, platforms, and acceptance results when qualifying a release.
@@ -38,7 +38,7 @@ CI installs [cargo-deny](https://embarkstudios.github.io/cargo-deny/) and [cargo
 
 ## Unsigned native candidates
 
-[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (both license texts), and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
+[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (MIT license text), and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
 
 | Candidate target | Native GitHub runner | Archive |
 | --- | --- | --- |
@@ -52,7 +52,7 @@ Runner labels and architectures were checked against [GitHub's hosted runner ref
 
 The [artifact action](https://github.com/actions/upload-artifact/releases/tag/v7.0.1) is pinned to v7.0.1 commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`, verified via the [upstream tag API](https://api.github.com/repos/actions/upload-artifact/git/ref/tags/v7.0.1) on 2026-09-08. The existing checkout v4 and setup-python v5 pins above were rechecked against their upstream tag APIs. Pin review remains a maintenance responsibility.
 
-The Python standard-library packager is intentionally limited to these five targets, one executable, and two static documents. It rejects input symlinks and unsafe target/version names and requires a new output directory. Tar, gzip and zip metadata are fixed, including executable permissions; identical input bytes produce identical archives under the same Python/compression implementation. This does **not** claim reproducible Rust builds or byte identity across compressor versions. Checksums detect corruption, not publisher authenticity. The project license texts do not replace the dependency notice review required before public distribution.
+The Python standard-library packager is intentionally limited to these five targets, one executable, and two static documents. It rejects input symlinks and unsafe target/version names and requires a new output directory. Tar, gzip and zip metadata are fixed, including executable permissions; identical input bytes produce identical archives under the same Python/compression implementation. This does **not** claim reproducible Rust builds or byte identity across compressor versions. Checksums detect corruption, not publisher authenticity. The project license text does not replace the dependency notice review required before public distribution.
 
 To exercise a local candidate, substitute the host target and workspace version:
 

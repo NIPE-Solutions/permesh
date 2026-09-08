@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::{ProviderConfig, ProviderKind, Result, invalid};
 use permesh_secrets::SecretRef;
 use serde::{Deserialize, Serialize};

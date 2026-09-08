@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 #[derive(Parser, Clone)]
