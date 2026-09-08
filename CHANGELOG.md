@@ -2,6 +2,10 @@
 
 User-visible changes are recorded here. Alpha releases are for evaluation; stable qualification remains open.
 
+## Unreleased
+
+- Prune membership branches that cannot reach observed grants in user and orphaned queries, keeping accounts without grants reviewable without consuming access-path limits. Preserve observed paths, provenance and ordering; compare path sort keys without allocating temporary vectors.
+
 ## 0.1.0-alpha.2
 
 Evaluation prerelease built from [`aad5839`](https://github.com/NIPE-Solutions/permesh/commit/aad58397e139ed755fcf983da8e9f045e7e5a556) in [attested run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910); see [release notes](docs/releases/0.1.0-alpha.2.md). Published alpha.1 assets remain unchanged.

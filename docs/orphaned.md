@@ -63,6 +63,11 @@ Grants with no observed account path are not classified here: group ownership
 and missing membership evidence need separate analysis. `admins` exposes
 unresolved privileged group grants.
 
+Traversal skips membership branches that cannot reach an observed grant. Accounts
+without paths remain in the review, even in large inventories. Snapshot validation
+and limits on relevant access paths still apply; exceeding a limit fails explicitly
+instead of returning a silently truncated result.
+
 Human output groups accounts by reason and separates service, bot and external
 identities. JSON uses [output schema 1](output-schema.md) with deterministic
 account and path ordering. The operation does not write configuration or persist

@@ -374,6 +374,19 @@ fn exponentially_branching_memberships_fail_with_path_limit_instead_of_truncatin
         }
         previous = next;
     }
+    app.resources.push(Resource {
+        key: EntityKey::new("app", "r"),
+        name: "Resource".into(),
+    });
+    app.grants.push(Grant {
+        id: "g".into(),
+        subject: previous[0].clone(),
+        resource: EntityKey::new("app", "r"),
+        role: "read".into(),
+        privilege: Privilege::Standard,
+        certainty: Certainty::Observed,
+        provenance,
+    });
     app.validate().unwrap();
     assert!(matches!(
         query_orphaned(
@@ -383,4 +396,25 @@ fn exponentially_branching_memberships_fail_with_path_limit_instead_of_truncatin
         ),
         Err(DomainError::PathLimit)
     ));
+}
+
+#[test]
+fn more_than_a_hundred_thousand_accounts_without_grants_remain_reviewable() {
+    let mut app = Snapshot::new("app");
+    for n in 0..100_001 {
+        app.accounts
+            .push(account(&format!("unmatched-{n:06}"), IdentityKind::Human));
+    }
+    let result = query(&[Snapshot::new("directory"), app], &Aliases::new());
+    assert!(result.authority_complete);
+    assert_eq!(result.accounts.len(), 100_001);
+    assert!(result.access.is_empty());
+    for (n, entry) in result.accounts.iter().enumerate() {
+        assert_eq!(
+            entry.account.key,
+            EntityKey::new("app", format!("unmatched-{n:06}"))
+        );
+        assert_eq!(entry.reason, OrphanReason::UnknownIdentity);
+        assert!(matches!(entry.identity, IdentityResolution::Unmapped));
+    }
 }

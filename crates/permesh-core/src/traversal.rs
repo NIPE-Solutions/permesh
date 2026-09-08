@@ -30,9 +30,10 @@ pub(crate) fn paths<'a>(
         }
     }
     // Reverse reachability visits each edge once and avoids enumerating paths that
-    // cannot lead to a selected grant. The user query retains its existing limits.
+    // cannot lead to a selected grant. Account selection remains with each query:
+    // accounts without paths are still returned by user and orphaned inspection.
     let mut relevant = BTreeSet::new();
-    if privileged_only {
+    {
         let mut children: BTreeMap<Subject, Vec<&Subject>> = BTreeMap::new();
         for s in snapshots {
             for m in &s.memberships {
@@ -64,7 +65,7 @@ pub(crate) fn paths<'a>(
     let mut result = Vec::new();
     let mut steps = 0usize;
     for account in accounts {
-        if privileged_only && !relevant.contains(&Subject::Account(account.key.clone())) {
+        if !relevant.contains(&Subject::Account(account.key.clone())) {
             continue;
         }
         let mut stack = vec![(
@@ -123,17 +124,13 @@ pub(crate) fn paths<'a>(
 
 pub(crate) fn sort_paths(access: &mut [AccessPath]) {
     access.sort_by(|a, b| {
-        (
-            &a.account,
-            &a.resource.key,
-            &a.grant.id,
-            a.groups.iter().map(|g| &g.key).collect::<Vec<_>>(),
-        )
-            .cmp(&(
-                &b.account,
-                &b.resource.key,
-                &b.grant.id,
-                b.groups.iter().map(|g| &g.key).collect::<Vec<_>>(),
-            ))
+        (&a.account, &a.resource.key, &a.grant.id)
+            .cmp(&(&b.account, &b.resource.key, &b.grant.id))
+            .then_with(|| {
+                a.groups
+                    .iter()
+                    .map(|g| &g.key)
+                    .cmp(b.groups.iter().map(|g| &g.key))
+            })
     });
 }
