@@ -43,7 +43,7 @@ only, not the provider service or its access grants.
 ## Local storage
 
 Registration is user-local, outside workspace configuration. Permesh uses the
-platform data directory selected by `directories::ProjectDirs`: Application
+platform directories selected through `etcetera`: Application
 Support on macOS, the XDG data directory on Linux and Local AppData on Windows.
 Each registration contains a schema-1 manifest with ID, SHA-256 and capabilities,
 and a managed native executable. Commands show the storage path.

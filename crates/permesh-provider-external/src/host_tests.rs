@@ -34,13 +34,24 @@ async fn run(mode: &str) -> Result<Snapshot, ExternalError> {
     .await
 }
 fn isolated_peer() -> (tempfile::TempDir, PathBuf) {
+    let source = executable();
+    // Keep links on the same filesystem. Concurrent executable copies can leave
+    // writable descriptors briefly inherited by another spawn before exec closes
+    // CLOEXEC descriptors; Linux then rejects execution with ETXTBSY.
+    #[cfg(unix)]
+    let dir = tempfile::tempdir_in(source.parent().unwrap()).unwrap();
+    #[cfg(not(unix))]
     let dir = tempfile::tempdir().unwrap();
     let peer = dir
         .path()
         .join(format!("peer{}", std::env::consts::EXE_SUFFIX));
-    std::fs::copy(executable(), &peer).unwrap();
+    #[cfg(unix)]
+    std::fs::hard_link(source, &peer).unwrap();
+    #[cfg(not(unix))]
+    std::fs::copy(source, &peer).unwrap();
     (dir, peer)
 }
+
 #[tokio::test]
 async fn rejects_peer_errors_without_echoing_data() {
     for mode in [
@@ -169,7 +180,7 @@ async fn remaining_descendants_stop_on_success_failure_timeout_and_cancellation(
         } else if mode == "descendant-hang" {
             assert!(matches!(result, Err(ExternalError::Timeout)));
         } else {
-            result.unwrap();
+            assert!(result.is_ok(), "{mode}: {result:?}");
         }
         assert_stopped(dir.path()).await;
     }
@@ -222,4 +233,30 @@ async fn retains_explicit_partial_discovery() {
     let snapshot = run("partial").await.unwrap();
     assert!(!snapshot.complete);
     assert_eq!(snapshot.limitations.len(), 1);
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn isolated_fixtures_can_spawn_concurrently() {
+    let mut workers = tokio::task::JoinSet::new();
+    for _ in 0..8 {
+        workers.spawn(async {
+            for _ in 0..20 {
+                let (_directory, peer) = isolated_peer();
+                discover_with_deadlines(
+                    &peer,
+                    "fixture",
+                    "normal",
+                    &[],
+                    std::future::pending(),
+                    deadlines(),
+                )
+                .await
+                .unwrap();
+            }
+        });
+    }
+    while let Some(result) = workers.join_next().await {
+        result.unwrap();
+    }
 }

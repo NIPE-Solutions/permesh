@@ -117,7 +117,20 @@ async fn discover_with_deadlines(
     command.wrap(process_wrap::tokio::ProcessGroup::leader());
     #[cfg(windows)]
     command.wrap(process_wrap::tokio::JobObject);
-    let mut child = Supervised(command.spawn().map_err(|_| ExternalError::Spawn)?, true);
+    let mut child = Supervised(
+        command.spawn().map_err(|error| {
+            #[cfg(test)]
+            eprintln!(
+                "native spawn failed: kind={:?}, os_code={:?}",
+                error.kind(),
+                error.raw_os_error()
+            );
+            #[cfg(not(test))]
+            drop(error);
+            ExternalError::Spawn
+        })?,
+        true,
+    );
     let pipes = (
         child.0.stdin().take(),
         child.0.stdout().take(),

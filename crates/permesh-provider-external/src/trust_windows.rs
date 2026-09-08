@@ -39,6 +39,7 @@ use windows_sys::Win32::{
 };
 
 const SYSTEM: &str = "S-1-5-18";
+const OWNER_RIGHTS: &str = "S-1-3-4";
 const ADMINISTRATORS: &str = "S-1-5-32-544";
 const TRUSTED_INSTALLER: &str = "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
 const MAX_SECURITY_BYTES: u32 = 1024 * 1024;
@@ -273,6 +274,14 @@ fn validate_handle(file: &File, directory: bool, private: bool) -> Result<(), Ex
         return Err(ExternalError::Trust);
     }
     let allocation = LocalAllocation(sd);
+    check_security(&allocation, owner, acl, private)
+}
+fn check_security(
+    allocation: &LocalAllocation,
+    owner: *mut c_void,
+    acl: *mut ACL,
+    private: bool,
+) -> Result<(), ExternalError> {
     let user = current_user()?;
     let owner = sid_string(owner)?;
     if (private && owner != user) || !trusted(&owner, &user, private) {
@@ -344,7 +353,12 @@ fn check_acl(acl: *mut ACL, user: &str, private: bool) -> Result<(), ExternalErr
         // Creating a sibling does not permit replacing an existing child on NTFS.
         // Ancestor owners and DELETE/DELETE_CHILD/ACL-owner mutation do permit it.
         let replacement_rights = DELETE | FILE_DELETE_CHILD | WRITE_DAC | WRITE_OWNER | GENERIC_ALL;
-        if !trusted(&sid, user, private) && (private || mask & replacement_rights != 0) {
+        // OWNER RIGHTS grants rights only to this object's current owner. The
+        // caller already independently checked that owner against trusted SIDs.
+        // CPython mkdir(0700) uses this SID; it is not an unrelated principal.
+        // Keep managed private objects on explicit user/SYSTEM ACEs only.
+        let trusted_principal = trusted(&sid, user, private) || (!private && sid == OWNER_RIGHTS);
+        if !trusted_principal && (private || mask & replacement_rights != 0) {
             return Err(ExternalError::Trust);
         }
     }
@@ -549,6 +563,45 @@ mod tests {
         directory.close()?;
         assert!(release.join().is_ok());
         assert!(!path.exists());
+        Ok(())
+    }
+    #[test]
+    fn owner_rights_accepts_only_independently_trusted_ancestor_owners() -> TestResult {
+        use windows_sys::Win32::Security::GetSecurityDescriptorOwner;
+        let user = current_user()?;
+        for (owner_text, accepted) in [
+            (user.as_str(), true),
+            (SYSTEM, true),
+            (ADMINISTRATORS, true),
+            ("S-1-5-21-111-222-333-444", false),
+        ] {
+            let sd = descriptor(&format!("O:{owner_text}D:P(A;;FA;;;OW)"))?;
+            let (mut owner, mut acl) = (ptr::null_mut(), ptr::null_mut());
+            let (mut present, mut defaulted) = (0, 0);
+            // SAFETY: parsed OS descriptor remains alive for all borrowed outputs.
+            assert_ne!(
+                unsafe { GetSecurityDescriptorOwner(sd.0, &mut owner, &mut defaulted) },
+                0
+            );
+            // SAFETY: same live descriptor and valid local output variables.
+            assert_ne!(
+                unsafe { GetSecurityDescriptorDacl(sd.0, &mut present, &mut acl, &mut defaulted) },
+                0
+            );
+            assert_eq!(check_security(&sd, owner, acl, false).is_ok(), accepted);
+            // Managed objects retain the stricter explicit user/SYSTEM ACL policy.
+            assert!(check_security(&sd, owner, acl, true).is_err());
+        }
+        Ok(())
+    }
+    #[test]
+    fn python_style_owner_rights_ancestor_supports_empty_registry() -> TestResult {
+        let temporary = tempfile::tempdir()?;
+        let root = temporary.path().canonicalize()?;
+        apply_dacl(&root, "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;OW)")?;
+        let registry = super::super::Registry::new(root.join("state/providers"))?;
+        assert!(registry.list()?.is_empty());
+        assert!(!root.join("state").exists());
         Ok(())
     }
 }

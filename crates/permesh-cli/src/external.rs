@@ -53,9 +53,16 @@ fn storage_root() -> Result<PathBuf, AppError> {
         }
         return Ok(root.join("providers"));
     }
-    directories::ProjectDirs::from("", "", "permesh")
-        .map(|dirs| dirs.data_local_dir().join("providers"))
-        .ok_or_else(||AppError::input("Cannot locate user-local provider storage; set PERMESH_DATA_DIR to an absolute private directory"))
+    use etcetera::BaseStrategy;
+    let strategy = etcetera::base_strategy::choose_native_strategy().map_err(|_| {
+        AppError::input("Cannot locate user-local provider storage; set PERMESH_DATA_DIR to an absolute private directory")
+    })?;
+    // Windows trust state belongs in Local AppData, not roaming profile data.
+    #[cfg(windows)]
+    let base = strategy.cache_dir().join("permesh").join("data");
+    #[cfg(not(windows))]
+    let base = strategy.data_dir().join("permesh");
+    Ok(base.join("providers"))
 }
 fn capabilities(values: &[String]) -> Result<Vec<Capability>, AppError> {
     values

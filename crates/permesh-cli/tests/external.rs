@@ -64,3 +64,35 @@ fn trust_needs_explicit_risk_acknowledgement_and_inspection_rejects_scripts() {
     assert!(!root.join("should-not-exist").exists());
     assert!(!root.join("local-state").exists());
 }
+
+#[test]
+fn default_storage_uses_native_nonroaming_locations_without_creating_them() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().canonicalize().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_permesh"))
+        .args(["provider", "external", "list", "--json"])
+        .current_dir(&root)
+        .env_remove("PERMESH_DATA_DIR")
+        .env("HOME", &root)
+        .env("USERPROFILE", &root)
+        .env("LOCALAPPDATA", &root)
+        .env("XDG_DATA_HOME", &root)
+        .env("TOKIO_WORKER_THREADS", "2")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    #[cfg(windows)]
+    let expected = root.join("permesh").join("data").join("providers");
+    #[cfg(target_os = "macos")]
+    let expected = root.join("Library/Application Support/permesh/providers");
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let expected = root.join("permesh/providers");
+    assert_eq!(report["result"]["storage"], expected.to_str().unwrap());
+    assert!(!expected.exists());
+    assert!(out.stderr.is_empty());
+}
