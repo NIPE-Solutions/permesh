@@ -245,7 +245,6 @@ fn deep_graph_fails_explicitly_instead_of_truncating() {
     let mut s = fixture();
     s.memberships.clear();
     s.groups.clear();
-    s.grants.clear();
     let p = Provenance {
         method: "fixture".into(),
         observed_at: "2026-01-01T00:00:00Z".into(),
@@ -264,6 +263,7 @@ fn deep_graph_fails_explicitly_instead_of_truncating() {
         });
         member = Subject::Group(key);
     }
+    s.grants[0].subject = member;
     assert!(matches!(
         query_user(&[s], &aliases(), "alice@example.com"),
         Err(DomainError::PathLimit)
@@ -587,4 +587,44 @@ fn admins_rejects_dangling_subjects_and_resources_before_filtering() {
             Err(DomainError::Reference)
         ));
     }
+}
+
+#[test]
+fn user_prunes_deep_groups_without_grants_and_preserves_observed_paths() {
+    let mut snapshot = fixture();
+    let mut member = Subject::Account(snapshot.accounts[0].key.clone());
+    for n in 0..300 {
+        let group = EntityKey::new("demo", format!("irrelevant-{n}"));
+        snapshot.groups.push(Group {
+            key: group.clone(),
+            name: group.id.clone(),
+        });
+        snapshot.memberships.push(Membership {
+            member,
+            group: group.clone(),
+            provenance: snapshot.grants[0].provenance.clone(),
+        });
+        member = Subject::Group(group);
+    }
+    let result = query_user(&[snapshot], &aliases(), "alice@example.com").unwrap();
+    assert_eq!(result.accounts.len(), 1);
+    assert_eq!(result.accounts[0].login, "alice-dev");
+    assert_eq!(result.access.len(), 1);
+    let path = &result.access[0];
+    assert_eq!(path.grant.id, "g");
+    assert_eq!(path.resource.key.id, "r");
+    assert_eq!(
+        path.groups
+            .iter()
+            .map(|g| g.key.id.as_str())
+            .collect::<Vec<_>>(),
+        ["a", "b"]
+    );
+    assert_eq!(path.memberships.len(), 2);
+    assert!(
+        path.memberships
+            .iter()
+            .all(|m| m.provenance.method == "fixture"
+                && m.provenance.observed_at == "2026-01-01T00:00:00Z")
+    );
 }
