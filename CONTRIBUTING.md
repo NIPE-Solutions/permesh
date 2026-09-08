@@ -18,4 +18,4 @@ Keep domain code free of network and filesystem dependencies. Providers return s
 
 A pull request should state the behavior changed, its reason, the checks actually run, and any remaining limitations. Update the changelog for user-visible changes. Dependency updates include the lockfile and a license/advisory review; see [dependency decisions](docs/DEPENDENCIES.md). Native-platform CI and credentialed provider acceptance are separate gates, not results implied by local tests.
 
-Contributions are accepted under MIT OR Apache-2.0, matching the repository license. Follow the [code of conduct](CODE_OF_CONDUCT.md). Report sensitive findings using [SECURITY.md](SECURITY.md).
+Contributions are accepted under [MIT](LICENSE), matching the repository license. Follow the [code of conduct](CODE_OF_CONDUCT.md). Report sensitive findings using [SECURITY.md](SECURITY.md).

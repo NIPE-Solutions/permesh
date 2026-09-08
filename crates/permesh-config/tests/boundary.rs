@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 #![allow(clippy::unwrap_used)]
 use permesh_config::{Config, find_workspace, to_yaml};
 const DEMO: &str = "version: 1\norganization:\n  name: Acme\nproviders:\n  - id: demo\n    type: demo\nidentity:\n  sources: [{provider: demo, authoritative: true}]\n  aliases: {}\n";

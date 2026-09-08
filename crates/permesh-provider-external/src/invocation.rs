@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Private, bounded operation inputs. Resolved credentials are never ordinary serde values.
 use crate::ExternalError;
 use permesh_secrets::Secret;

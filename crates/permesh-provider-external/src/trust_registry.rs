@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Immutable retained versions and an atomic selection for explicit trust updates.
 use super::*;
 const SELECTED: &str = "selected.json";

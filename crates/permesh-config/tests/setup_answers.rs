@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 #![allow(clippy::unwrap_used)]
 #[test]
 fn setup_answers_accept_typed_yaml_and_json_without_duplicates_or_diagnostic_payloads() {

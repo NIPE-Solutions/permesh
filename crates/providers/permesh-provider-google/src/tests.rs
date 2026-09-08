@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use super::*;
 use permesh_core::{IdentityKind, IdentityStatus};
 use serde_json::{Value, json};

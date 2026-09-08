@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Deliberately narrow ZIP profile: two ordinary entries, stored or deflated,
 //! no extra fields, archive comment, spanning, ZIP64, encryption, prefixes or trailing records.
 use super::{DistributionError, MAX_LICENSE, Release, filename, hash};

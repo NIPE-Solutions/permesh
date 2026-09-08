@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::{PROTOCOL_VERSION, ProtocolError};
 use permesh_core::{Account, Grant, Group, Identity, Membership, Resource};
 use permesh_provider_sdk::Capability;

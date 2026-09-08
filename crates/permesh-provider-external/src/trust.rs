@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Explicit, user-local trust. Path checks cannot prevent a malicious process
 //! running as the same user from racing filesystem operations or launch.
 use crate::ExternalError;

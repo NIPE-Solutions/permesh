@@ -18,7 +18,7 @@ INSTALL = b'''Permesh unsigned development candidate
 
 This is not a qualified public release. Verify the adjacent SHA-256 checksum
 before extracting. A checksum detects corruption, not publisher authenticity.
-The archive contains one executable and the project's two license texts.
+The archive contains one executable and the project's MIT license text.
 Dependency notice review remains a public-release gate.
 
 Run ./permesh --help (Windows: .\\permesh.exe --help) from this directory.

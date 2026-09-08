@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Read-only adapter boundary. Providers never print or correlate identities.
 pub mod setup;
 use permesh_core::Snapshot;

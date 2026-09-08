@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 #![allow(clippy::unwrap_used)]
 use std::{path::Path, process::Command};
 fn run(root: &Path, args: &[&str]) -> std::process::Output {

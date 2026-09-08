@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use super::{Condition, Input, Question, ResolvedSetup, SetupError, SetupSpec, validate};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};

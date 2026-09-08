@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Developer-only offline validator. Input is consumed through EOF; no process supervision.
 use permesh_provider_protocol::{PROTOCOL_VERSION, validate_discovery};
 use std::{

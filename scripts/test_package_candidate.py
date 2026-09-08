@@ -13,8 +13,8 @@ class CandidateTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
-        for name in ('LICENSE',):
-            (self.root / name).write_text(name)
+        self.license = (Path(__file__).resolve().parents[1] / 'LICENSE').read_bytes()
+        (self.root / 'LICENSE').write_bytes(self.license)
         (self.root / 'permesh.local.yaml').write_text('SECRET')
 
     def binary(self, target):
@@ -36,12 +36,15 @@ class CandidateTests(unittest.TestCase):
                     with zipfile.ZipFile(one) as archive:
                         self.assertEqual(set(archive.namelist()), expected)
                         self.assertEqual(archive.read(binary.name), b'synthetic binary')
+                        self.assertEqual(archive.read('LICENSE'), self.license)
                         self.assertEqual(archive.getinfo(binary.name).external_attr >> 16 & 0o777, 0o755)
                 else:
                     with tarfile.open(one) as archive:
                         self.assertEqual(set(archive.getnames()), expected)
                         self.assertTrue(all(member.isfile() for member in archive.getmembers()))
                         self.assertEqual(archive.getmember(binary.name).mode, 0o755)
+                        with archive.extractfile('LICENSE') as license_file:
+                            self.assertEqual(license_file.read(), self.license)
                 checksum = one.with_name(one.name + '.sha256').read_text()
                 self.assertEqual(checksum, hashlib.sha256(one.read_bytes()).hexdigest() + '  ' + one.name + '\n')
                 self.assertEqual(len(list(one.parent.iterdir())), 2)

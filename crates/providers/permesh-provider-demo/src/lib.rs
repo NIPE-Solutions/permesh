@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Entirely synthetic, deterministic, offline observations.
 use permesh_core::*;
 use permesh_provider_sdk::*;

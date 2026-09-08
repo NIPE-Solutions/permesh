@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::args::Cli;
 use clap::CommandFactory;
 use clap_complete::Shell;

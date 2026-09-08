@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 use crate::identity::IdentityIndex;
 use crate::traversal::{MAX_PATH_STEPS, paths, sort_paths};
 use crate::*;

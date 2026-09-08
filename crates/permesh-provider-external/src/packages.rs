@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Versioned package bytes. Installation never grants trust or executes code.
 //! Same-user filesystem interference remains outside the protected-store boundary.
 use crate::{DistributionError, catalog::Release, trust};

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-License-Identifier: MIT
 //! Reference-only configuration and explicitly resolved, zeroizing credentials.
 use secrecy::{ExposeSecret, SecretString};
 use std::{fmt, str::FromStr};
