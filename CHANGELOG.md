@@ -1,8 +1,8 @@
 # Changelog
 
-User-visible changes are recorded here. No public CLI release has been qualified.
+User-visible changes are recorded here. Alpha releases are for evaluation; stable qualification remains open.
 
-## Unreleased
+## 0.1.0-alpha.1 — 2026-09-08
 
 - Bound external-provider supervisor stack usage so setup remains reliable on small native main-thread stacks, including Windows.
 
@@ -37,6 +37,8 @@ User-visible changes are recorded here. No public CLI release has been qualified
 - Add contributor and security documentation, project licensing, platform CI, and dependency policy.
 - Document a draft external-provider protocol and a synthetic Python example; the CLI does not execute it.
 
-Release remains gated on the checks in [releasing.md](docs/releasing.md). This entry is not a statement that all release gates have passed.
+Stable release remains gated on the checks in [releasing.md](docs/releasing.md). See the [alpha release notes](docs/releases/0.1.0-alpha.1.md) for scope and limitations.
 
 - Add explicit official provider install/update/check commands, bounded catalog and ZIP validation, retained package versions, and digest-pinned trust lookup. No automatic update checks or provider execution during installation.
+
+- Distribute unsigned alpha CLI archives for five native targets with checksums, MIT license, dependency notices, and installation instructions. Enable private vulnerability reporting.

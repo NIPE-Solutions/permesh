@@ -1,6 +1,8 @@
 # Getting started
 
-Install from a checkout with stable Rust 1.91+:
+Download the [alpha binaries](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.1) and follow the [checksum and installation instructions](installation.md).
+
+Alternatively, install from a checkout with stable Rust 1.91+:
 
 ```bash
 cargo install --path crates/permesh-cli --locked
