@@ -1,0 +1,82 @@
+name: Attested native candidates
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Exact reviewed main commit to build and attest
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: attested-candidates-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  reviewed-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require the reviewed main revision
+        env:
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+        run: |
+          test "$GITHUB_REPOSITORY" = 'NIPE-Solutions/permesh'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$GITHUB_SHA" = "$REVIEWED_SHA"
+  native:
+    needs: reviewed-source
+    permissions:
+      contents: read
+    uses: ./.github/workflows/candidates.yml
+  attest:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: permesh-candidate-*-${{ github.sha }}
+          path: candidate-input
+      - name: Inspect the complete candidate set
+        id: candidate
+        run: |
+          version=$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+          python scripts/verify_candidates.py candidate-input --version "$version" --lockfile Cargo.lock --artifact-run-sha "$GITHUB_SHA"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Sign candidate provenance
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: candidate-input/*/*
+          push-to-registry: false
+          create-storage-record: false
+      - name: Verify every artifact against signed provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+          CANDIDATE_VERSION: ${{ steps.candidate.outputs.version }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          gh --version
+          python scripts/verify_candidates.py candidate-input --version "$CANDIDATE_VERSION" --lockfile Cargo.lock --artifact-run-sha "$REVIEWED_SHA" --source-sha "$REVIEWED_SHA" --bundle "$BUNDLE_PATH"
+          mkdir verified-provenance
+          cp "$BUNDLE_PATH" verified-provenance/attestation-bundle.json
+      - name: Retain verified attestation bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: permesh-attestations-${{ github.sha }}
+          path: verified-provenance/attestation-bundle.json
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false

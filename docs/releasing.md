@@ -1,6 +1,6 @@
 # Release qualification
 
-The project distributes an explicitly marked alpha for evaluation. Stable v0.1 qualification remains incomplete. No automatic tag publication is enabled; reviewed native artifacts are promoted manually without rebuilding. A successful local build is not a qualified release.
+The project distributes an explicitly marked alpha for evaluation. Stable v0.1 qualification remains incomplete. A separate manual [attested candidate workflow](artifact-attestations.md) can build and verify signed provenance after review. It does not perform platform code signing. No automatic tag publication is enabled; reviewed native artifacts are promoted manually without rebuilding. A successful local build is not a qualified release.
 
 ## Alpha publication policy
 
@@ -159,3 +159,5 @@ python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1
 Use `python` and `permesh.exe` on Windows. `candidate-output` must not already exist, and its parent path must be free of symlinks (use a canonical path if your temporary directory is aliased). The smoke helper uses an automatically removed synthetic workspace; it performs no live-provider or credential-store validation. Candidates include local invocation and uninstall instructions. All candidates remain unsigned and unnotarized. Candidate jobs alone do not authorize promotion: complete the alpha publication checks above. Stable native credential-store and live-provider qualification remains open.
 
 Keep cargo-dist deferred while releases use manual promotion of these bounded, reviewed artifacts. Reevaluate it when adding installers or package-manager distribution; do not grow this helper into a release framework.
+
+For the manual same-run provenance workflow, public verification commands, and remaining platform-signing prerequisites, see [artifact attestations](artifact-attestations.md).
