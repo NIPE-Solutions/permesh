@@ -5,6 +5,7 @@ Reviewed against upstream documentation and crates.io metadata on **2026-09-08**
 | Dependency | Selected line; latest observed | License | Reason and feature boundary |
 | --- | --- | --- | --- |
 | [clap](https://docs.rs/clap/4.6.6/clap/) | 4.6; 4.6.6 | MIT OR Apache-2.0 | Derived typed CLI, help and parsing. Enable derive; avoid custom parser machinery. |
+| [clap_complete](https://docs.rs/clap_complete/4.6.9/clap_complete/) | 4.6.9; 4.6.9 | MIT OR Apache-2.0 | Static generators maintained in the clap repository. Defaults and unstable dynamic features disabled; only the existing clap dependency is required. Rust 1.85 minimum fits the workspace floor. Generate into memory before fallible stdout writes because upstream generators panic on writer errors. |
 | [serde](https://docs.rs/serde/1.0.229/serde/) | 1; 1.0.229 | MIT OR Apache-2.0 | Shared typed serialization; derive enabled. Secret values must never derive Serialize. |
 | [serde_json](https://docs.rs/serde_json/1.0.151/serde_json/) | 1; 1.0.151 | MIT OR Apache-2.0 | Versioned machine output and bounded provider response parsing. Keep output deterministic in domain ordering. |
 | [serde-saphyr](https://docs.rs/serde-saphyr/1.2.0/serde_saphyr/) | 1.2; 1.2.0 | MIT OR Apache-2.0 | Maintained YAML/Serde path with configurable parser budgets. Bound file bytes and parser expansion separately; strict structs reject unknown fields. Newly released line warrants hostile-input tests. |

@@ -52,6 +52,9 @@ permesh user alice@example.com --json
 permesh admins --json
 ```
 
+Shell completions for Bash, Zsh, Fish, PowerShell and Elvish are available through
+`permesh completion <shell>`. See [setup instructions](docs/completion.md).
+
 ## Connect GitHub
 
 In a separate directory:

@@ -4,6 +4,8 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
+- Add static shell completion for Bash, Zsh, Fish, PowerShell and Elvish without workspace or provider access.
+
 - Add `permesh orphaned` with explicit authoritative sources, conservative inactive/unmatched/ambiguous classifications, separate non-human/external accounts, preserved paths and unassessed results on authority failure.
 
 - Add a read-only Google Workspace directory source with explicit customer/authority selection, immutable identity IDs, conservative account status and supplied OAuth access tokens. Live tenant qualification remains pending.

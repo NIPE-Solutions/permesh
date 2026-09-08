@@ -23,6 +23,10 @@ def smoke(binary):
 
         run('--help')
         run('--version')
+        for shell in ('bash', 'zsh', 'fish', 'powershell', 'elvish'):
+            script = run('completion', shell)
+            if 'permesh' not in script or 'orphaned' not in script:
+                raise RuntimeError('completion script missing commands')
         run('init', '--demo')
         config = workspace / 'permesh.yaml'
         original = config.read_bytes()

@@ -19,6 +19,7 @@ permesh-provider-demo.workspace = true
 permesh-provider-github.workspace = true
 permesh-provider-google.workspace = true
 clap.workspace = true
+clap_complete.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

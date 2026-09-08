@@ -78,3 +78,7 @@ Errors deliberately omit raw arguments, YAML snippets, tokens, provider response
 | 130 | Cancelled by Ctrl+C |
 
 A broken stdout pipe exits cleanly with 0, following Unix pipeline conventions. A partial provider takes precedence over not-found, since missing data cannot establish absence. Schema changes are intentional and recorded in CHANGELOG; output schema, workspace schema and plugin protocol versions are independent.
+
+`completion <shell>` emits shell source rather than an access report. It rejects
+`--json` with an input error using the existing error envelope. See
+[shell completion](completion.md).
