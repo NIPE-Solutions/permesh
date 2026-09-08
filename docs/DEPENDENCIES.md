@@ -59,3 +59,21 @@ unqualified ACL wrapper was not selected. Native Windows tests are required.
 process-wrap 10's Windows completion-port waiter can return on a nonterminal job
 notification; the host therefore promises termination requests and direct-child
 reaping, not confirmation that every descendant has exited.
+
+## Explicit provider distribution (2026-09-08)
+
+- [semver 1.0.28](https://docs.rs/semver/1.0.28/semver/) (MIT OR Apache-2.0): exact stable version parsing and numeric precedence; enable serde for strict release records. It is already common in Rust tooling and avoids a bespoke parser.
+- [zip 8.6.0](https://docs.rs/zip/8.6.0/zip/) (MIT): maintained native ZIP reader, MSRV 1.88. Disable default features; select only `deflate-flate2-zlib-rs` for stored/DEFLATE packages. Use bounded per-entry reads and an exact allowlist rather than general archive extraction. Its [feature documentation](https://docs.rs/crate/zip/8.6.0/features) records the selected dependency path.
+- Reuse reqwest 0.13 and sha2 0.11. Distribution disables proxy discovery, redirects by default, decompression, retries and referer headers; the narrowly allowlisted archive redirect loop and total deadlines belong to Permesh.
+
+Earlier no-download dependency notes describe the pre-distribution milestone.
+Runtime downloads now occur only through explicit install/update commands; there
+is still no telemetry, scheduled updater or remote configuration service.
+
+The selected DEFLATE backend adds `zlib-rs` 0.6.7, licensed under
+[Zlib](https://github.com/trifectatechfoundation/zlib-rs/blob/main/LICENSE),
+copyright Trifecta Tech Foundation. Its source notice must be preserved and
+modified source must be marked. `deny.toml` permits Zlib only for this exact
+reviewed package version; future versions require another review. This keeps the
+rest of the license policy unchanged. The remaining new ZIP dependencies
+(crc32fast, flate2 and typed-path) use MIT OR Apache-2.0.

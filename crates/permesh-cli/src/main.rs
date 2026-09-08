@@ -7,6 +7,8 @@ mod blocking;
 mod cancellation;
 mod collection;
 mod completion;
+mod distribution;
+mod distribution_output;
 mod error;
 mod external;
 mod external_output;

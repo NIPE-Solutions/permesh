@@ -63,6 +63,10 @@ pub enum Command {
 }
 #[derive(Subcommand, Clone)]
 pub enum ProviderCommand {
+    /// Download an exact official provider package without executing or trusting it.
+    Install(crate::distribution::InstallArgs),
+    /// Explicitly check or download official provider updates; workspace pins remain unchanged.
+    Update(crate::distribution::UpdateArgs),
     List,
     Status {
         id: Option<String>,

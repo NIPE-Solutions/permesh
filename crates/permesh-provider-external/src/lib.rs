@@ -1,8 +1,35 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 pub mod approvals;
+pub mod catalog;
+pub mod download;
 pub mod host;
 mod invocation;
+pub mod packages;
 pub mod trust;
+
+#[derive(Debug, thiserror::Error)]
+pub enum DistributionError {
+    #[error(
+        "invalid provider distribution input; check the provider name and exact stable version"
+    )]
+    Input,
+    #[error("provider catalog failed validation; no package was installed")]
+    Catalog,
+    #[error("no compatible provider release was found for this version and platform")]
+    Compatibility,
+    #[error(
+        "provider download failed or exceeded its deadline; check connectivity to GitHub and retry"
+    )]
+    Network,
+    #[error(
+        "provider package failed integrity validation; existing installations were not replaced"
+    )]
+    Integrity,
+    #[error(
+        "cannot access provider package storage; check its permissions and concurrent installations"
+    )]
+    Storage,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExternalError {

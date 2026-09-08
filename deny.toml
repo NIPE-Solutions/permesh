@@ -6,6 +6,11 @@ ignore = []
 confidence-threshold = 0.93
 allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "CDLA-Permissive-2.0"]
 
+# ZIP DEFLATE backend; reviewed upstream Zlib terms, scoped to this exact release.
+[[licenses.exceptions]]
+crate = "zlib-rs@0.6.7"
+allow = ["Zlib"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"

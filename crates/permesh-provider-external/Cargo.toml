@@ -17,6 +17,9 @@ unwrap_used = "deny"
 expect_used = "deny"
 
 [dependencies]
+reqwest.workspace = true
+semver = { version = "1", features = ["serde"] }
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 permesh-core.workspace = true
 permesh-secrets.workspace = true
 zeroize = "1.8"

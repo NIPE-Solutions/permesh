@@ -62,7 +62,9 @@ impl WorkspaceAccess {
     ) -> Result<(Registry, Registration), AppError> {
         let external = external_config(provider)?;
         let registry = Registry::new(self.root.clone()).map_err(failure)?;
-        let registration = registry.load(&external.provider).map_err(failure)?;
+        let registration = registry
+            .load_pinned(&external.provider, &external.sha256)
+            .map_err(failure)?;
         if registration.sha256 != external.sha256 {
             return Err(AppError::input(
                 "External provider digest pin does not match its local registration; review and update the explicit pin",
