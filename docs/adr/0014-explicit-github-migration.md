@@ -22,3 +22,6 @@ prevent routine stale overwrites; same-user filesystem races remain possible.
 The bundled GitHub adapter remains available until the separate release qualifies.
 Future adapter removal must retain legacy parsing long enough to migrate existing
 workspaces and must refuse legacy execution before resolving credentials.
+
+The later [external-only GitHub decision](0015-external-only-github.md) supersedes
+the temporary bundled-execution compatibility period; legacy parsing is retained.

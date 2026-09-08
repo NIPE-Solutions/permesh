@@ -2,9 +2,7 @@
 
 The official [provider repository](https://github.com/NIPE-Solutions/permesh-providers)
 hosts a static catalog and independently versioned native releases. The catalog is
-currently empty: the CLI distribution flow is implemented, but no provider package
-is advertised until it passes release qualification. Existing bundled providers
-remain available. These commands require no workspace.
+reviewed in Git: only qualified releases are advertised. GitHub requires an external executable; Google and the offline demo remain bundled. These commands require no workspace.
 
 ```bash
 permesh provider install github --version VERSION
@@ -37,7 +35,8 @@ then explicitly register it using the existing trust command:
 ```bash
 permesh provider external trust /ABSOLUTE/PACKAGE/EXECUTABLE \
   --id github --sha256 REVIEWED_EXECUTABLE_SHA256 \
-  --capability accounts --capability resources --capability grants --accept-risk
+  --capability accounts --capability resources --capability groups \
+  --capability memberships --capability grants --accept-risk
 ```
 
 The capabilities above are illustrative; specify exactly the reviewed release's
@@ -111,7 +110,7 @@ setup never contact the catalog. Installation sends no access data or credential
 to GitHub; see [privacy](privacy.md). Local same-user malicious processes remain
 outside the filesystem race protections, as with existing trust storage.
 
-## Existing bundled GitHub instances
+## Legacy GitHub instances
 
 After explicitly trusting the external GitHub executable, migrate one existing
 instance with `permesh provider migrate INSTANCE --sha256 DIGEST`. The digest may

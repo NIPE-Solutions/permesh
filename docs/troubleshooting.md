@@ -8,6 +8,7 @@ Start with `permesh doctor`. It validates the loaded schema and secret reference
 | Invalid YAML/config | Check reported line/column, schema version, unknown fields, duplicate IDs, and reference-only auth; raw source is deliberately omitted |
 | Keychain unavailable | Unlock the native store; on headless Linux use an env reference supplied by your existing secret tooling |
 | Authentication unavailable | Set the configured env variable or run `permesh auth login INSTANCE` for a keychain reference |
+| Legacy GitHub migration required | Install and explicitly trust the external GitHub binary, run `provider migrate INSTANCE --sha256 DIGEST`, then review and approve the changed workspace |
 | GitHub 401 | Replace/revoke expired token; verify it belongs to the intended user |
 | GitHub 403/404 | Check token approval, organization membership, SSO authorization, and endpoint permissions; private resources may be deliberately hidden |
 | Rate-limit/deadline failure | Wait before retrying; reduce the organizations per instance; collection is bounded rather than hanging indefinitely |

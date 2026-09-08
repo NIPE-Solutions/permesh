@@ -3,7 +3,8 @@
 Providers normalize scoped native IDs, distinguish observation from effective
 authorization, preserve provenance and report incomplete visibility. Core owns
 correlation. Read [PROVIDER_MODEL.md](PROVIDER_MODEL.md),
-[DOMAIN_MODEL.md](DOMAIN_MODEL.md), and the demo/GitHub adapters. Never turn
+[DOMAIN_MODEL.md](DOMAIN_MODEL.md), the bundled demo, and the
+[external GitHub adapter](https://github.com/NIPE-Solutions/permesh-providers/tree/main/providers/github). Never turn
 permission denial into an apparently successful empty result. Use synthetic
 fixtures and local mock APIs for contract tests.
 

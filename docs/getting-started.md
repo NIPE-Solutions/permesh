@@ -24,7 +24,7 @@ Alice has write access to the synthetic payments API through `team/backend` and 
 
 ## Live validation
 
-A read-only smoke test against a real GitHub organization passed on macOS Apple Silicon on 2026-09-08 using a local development build:
+A read-only smoke test against a real GitHub organization passed on macOS Apple Silicon on 2026-09-08 using the then-bundled adapter in a local development build:
 
 - `doctor --json` verified authentication and active organization membership.
 - `user <login> --json` returned observed organization and repository access.
@@ -33,24 +33,49 @@ A read-only smoke test against a real GitHub organization passed on macOS Apple 
 
 Organization and account names, resource identifiers, access counts, credentials, and raw reports are omitted. The offline demo continues to use only synthetic fixtures.
 
-This is an initial smoke test, not release qualification or proof of exhaustive effective access. Live team inheritance, pagination, denied permissions, token revocation, and native credential-store behavior still require dedicated acceptance exercises. See the [release gates](releasing.md).
+This historical bundled-adapter smoke test does not qualify the separate external executable. It is not release qualification or proof of exhaustive effective access. Live team inheritance, pagination, denied permissions, token revocation, and native credential-store behavior still require dedicated acceptance exercises. See the [release gates](releasing.md).
 
 ## Connect GitHub
 
-In a separate directory, run `permesh init --organization Acme`, then:
-
 ```bash
-permesh provider add github --id github-main --organization YOUR_ORG
+permesh init --organization Acme
+permesh provider install github --version 0.1.0
+permesh provider external trust /ABSOLUTE/PATH/TO/INSTALLED/provider \
+  --id github --sha256 REVIEWED_EXECUTABLE_SHA256 \
+  --capability accounts --capability resources --capability groups \
+  --capability memberships --capability grants --accept-risk
+permesh provider setup github --id github-main
 permesh auth login github-main
+permesh provider external review github-main
+permesh provider external approve github-main --fingerprint REVIEWED_FINGERPRINT --accept-risk
 permesh doctor
-permesh provider capabilities github-main
 permesh user YOUR_GITHUB_LOGIN
 ```
 
-Login prompts for a personal access token without echo. This milestone does not implement OAuth/browser login; it never asks for a GitHub password. Read [permissions and visibility limitations](providers/github.md) first. To avoid native credential storage, add the provider with `--token-ref env://PERMESH_GITHUB_TOKEN` and inject that variable using your existing secret tooling. Do not paste tokens into command arguments or config.
+Replace the executable path and digest with the installed package's reviewed
+values, and `REVIEWED_FINGERPRINT` with the
+workspace review result. During setup, supply organization names and a token
+reference such as `keychain://github-main/token`; `auth login` then stores the token
+in the native keychain. For `env://PERMESH_GITHUB_TOKEN`, inject that variable through
+existing secret tooling and skip `auth login`. Never put token values in arguments
+or configuration.
+
+Downloading does not trust or execute code. Setup requires explicit binary trust;
+queries require a separate workspace approval. The catalog advertises only
+qualified external releases. See [packages](provider-packages.md)
+and the [provider's permissions and visibility documentation](https://github.com/NIPE-Solutions/permesh-providers/blob/main/docs/github.md).
+
+Existing `type: github` workspaces must use [explicit migration](github-migration.md).
+Legacy parsing remains available, but health checks, queries and credential commands
+refuse legacy GitHub instances before accessing credentials or the network.
 
 The GitHub adapter cannot prove public profile email ownership. Use `permesh user LOGIN` to select one unique account; explicitly map `alice@example.com` to the account's numeric immutable ID for canonical lookup. Login changes preserve the native identity; configured login-based aliases are not supported.
 
 Run `permesh --help`, `permesh provider --help`, or `permesh auth --help` to discover commands. `--config FILE` selects another workspace. Parent search makes the same config available in nested directories.
 
 No query writes files or changes provider state. `provider add` explicitly rewrites YAML formatting; review its diff. `init` never overwrites an existing file. Do not edit a config simultaneously with `provider add`.
+
+The external packaged GitHub adapter separately passed credential delivery, health
+and privileged-access parity against the bundled adapter in a read-only exercise.
+No live reports or credentials were retained. This confirms the exercised paths,
+not exhaustive visibility of every GitHub access mechanism.

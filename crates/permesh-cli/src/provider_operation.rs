@@ -19,6 +19,12 @@ pub async fn run(
     if cancellation.is_cancelled() {
         return Err(AppError::new(130, "Cancelled"));
     }
+    if provider.kind == ProviderKind::Github {
+        return Err(AppError::new(
+            3,
+            crate::collection::legacy_github_message(&provider.id),
+        ));
+    }
     let id = provider.id.clone();
     let observation = if provider.kind == ProviderKind::External {
         let config = config.clone();

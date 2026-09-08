@@ -29,6 +29,16 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
                 serde_json::json!({"message":"Local credential availability; provider authentication is checked by doctor."}),
             )?;
             for p in collection::selected(config, id.as_deref())? {
+                if p.kind == ProviderKind::Github {
+                    o.report.providers.push(ProviderStatus {
+                        id: p.id.clone(),
+                        kind: "github".into(),
+                        state: "failed".into(),
+                        message: collection::legacy_github_message(&p.id),
+                        limitations: vec![],
+                    });
+                    continue;
+                }
                 let available = if p.kind == ProviderKind::Demo {
                     true
                 } else if let Some(external) = &p.external {
@@ -126,6 +136,11 @@ fn keychain_ref(
         .iter()
         .find(|p| p.id == id)
         .ok_or_else(|| AppError::input("Unknown provider instance; run permesh provider list"))?;
+    if provider.kind == ProviderKind::Github {
+        return Err(AppError::input(collection::legacy_github_message(
+            &provider.id,
+        )));
+    }
     let value = if let Some(external) = &provider.external {
         let name = credential
             .or_else(|| {

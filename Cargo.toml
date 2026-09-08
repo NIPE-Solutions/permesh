@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/permesh-core", "crates/permesh-config", "crates/permesh-secrets", "crates/permesh-provider-sdk", "crates/permesh-provider-protocol", "crates/permesh-provider-external", "crates/permesh-cli", "crates/providers/permesh-provider-demo", "crates/providers/permesh-provider-github", "crates/providers/permesh-provider-google"]
+members = ["crates/permesh-core", "crates/permesh-config", "crates/permesh-secrets", "crates/permesh-provider-sdk", "crates/permesh-provider-protocol", "crates/permesh-provider-external", "crates/permesh-cli", "crates/providers/permesh-provider-demo", "crates/providers/permesh-provider-google"]
 
 [workspace.package]
 version = "0.1.0-dev"
@@ -29,7 +29,6 @@ permesh-secrets = { path = "crates/permesh-secrets" }
 permesh-provider-sdk = { path = "crates/permesh-provider-sdk" }
 permesh-provider-external = { path = "crates/permesh-provider-external" }
 permesh-provider-demo = { path = "crates/providers/permesh-provider-demo" }
-permesh-provider-github = { path = "crates/providers/permesh-provider-github" }
 permesh-provider-google = { path = "crates/providers/permesh-provider-google" }
 
 [workspace.lints.rust]

@@ -66,6 +66,7 @@ pub struct ProviderConfig {
 #[serde(rename_all = "lowercase")]
 pub enum ProviderKind {
     Demo,
+    /// Legacy configuration accepted only for explicit migration; no bundled execution.
     Github,
     Google,
     External,

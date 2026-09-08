@@ -1,8 +1,8 @@
 # Migrate a legacy GitHub instance
 
 `permesh provider migrate INSTANCE --sha256 DIGEST` converts one existing
-`type: github` instance to an external GitHub instance. The bundled adapter stays
-available while the separate provider release is qualified. Migration is optional;
+`type: github` instance to an external GitHub instance. The CLI no longer bundles the GitHub adapter. Migration is required before
+executing legacy GitHub instances;
 it never downloads, trusts or executes a provider, approves a workspace, or reads
 credentials from environment variables or the native keychain.
 
@@ -11,7 +11,7 @@ First obtain and review the external binary using the
 be named `github` and declare exactly `accounts`, `resources`, `groups`,
 `memberships` and `grants`. Use the reviewed executable digest, including a retained
 older trusted digest when that is the intended pin. A package download alone is
-insufficient. The official catalog remains empty until release qualification.
+insufficient. Use a qualified release from the official catalog.
 
 ```bash
 permesh provider migrate github-work --sha256 REVIEWED_EXECUTABLE_SHA256
@@ -69,7 +69,7 @@ silently changed. GitHub supports at most 100 organizations with names at most
 100 bytes; larger legacy configurations must be edited explicitly.
 
 The external host adds its own transcript bounds and 60-second operation deadline
-(the bundled invocation allows 120 seconds). Migration does not establish live
+(the former bundled invocation allowed 120 seconds). Migration does not establish live
 provider visibility or promise identical completion timing. Run health checks and
 queries only after reviewing and approving the migrated configuration.
 

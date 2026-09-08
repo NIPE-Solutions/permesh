@@ -83,7 +83,7 @@ pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outc
     create_file(&path, yaml.as_bytes())?;
     Outcome::new(
         "init",
-        serde_json::json!({"message":"Created workspace","file":path,"next":if demo {"permesh doctor; permesh user alice@example.com"}else{"permesh provider add github --id github-main --organization YOUR_ORG"}}),
+        serde_json::json!({"message":"Created workspace","file":path,"next":if demo {"permesh doctor; permesh user alice@example.com"}else{"permesh provider install github --version VERSION"}}),
     )
 }
 fn create_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
@@ -100,6 +100,11 @@ fn create_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
         .map_err(|_| AppError::new(5, "Cannot finish writing workspace file"))
 }
 pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
+    if args.provider_type == "github" {
+        return Err(AppError::input(
+            "GitHub uses an external provider: install an official package, explicitly trust its binary, then run permesh provider setup github --id INSTANCE. Existing legacy instances use provider migrate",
+        ));
+    }
     let path = path(cli)?;
     if std::fs::symlink_metadata(&path)
         .map_err(|_| AppError::input("Cannot inspect configuration file"))?
@@ -112,7 +117,6 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
     }
     let mut config = Config::load(&path)?;
     let kind = match args.provider_type.as_str() {
-        "github" => ProviderKind::Github,
         "google" => ProviderKind::Google,
         "external" => ProviderKind::External,
         _ => return Err(AppError::input("Unsupported provider type")),

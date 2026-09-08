@@ -2,7 +2,7 @@
 
 Status: accepted implementation design; pre-release.
 
-Use a Rust workspace with `permesh-core` (serializable domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, `permesh-provider-github`, `permesh-provider-google`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded versioned discovery
+Use a Rust workspace with `permesh-core` (serializable domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, `permesh-provider-google`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded versioned discovery
 and health validation. The `permesh-provider-external` crate owns protected native
 registrations, workspace approval fingerprints, private invocation credentials
 and subprocess supervision. Presentation stays in CLI modules.
@@ -13,10 +13,12 @@ flowchart LR
   CLI --> Secrets
   CLI --> SDK
   SDK --> Demo
-  SDK --> GitHub
+  CLI --> ExternalHost
+  ExternalHost --> GitHub
+  GitHub --> ProtocolValidation
   SDK --> Google
   Demo --> Snapshot
-  GitHub --> Snapshot
+  ProtocolValidation --> Snapshot
   Google --> Snapshot
   Snapshot --> Core
   Config --> Core
@@ -41,3 +43,8 @@ approval → credential resolution → supervised draft-2 handshake → private 
 full normalized config and registration. Ordinary queries merge only validated
 snapshots using existing partial-result and source-authority rules. Cancellation
 signals running external operations and awaits cleanup rather than dropping them.
+
+GitHub executes only through the external protocol host after digest verification
+and workspace approval. Its adapter lives in the separate providers repository.
+`ProviderKind::Github` remains a legacy parsing marker for explicit configuration
+migration; all legacy invocation paths fail before credential resolution.

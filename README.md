@@ -57,26 +57,46 @@ Shell completions for Bash, Zsh, Fish, PowerShell and Elvish are available throu
 
 ## Connect GitHub
 
-In a separate directory:
-
 ```bash
 permesh init --organization Acme
-permesh provider add github --id github-main --organization acme
+permesh provider install github --version 0.1.0
+permesh provider external trust /ABSOLUTE/PATH/TO/INSTALLED/provider \
+  --id github --sha256 REVIEWED_EXECUTABLE_SHA256 \
+  --capability accounts --capability resources --capability groups \
+  --capability memberships --capability grants --accept-risk
+permesh provider setup github --id github-main
 permesh auth login github-main
+permesh provider external review github-main
+permesh provider external approve github-main --fingerprint REVIEWED_FINGERPRINT --accept-risk
 permesh doctor
-permesh user alice-dev
+permesh user YOUR_GITHUB_LOGIN
 ```
 
-Use a token with the [documented read permissions](docs/providers/github.md).
-`auth login` stores it in the native OS keychain. Environment-variable references
-are also supported.
+Replace the executable path and digest with the installed package's reviewed
+values, and `REVIEWED_FINGERPRINT` with the
+workspace review result. During setup, supply organization names and a token
+reference such as `keychain://github-main/token`; `auth login` then stores the token
+in the native keychain. For `env://PERMESH_GITHUB_TOKEN`, inject that variable through
+existing secret tooling and skip `auth login`. Never put token values in arguments
+or configuration.
+
+Downloading does not trust or execute code. Setup requires explicit binary trust;
+queries require a separate workspace approval. The catalog advertises only
+qualified external releases. See [packages](docs/provider-packages.md)
+and the [provider's permissions and visibility documentation](https://github.com/NIPE-Solutions/permesh-providers/blob/main/docs/github.md).
+
+Existing `type: github` workspaces must use [explicit migration](docs/github-migration.md).
+Legacy parsing remains available, but health checks, queries and credential commands
+refuse legacy GitHub instances before accessing credentials or the network.
 
 GitHub discovery covers organization members and owners, repositories, teams,
 memberships, and observed roles. Results retain their source and visibility
 limitations. A login lookup selects an account; correlating it with an email
 requires an explicit mapping or verified identity evidence.
 
-The GitHub adapter has passed a [live validation exercise](docs/getting-started.md#live-validation).
+The packaged GitHub executable has also passed a read-only credentialed acceptance
+check: health and privileged-access observations matched the bundled adapter.
+Only aggregate results were retained. [Validation scope](docs/getting-started.md#live-validation).
 Google Workspace directory discovery is available as an [identity source](docs/providers/google.md)
 with externally supplied OAuth access tokens; live tenant qualification is pending.
 AWS and Cloudflare are planned. [External native providers](docs/external-providers.md) can be explicitly trusted
@@ -95,10 +115,14 @@ organization:
   name: Acme
 providers:
   - id: github-main
-    type: github
-    organizations: [acme]
-    auth:
-      token: env://PERMESH_GITHUB_TOKEN
+    type: external
+    external:
+      provider: github
+      sha256: REVIEWED_EXECUTABLE_SHA256
+      configuration:
+        organizations: [acme]
+      credentials:
+        token: env://PERMESH_GITHUB_TOKEN
 identity:
   aliases:
     alice@example.com:
@@ -143,5 +167,5 @@ Report vulnerabilities through the process in [SECURITY.md](SECURITY.md).
 Official provider packages are maintained in
 [permesh-providers](https://github.com/NIPE-Solutions/permesh-providers).
 [Explicit install and update commands](docs/provider-packages.md) are implemented;
-the catalog remains empty until the first external release is qualified. Bundled
-providers remain available during migration.
+the catalog lists qualified releases for the supported native platforms.
+Google and the offline demo remain bundled; GitHub requires an external binary.

@@ -8,10 +8,14 @@ organization:
   name: Acme
 providers:
   - id: github-main
-    type: github
-    organizations: [acme]
-    auth:
-      token: env://PERMESH_GITHUB_TOKEN
+    type: external
+    external:
+      provider: github
+      sha256: REVIEWED_EXECUTABLE_SHA256
+      configuration:
+        organizations: [acme]
+      credentials:
+        token: env://PERMESH_GITHUB_TOKEN
 identity:
   sources: []
   aliases:
@@ -19,9 +23,9 @@ identity:
       github-main: ["123456"]
 ```
 
-Demo configuration contains a `type: demo` provider with no authentication. GitHub requires nonempty organization names and an auth token reference. Provider IDs use ASCII letters, digits, hyphen, underscore; duplicate IDs and references to nonexistent providers fail validation. Aliases target immutable account IDs. Source declarations reference provider instances and must be capability-compatible. The demo provider supplies synthetic identities; Google supplies directory identities when explicitly designated authoritative. GitHub cannot be an authoritative identity source. Google requires `customer_id` (an explicit `C...` customer ID) and `auth.token`, and rejects `organizations`. Other providers reject `customer_id`. See [Google configuration](providers/google.md).
+Demo configuration contains a `type: demo` provider with no authentication. External GitHub requires nonempty `external.configuration.organizations`, a token reference in `external.credentials.token`, an explicitly trusted SHA-256 pin and workspace approval. Replace the digest placeholder with 64 lowercase hexadecimal characters. Legacy `type: github` is parsed only for [migration](github-migration.md); it cannot execute or access credentials. Provider IDs use ASCII letters, digits, hyphen, underscore; duplicate IDs and references to nonexistent providers fail validation. Aliases target immutable account IDs. Source declarations reference provider instances and must be capability-compatible. The demo provider supplies synthetic identities; Google supplies directory identities when explicitly designated authoritative. GitHub cannot be an authoritative identity source. Google requires `customer_id` (an explicit `C...` customer ID) and `auth.token`, and rejects `organizations`. Other providers reject `customer_id`. See [Google configuration](providers/google.md).
 
-CLI contract: `init [--demo] [--organization NAME]`, `provider add github --id ID --organization ORG`, `provider add google --id ID --customer-id CUSTOMER [--authoritative]`, `provider list/status/capabilities [ID]`, `auth login/status/logout`, `doctor`, `user QUERY [--json]`, `admins [--json]`, `orphaned [--json]`, and `version`. Global `--config`, `--json`, `--color auto|always|never`, `-v` flags. Commands implemented in the milestone are listed by `--help`; future commands are not stubs.
+CLI contract: `init [--demo] [--organization NAME]`, `provider install github --version VERSION`, explicit binary trust, `provider setup github --id ID`, `provider migrate ID --sha256 DIGEST`, `provider add google --id ID --customer-id CUSTOMER [--authoritative]`, `provider list/status/capabilities [ID]`, `auth login/status/logout`, `doctor`, `user QUERY [--json]`, `admins [--json]`, `orphaned [--json]`, and `version`. Global `--config`, `--json`, `--color auto|always|never`, `-v` flags. Commands implemented in the milestone are listed by `--help`; future commands are not stubs.
 
 Exit codes: 0 successful operation (including a successful identity query with no grants); 1 query has no matching identity/account; 2 invalid arguments/configuration or ambiguous identity; 3 all requested providers failed; 4 useful but incomplete provider results; 5 internal/output failure; 130 cancelled. Warnings about documented provider visibility are exposed separately from failed collection.
 

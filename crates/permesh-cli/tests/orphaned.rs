@@ -118,11 +118,13 @@ fn unavailable_access_provider_does_not_invalidate_complete_authority() {
             &[
                 "provider",
                 "add",
+                "external",
+                "--provider",
                 "github",
-                "--organization",
-                "example",
-                "--token-ref",
-                "env://PERMESH_TEST_ORPHAN_AUTH_41975"
+                "--sha256",
+                &"a".repeat(64),
+                "--credential",
+                "token=env://PERMESH_TEST_ORPHAN_AUTH_41975"
             ]
         )
         .status
