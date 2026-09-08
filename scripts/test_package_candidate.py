@@ -13,7 +13,7 @@ class CandidateTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
-        for name in ('LICENSE-MIT', 'LICENSE-APACHE'):
+        for name in ('LICENSE',):
             (self.root / name).write_text(name)
         (self.root / 'permesh.local.yaml').write_text('SECRET')
 
@@ -31,7 +31,7 @@ class CandidateTests(unittest.TestCase):
                 binary.touch()
                 two = package.package(self.root, target, '0.1.0-dev', self.root / (target + '-two'))
                 self.assertEqual(one.read_bytes(), two.read_bytes())
-                expected = {binary.name, 'LICENSE-MIT', 'LICENSE-APACHE', 'INSTALL.txt'}
+                expected = {binary.name, 'LICENSE', 'INSTALL.txt'}
                 if one.suffix == '.zip':
                     with zipfile.ZipFile(one) as archive:
                         self.assertEqual(set(archive.namelist()), expected)
@@ -54,7 +54,7 @@ class CandidateTests(unittest.TestCase):
 
     def test_rejects_symlink_license_or_output(self):
         self.binary('aarch64-apple-darwin')
-        license_file = self.root / 'LICENSE-MIT'
+        license_file = self.root / 'LICENSE'
         license_file.unlink()
         try:
             license_file.symlink_to(self.root / 'permesh.local.yaml')

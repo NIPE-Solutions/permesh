@@ -27,6 +27,24 @@ jobs:
       - run: cargo build --workspace --all-targets --locked
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - run: cargo test --all --locked
+      - name: Test Windows Credential Manager
+        if: runner.os == 'Windows'
+        run: cargo test -p permesh-secrets --test native --locked -- --ignored --exact native_round_trip
+      - name: Install Linux Secret Service
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gnome-keyring dbus-x11
+      - name: Test Linux Secret Service
+        if: runner.os == 'Linux'
+        run: |
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "synthetic-ci-unlock" | gnome-keyring-daemon --unlock --components=secrets
+            cargo test -p permesh-secrets --test native --locked -- --ignored --exact native_round_trip
+          '
+      - name: Test unavailable Linux Secret Service
+        if: runner.os == 'Linux'
+        env:
+          DBUS_SESSION_BUS_ADDRESS: unix:path=/tmp/permesh-no-bus
+        run: cargo test -p permesh-secrets --test native --locked -- --ignored --exact unavailable_service_is_redacted
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'

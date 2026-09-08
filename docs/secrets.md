@@ -37,6 +37,12 @@ Package tests use temporary directories and a child process with an isolated
 environment. They do not create, read or delete real native credentials. Native
 credential-store integration remains a platform release check.
 
+A separate manual macOS Apple Silicon exercise verified synthetic credential
+storage, resolution, independent OS retrieval and deletion for revision
+`9ad1504`. The temporary entry was removed afterward. Windows Credential Manager
+and Linux Secret Service still require native integration qualification; see
+[release evidence](releasing.md#qualification-evidence-2026-09-08).
+
 Configuration loading rejects nonregular files before opening and checks the
 opened file again. A process concurrently replacing filesystem entries can still
 race these checks; workspace contents must not be concurrently manipulated by an
@@ -46,3 +52,25 @@ locations, never source excerpts.
 Ctrl+C stops waiting and exits; a native keychain write already in progress may have completed. Check `auth status` before retrying interrupted login/logout. No rollback is promised for native operations.
 
 Keychain names are shared at user level: the same provider instance ID in two workspaces resolves the same `permesh:<id>` entry. Choose distinct instance IDs for unrelated credentials. Login explicitly replaces that entry; it does not establish tenant-specific isolation.
+
+## Native integration checks
+
+The `native` integration tests are ignored by default because they access the
+OS credential store. To explicitly run a synthetic round trip on an unlocked
+store:
+
+```sh
+cargo test -p permesh-secrets --test native --locked -- --ignored --exact native_round_trip
+```
+
+The test uses a unique entry, checks retrieval and replacement without printing
+values, and verifies deletion. A cleanup guard also attempts deletion on failure.
+It never uses provider credentials or makes provider API requests.
+
+CI runs this test on Windows Credential Manager and on Linux with a temporary
+D-Bus session and unlocked GNOME Keyring. The Linux setup follows the
+[GNOME Keyring daemon options](https://manpages.debian.org/unstable/gnome-keyring/gnome-keyring-daemon.1.en.html)
+and [D-Bus session lifecycle](https://dbus.freedesktop.org/doc/dbus-run-session.1.html).
+A separate process points at a nonexistent session bus to test redacted service
+unavailability. Desktop prompts and locked-store interactions still require
+manual checks.

@@ -14,6 +14,18 @@ The project is pre-release. No publication workflow or automatic tag release is 
 
 No release gate is marked complete by this document. Record actual revision, commands, date, platforms, and acceptance results when qualifying a release.
 
+## Qualification evidence (2026-09-08)
+
+Revision `9ad15045394e69f20d2541949730b806608641e8` passed the following checks:
+
+- [CI](https://github.com/NIPE-Solutions/permesh/actions/runs/34210661993): Ubuntu, macOS and Windows formatting, builds, Clippy and tests, plus the Rust 1.91 minimum-version check.
+- [Dependency security](https://github.com/NIPE-Solutions/permesh/actions/runs/34210662040): pinned cargo-deny and cargo-audit checks with fresh advisory data.
+- [Native candidates](https://github.com/NIPE-Solutions/permesh/actions/runs/34210668223): all five targets built, passed tests and offline demo smoke checks, and uploaded archives. Downloaded archives independently passed SHA-256 and four-file allowlist verification. Artifacts expire after seven days; these are unsigned candidates, not published releases.
+- Local macOS Apple Silicon Keychain: a unique synthetic credential was stored through `auth login --token-stdin`, read through `auth status`, independently compared using the OS credential facility, deleted through `auth logout`, and confirmed absent. Configuration remained unchanged and captured command output contained no credential. No provider requests were needed for this check.
+- Live GitHub invalid-credential handling: `doctor --json` returned exit 3 with an incomplete report; a mixed demo/GitHub user query returned exit 4 while preserving demo access. Both used a deliberately invalid synthetic token and retained no token in output. This tests authentication rejection, not actual token revocation or insufficient scopes.
+
+Windows Credential Manager and Linux Secret Service integration, interactive terminal behavior, dedicated live team/pagination/permission/revocation exercises, vulnerability-reporting setup and distribution review remain open. Hosted runner success does not establish native credential-store behavior. Live credentials and access reports are excluded from this evidence.
+
 An [initial live smoke test](getting-started.md#live-validation) passed on macOS Apple Silicon on 2026-09-08 using an uncommitted development build. This supplies early integration evidence for connectivity and observed access, but does not qualify a release revision or complete the broader credentialed exercise in gate 3. Public demo documentation contains no live identities, resource identifiers, access counts, credentials, or raw reports.
 
 ## Tool decisions (2026-09-08)
@@ -26,7 +38,7 @@ CI installs [cargo-deny](https://embarkstudios.github.io/cargo-deny/) and [cargo
 
 ## Unsigned native candidates
 
-[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE-MIT`, `LICENSE-APACHE`, and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
+[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (both license texts), and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
 
 | Candidate target | Native GitHub runner | Archive |
 | --- | --- | --- |
@@ -40,7 +52,7 @@ Runner labels and architectures were checked against [GitHub's hosted runner ref
 
 The [artifact action](https://github.com/actions/upload-artifact/releases/tag/v7.0.1) is pinned to v7.0.1 commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`, verified via the [upstream tag API](https://api.github.com/repos/actions/upload-artifact/git/ref/tags/v7.0.1) on 2026-09-08. The existing checkout v4 and setup-python v5 pins above were rechecked against their upstream tag APIs. Pin review remains a maintenance responsibility.
 
-The Python standard-library packager is intentionally limited to these five targets, one executable, and three static documents. It rejects input symlinks and unsafe target/version names and requires a new output directory. Tar, gzip and zip metadata are fixed, including executable permissions; identical input bytes produce identical archives under the same Python/compression implementation. This does **not** claim reproducible Rust builds or byte identity across compressor versions. Checksums detect corruption, not publisher authenticity. The project license texts do not replace the dependency notice review required before public distribution.
+The Python standard-library packager is intentionally limited to these five targets, one executable, and two static documents. It rejects input symlinks and unsafe target/version names and requires a new output directory. Tar, gzip and zip metadata are fixed, including executable permissions; identical input bytes produce identical archives under the same Python/compression implementation. This does **not** claim reproducible Rust builds or byte identity across compressor versions. Checksums detect corruption, not publisher authenticity. The project license texts do not replace the dependency notice review required before public distribution.
 
 To exercise a local candidate, substitute the host target and workspace version:
 
