@@ -4,6 +4,8 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
+- Bound external-provider supervisor stack usage so setup remains reliable on small native main-thread stacks, including Windows.
+
 - Add explicit `provider migrate INSTANCE --sha256 DIGEST` for legacy GitHub configurations, preserving IDs, aliases and token references without provider execution or credential access. Existing external workspace approvals require renewed review after the configuration changes; bundled GitHub remains available.
 
 - Standardize the main repository on MIT with one license file and consistent package metadata and SPDX identifiers. Earlier revisions and third-party dependencies retain their existing terms.
