@@ -285,7 +285,22 @@ async fn workspace_changes_during_either_consent_are_preserved_without_approval(
 async fn exact_package_pin_cannot_be_replaced_by_selected_registration() {
     let sandbox = Sandbox::new();
     let registry = trust::Registry::new(sandbox.root.clone()).unwrap();
-    let other = std::env::current_exe().unwrap().canonicalize().unwrap();
+    // Use a small native provider fixture: the full test executable can exceed
+    // the registry's binary-size limit with CI debug information enabled.
+    let source = sandbox.config.with_file_name("other.rs");
+    let other = sandbox
+        .config
+        .with_file_name(if cfg!(windows) { "other.exe" } else { "other" });
+    fs::write(&source, "fn main() {}\n").unwrap();
+    assert!(
+        Command::new("rustc")
+            .arg(&source)
+            .arg("-o")
+            .arg(&other)
+            .status()
+            .unwrap()
+            .success()
+    );
     let other_hash = trust::inspect(&other).unwrap().sha256;
     registry
         .trust(
