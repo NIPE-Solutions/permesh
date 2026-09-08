@@ -562,3 +562,21 @@ async fn setup_deadline_includes_terminal_eof_and_cancel_uses_draft_three() {
     );
     assert!(dir.path().join("cancelled").exists());
 }
+
+#[tokio::test]
+async fn browser_description_cancellation_uses_draft_four_and_waits_for_cleanup() {
+    let (directory, peer) = isolated_peer();
+    let result = describe_auth(
+        &peer,
+        "fixture",
+        "auth-cancel",
+        &[],
+        wait_for_marker(directory.path().join("ready")),
+    )
+    .await;
+    assert!(
+        matches!(result, Err(ExternalError::Cancelled)),
+        "{result:?}"
+    );
+    assert!(directory.path().join("cancelled").exists());
+}

@@ -4,8 +4,8 @@ use crate::ExternalError;
 pub use crate::invocation::Invocation;
 use permesh_core::Snapshot;
 use permesh_provider_protocol::{
-    DiscoveryDecoder, HealthDecoder, MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES, Progress, SetupDecoder,
-    handshake_request, handshake_request_versioned,
+    BrowserAuthDecoder, DiscoveryDecoder, HealthDecoder, MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES,
+    Progress, SetupDecoder, handshake_request, handshake_request_versioned,
 };
 use permesh_provider_sdk::Capability;
 use permesh_provider_sdk::Health;
@@ -187,6 +187,41 @@ async fn describe_with_deadlines(
         deadlines,
     )
     .await
+}
+/// Retrieve an optional draft4 browser-auth declaration without delivering any
+/// configuration, credentials, authorization codes or browser state.
+pub async fn describe_auth(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    cancellation: impl Future<Output = ()>,
+) -> Result<permesh_provider_sdk::browser_auth::BrowserAuthSpec, ExternalError> {
+    let decoder = BrowserAuthDecoder::new(provider, instance, Some(capabilities))
+        .map_err(|_| ExternalError::Input)?;
+    let handshake = handshake_request_versioned(instance, 4).map_err(|_| ExternalError::Input)?;
+    supervise(
+        executable,
+        Exchange {
+            decoder,
+            handshake,
+            invocation: None,
+            method: "describe_auth",
+            version: 4,
+        },
+        cancellation,
+        Deadlines::default(),
+    )
+    .await
+}
+impl Decoder for BrowserAuthDecoder {
+    type Output = permesh_provider_sdk::browser_auth::BrowserAuthSpec;
+    fn push(&mut self, frame: &[u8]) -> Result<Progress, permesh_provider_protocol::ProtocolError> {
+        self.push_frame(frame)
+    }
+    fn finish(self) -> Result<Self::Output, permesh_provider_protocol::ProtocolError> {
+        self.finish()
+    }
 }
 struct Exchange<'a, D> {
     decoder: D,
@@ -397,7 +432,9 @@ async fn supervise_inner<D: Decoder>(
                 async {
                     if let Some(input) = &mut stdin {
                         input
-                            .write_all(if version == 3 {
+                            .write_all(if version == 4 {
+                                b"{\"protocol\":4,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
+                            } else if version == 3 {
                                 b"{\"protocol\":3,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
                             } else if version == 2 {
                                 b"{\"protocol\":2,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
@@ -545,6 +582,7 @@ async fn exchange<D: Decoder>(
                         negotiated = true;
                         let request = match invocation {
                             Some(invocation) => invocation.request(method)?,
+                            None if version == 4 => Zeroizing::new(b"{\"protocol\":4,\"id\":\"describe_auth\",\"method\":\"describe_auth\"}\n".to_vec()),
                             None if version == 3 => Zeroizing::new(
                                 b"{\"protocol\":3,\"id\":\"describe\",\"method\":\"describe\"}\n"
                                     .to_vec(),

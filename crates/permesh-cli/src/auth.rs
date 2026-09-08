@@ -79,6 +79,7 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
             id,
             token_stdin,
             credential,
+            ..
         } => {
             let reference = keychain_ref(config, id, credential.as_deref())?;
             let value = if *token_stdin {

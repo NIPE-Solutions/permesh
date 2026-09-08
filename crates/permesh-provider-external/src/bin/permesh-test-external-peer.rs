@@ -42,6 +42,27 @@ fn main() {
     let mut lines = io::stdin().lock().lines();
     let request: serde_json::Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
     let instance = request["instance"].as_str().unwrap();
+    if request["protocol"] == 4 {
+        emit(
+            serde_json::json!({"protocol":4,"id":"handshake","event":"handshake","provider":"fixture","capabilities":[],"draft":true}),
+        );
+        let request: serde_json::Value =
+            serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
+        assert_eq!(
+            request,
+            serde_json::json!({"protocol":4,"id":"describe_auth","method":"describe_auth"})
+        );
+        fs::write(marker("ready"), "yes").unwrap();
+        let request: serde_json::Value =
+            serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
+        assert_eq!(
+            request,
+            serde_json::json!({"protocol":4,"id":"cancel","method":"cancel"})
+        );
+        emit(serde_json::json!({"protocol":4,"id":"cancel","event":"cancelled"}));
+        fs::write(marker("cancelled"), "yes").unwrap();
+        return;
+    }
     if request["protocol"] == 3 {
         describe_peer(instance, &mut lines);
         return;

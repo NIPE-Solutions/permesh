@@ -40,6 +40,9 @@ pub(crate) enum Event {
     Setup {
         spec: permesh_provider_sdk::setup::SetupSpec,
     },
+    Auth {
+        spec: permesh_provider_sdk::browser_auth::BrowserAuthSpec,
+    },
     Cancelled,
 }
 #[derive(Serialize, Deserialize)]
@@ -128,7 +131,7 @@ pub(crate) fn valid_name(value: &str) -> bool {
 pub fn handshake_request(instance: &str) -> Result<Vec<u8>, ProtocolError> {
     handshake_request_versioned(instance, PROTOCOL_VERSION)
 }
-/// Encode a handshake pinned to supported draft version 1, 2, or 3. Never downgrade.
+/// Encode a handshake pinned to supported draft version 1, 2, 3, or 4. Never downgrade.
 pub fn handshake_request_versioned(instance: &str, version: u32) -> Result<Vec<u8>, ProtocolError> {
     validate_version(version)?;
     if !valid_name(instance) {
@@ -143,7 +146,7 @@ pub fn handshake_request_versioned(instance: &str, version: u32) -> Result<Vec<u
 }
 
 pub(crate) fn validate_version(version: u32) -> Result<(), ProtocolError> {
-    if matches!(version, 1..=3) {
+    if matches!(version, 1..=4) {
         Ok(())
     } else {
         Err(ProtocolError::Version)

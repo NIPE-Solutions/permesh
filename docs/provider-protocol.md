@@ -217,3 +217,38 @@ and explicit process cleanup. See [host limits and trust](external-providers.md)
 The host closes stdin after the terminal completion event and requires EOF plus
 successful process exit. Cancellation is best effort, followed by termination;
 a cancellation acknowledgment is not accepted as successful discovery.
+
+## Optional browser authentication description (draft 4)
+
+Draft 4 is isolated from discovery and setup. It describes a host-owned browser
+login and never delivers credentials or configuration to the provider. It is
+requested only by explicit `auth login INSTANCE --browser`, after binary trust
+and full workspace approval. Catalog `protocols: [2, 3]` continue to identify the
+existing discovery/setup operations; do not add 4 to catalogs consumed by older
+CLIs. Unsupported draft-4 providers fail browser login without affecting their
+ordinary queries or setup.
+
+```json
+{"protocol":4,"id":"handshake","method":"handshake","instance":"example-main"}
+{"protocol":4,"id":"handshake","event":"handshake","provider":"example","capabilities":["accounts"],"draft":true}
+{"protocol":4,"id":"describe_auth","method":"describe_auth"}
+{"protocol":4,"id":"describe_auth","event":"auth","spec":{"schema_version":1,"authorization_endpoint":"https://login.example.com/authorize","token_endpoint":"https://login.example.com/token","scopes":["directory.read"],"client_id_field":"client_id","client_secret_slot":"client_secret","refresh_token_slot":"refresh_token","when":{"field":"auth_mode","equals":"refresh_token"},"authorization_parameters":{"access_type":"offline","prompt":"consent"}}}
+```
+
+The final `auth` event is terminal and must be followed by clean EOF. Draft 4
+supports the same cancellation/limits as existing supervised exchanges. SDK type
+`permesh_provider_sdk::browser_auth::BrowserAuthSpec` validates schema version 1;
+`BrowserAuthDecoder` accepts only the version-4 handshake and authentication
+description. `client_secret_slot` and string-equality `when` are optional. All
+other fields are required. Identifiers are bounded ASCII names. Scopes must be
+unique and bounded. Endpoints require HTTPS domain hosts, port 443, and no user
+information, queries or fragments. Version 1 allows only `access_type=offline`
+and `prompt=consent` in `authorization_parameters`; the host owns every OAuth
+binding parameter and rejects arbitrary extras.
+
+The host reads `client_id_field` from approved nonsecret configuration and
+resolves only `client_secret_slot`, if present. `refresh_token_slot` must already
+reference `keychain://INSTANCE/SLOT` for the same instance and slot. The declaration
+cannot choose another keychain destination. The host implements PKCE, loopback,
+state validation, exchange and one final native keychain write. See
+[browser authentication](browser-auth.md) for deadlines and cancellation behavior.
