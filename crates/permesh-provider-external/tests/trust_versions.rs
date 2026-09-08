@@ -104,7 +104,9 @@ fn failed_update_and_stale_lock_preserve_previous_selection() -> TestResult {
     let digest = inspect(&source)?.sha256;
     // A pre-existing selection reservation must never be deleted by this writer.
     let pending = root.join("example/selected.pending");
-    fs::copy(root.join("example/manifest.json"), &pending)?;
+    // Link an already private file: copying can create an inherited, unprotected
+    // Windows DACL, unlike the protected reservations produced by the registry.
+    fs::hard_link(root.join("example/manifest.json"), &pending)?;
     assert!(registry.trust(&source, "example", &digest, &[]).is_err());
     assert!(pending.exists());
     assert!(!root.join("example/versions").join(&digest).exists());
@@ -112,11 +114,14 @@ fn failed_update_and_stale_lock_preserve_previous_selection() -> TestResult {
     assert!(registry.verify(&first).is_ok());
     fs::remove_file(&pending)?;
     let lock = root.join(".registry.lock");
-    fs::copy(root.join("example/manifest.json"), &lock)?;
+    fs::hard_link(root.join("example/manifest.json"), &lock)?;
     assert!(registry.trust(&source, "example", &digest, &[]).is_err());
     assert!(registry.remove("example").is_err());
     assert!(lock.exists());
-    assert_eq!(registry.list()?, vec![first.clone()]);
+    let listed = registry
+        .list()
+        .map_err(|error| format!("listing with private stale lock: {error}"))?;
+    assert_eq!(listed, vec![first.clone()]);
     assert!(registry.verify(&first).is_ok());
     fs::remove_file(lock)?;
     assert!(registry.trust(&source, "example", &digest, &[]).is_ok());
