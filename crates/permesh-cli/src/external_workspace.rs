@@ -247,7 +247,10 @@ mod tests {
         let path = base.join("permesh.yaml");
         std::fs::write(&path, "workspace")?;
         let source = base.join("native");
-        std::fs::copy(std::env::current_exe()?, &source)?;
+        // These tests inspect/copy bytes and prepare invocations; they never
+        // execute this file. A tiny native-magic fixture keeps approval tests
+        // independent of debug test executables exceeding the 128 MiB limit.
+        std::fs::write(&source, b"\x7fELFpermesh approval fixture")?;
         let sha256 = inspect(&source)?.sha256;
         let root = base.join("data/providers");
         Registry::new(root.clone())?.trust(&source, "fixture", &sha256, capabilities)?;
