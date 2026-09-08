@@ -1,23 +1,57 @@
 # Roadmap
 
-The release is deliberately smaller than the long-term product vision.
+Permesh's first stable release remains smaller than the long-term product vision.
+The CLI is currently published as an unsigned alpha; GitHub is the only published
+official provider package. Implemented source and qualified releases are tracked
+separately.
 
-1. **Implemented** — Foundation: accepted design, dependency research, MIT license, strict config, redacted secrets, workspace CI.
-2. **Implemented** — Demo access slice: synthetic provider, validated graph, identity resolution, init/doctor/user JSON and human output, binary integration tests. Static shell completions cover Bash, Zsh, Fish, PowerShell and Elvish without workspace discovery.
-3. **Implemented; initial live smoke test passed** — GitHub observed-access slice (now in the separate provider repository): read-only API adapter, pagination, bounded retries, scope diagnostics, inheritance paths, mock HTTP tests, authentication docs. The former bundled adapter passed connectivity, user JSON, and privileged-access live checks; privileged grants matched an independent API comparison. [Validation scope](getting-started.md#live-validation); full live acceptance remains pending.
-4. **Alpha distribution prepared; stable qualification pending** — Release qualification: native platform CI, supply-chain checks, credentialed GitHub fixture organization acceptance, release automation and checksums. The alpha documents unqualified native credential stores and live-provider paths; stable release requires the remaining gates.
-5. **Implemented** — Privileged-access inspection: `admins` retains known privileged paths, unknown role semantics, ambiguous identities, and group grants without observed accounts. It does not require an employee directory.
-6. **Implemented; live tenant qualification pending** — Google Workspace directory source: explicit customer and authority, immutable identity IDs, conservative status mapping and OAuth access-token references. `orphaned` now reviews observed accounts with conservative source-completeness handling and separate service/bot/external categories. Additional authentication flows follow separately.
-7. **Native workspace integration implemented; release qualification pending** — External providers: draft-1 standalone discovery, draft-2 approved workspace discovery/health, digest-bound local registration, exact workspace/configuration approvals, named env/keychain credentials over stdin after handshake, explicit source authority and ordinary user/admins/orphaned integration. Native supervision retains bounded streams and awaited cancellation cleanup. Declarative setup provides typed conditional CLI-owned prompts or strict answer files using draft-3 description exchanges; setup does not approve configured execution. Explicit catalog installation/update commands use bounded GitHub downloads and private side-by-side packages. Trust retains old digest versions so existing workspace pins remain usable. Explicit legacy GitHub migration is implemented and the bundled GitHub adapter is removed. GitHub provider 0.1.0 is published for all five targets; dynamic provider-driven steps, automatic updates and interpreted-provider trust remain deferred.
-8. Additional providers: AWS and Cloudflare incrementally, with documented limitations and identical contract tests.
+## Implemented source
 
-Release acceptance criteria are in [releasing.md](releasing.md). Future scopes are intentionally unsupported, not fake adapters.
+- Local-first read-only queries: offline demo, `doctor`, `user`, `admins`,
+  `orphaned`, versioned JSON, shell completions and explicit identity authority.
+- Native external providers: digest-bound trust, separate exact workspace
+  approval, named env/keychain credentials, bounded execution and cancellation,
+  declarative setup, explicit package install/update and legacy migration.
+- GitHub observed-access discovery, Google directory identities, Google
+  refresh-token authentication and provider-declared browser login. Google
+  migration preserves explicit authority; the bundled adapter remains available.
+- In the official provider repository, Cloudflare account-access observations and
+  an AWS IAM policy-attachment inventory with named credentials. Neither claims
+  complete effective authorization. See [provider scope and status](providers.md).
+- Native candidate packaging, dependency notices, checksums, target-bound
+  dependency inventories and Unix terminal checks. A separate manual workflow
+  generates and verifies GitHub provenance attestations for reviewed candidates;
+  only a successful run qualifies those exact artifacts.
 
-## Next priorities
+## Before stable release and provider publication
 
-1. Complete Windows/Linux native credential-store and interactive terminal acceptance, GitHub fixture exercises, and live Google directory qualification before stable v0.1.
-2. Move Google into the official provider repository with its own setup and release qualification. Keep the offline demo available without a download.
-3. Improve provider onboarding ergonomics while preserving separate download, trust and workspace approval decisions. Declarative conditional questions work; dynamic API-driven setup and richer validation remain future work.
-4. Add provider-native authentication (Google refresh/browser flows, later AWS credential chain), then AWS and Cloudflare with contract and API tests.
-5. Add package-manager distribution, signing/notarization and attestations/SBOMs; evaluate cargo-dist as distribution grows. CLI self-update is not implemented.
-6. Later: deterministic config composition/local overrides, schema migrations, policies/audit and snapshot diff. No collaboration backend is planned.
+1. Complete the broader credentialed GitHub fixture exercise, live Google
+   directory/browser login, and live Cloudflare/AWS acceptance. Google and
+   Cloudflare draft packages are not cataloged; AWS also needs native artifact
+   qualification. Synthetic tests do not substitute for these checks.
+2. Complete remaining Windows terminal and interactive desktop credential-store
+   acceptance, then qualify the exact release revision on all supported targets.
+3. Verify and promote the original qualified artifacts, update release evidence
+   and documentation, and keep versioned assets immutable. See [release
+   gates](releasing.md).
+4. Complete native signing/notarization once Apple and Windows signing identities
+   are available. GitHub provenance does not replace either platform's signing
+   requirements. Package-manager manifests must use the final distributed hashes.
+5. Publish qualified external Google packages before removing the bundled adapter;
+   keep the offline demo available without downloads.
+
+## Later options
+
+- Package-manager distribution and CLI self-update. Provider package updates
+  already exist; they do not update the CLI.
+- Native AWS profiles, SSO and credential refresh. Current AWS credentials are
+  explicit references; temporary sessions are refreshed outside Permesh.
+- Dynamic API-driven onboarding and broader provider coverage.
+- A standards SBOM generator with a clean reviewed dependency graph. The existing
+  inventory is not a CycloneDX/SPDX SBOM; see [tool evaluation](releasing.md#standards-generator-evaluation-2026-09-08).
+- Deterministic config composition/local overrides, schema migrations,
+  policies/audit and snapshot diff. JSON output already supports report export;
+  additional export formats are separate future work.
+
+No collaboration backend, telemetry, remote configuration or mutation APIs are
+planned for this milestone.

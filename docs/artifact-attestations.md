@@ -47,8 +47,9 @@ upload of `permesh-attestations-SHA/attestation-bundle.json`. The candidate file
 remain in the five original `permesh-candidate-TARGET-SHA` artifacts.
 
 Record the run URL, source SHA and artifact hashes when manually promoting those
-exact bytes. Download the bundle as a supplementary release asset if offline
-bundle access is desired. A successful signature check does not complete the
+exact bytes. For alpha.2, publishing the exact verified bundle alongside all 20 subjects and
+checking public lookup after publication are mandatory; see the
+[alpha.2 publication gates](releasing.md#additional-alpha2-publication-gates). A successful signature check does not complete the
 remaining live-provider or platform acceptance gates.
 
 ## Public verification

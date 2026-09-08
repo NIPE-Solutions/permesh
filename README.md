@@ -34,6 +34,14 @@ locally and discarded when the command exits.
 
 Download the **[0.1.0-alpha.1 prerelease](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.1)** for macOS, Linux or Windows. Verify its checksum before extracting; see [installation](docs/installation.md). This is an unsigned evaluation release with [known limitations](docs/releases/0.1.0-alpha.1.md).
 
+The checkout is preparing **0.1.0-alpha.2**; see its [candidate scope and remaining checks](docs/releases/0.1.0-alpha.2.md). It is not yet a published release.
+
+Native candidates include checksums and a target-bound dependency inventory.
+A separate manual workflow prepares and verifies GitHub provenance attestations;
+a successful run must be recorded for the exact release revision before claiming
+attested assets. This does not add Apple notarization or Windows Authenticode
+signatures to the published alpha.
+
 Or build from a checkout with Rust 1.91 or newer:
 
 ```bash
@@ -99,9 +107,15 @@ requires an explicit mapping or verified identity evidence.
 The packaged GitHub executable has also passed a read-only credentialed acceptance
 check: health and privileged-access observations matched the bundled adapter.
 Only aggregate results were retained. [Validation scope](docs/getting-started.md#live-validation).
-Google Workspace directory discovery is available as an [identity source](docs/providers/google.md)
-with externally supplied OAuth access tokens; live tenant qualification is pending.
-AWS and Cloudflare are planned. [External native providers](docs/external-providers.md) can be explicitly trusted
+Google Workspace directory discovery is available as an [identity source](docs/providers/google.md).
+The official provider repository also contains Google with refresh-token and
+browser-login support, Cloudflare account-access observations, and an AWS IAM
+policy-attachment inventory using named credential references. These source
+implementations still need live qualification and publication; Google and
+Cloudflare release drafts are not installable catalog entries. GitHub is currently
+the only published official provider package. See [provider scope and status](docs/providers.md).
+
+[External native providers](docs/external-providers.md) can be explicitly trusted
 and, after separate workspace approval, used for access queries and health checks
 with reviewed named credential references. [Guided setup](docs/provider-setup.md)
 uses provider-declared questions and keeps answers inside the CLI. Native code is
@@ -171,3 +185,5 @@ Official provider packages are maintained in
 [Explicit install and update commands](docs/provider-packages.md) are implemented;
 the catalog lists qualified releases for the supported native platforms.
 Google and the offline demo remain bundled; GitHub requires an external binary.
+Explicit Google migration is available for a reviewed external binary. Removing
+the bundled Google adapter follows external release qualification.
