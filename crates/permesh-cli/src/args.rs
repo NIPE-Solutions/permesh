@@ -53,6 +53,11 @@ pub enum Command {
     Admins,
     /// Review accounts not confidently associated with an active authoritative identity.
     Orphaned,
+    /// Print a static shell completion script; no workspace or provider access.
+    Completion {
+        #[arg(value_enum, conflicts_with = "json")]
+        shell: clap_complete::Shell,
+    },
     /// Show version and privacy defaults.
     Version,
 }

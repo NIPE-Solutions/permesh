@@ -5,6 +5,7 @@ mod args;
 mod auth;
 mod blocking;
 mod collection;
+mod completion;
 mod error;
 mod orphaned_output;
 mod output;
@@ -36,6 +37,25 @@ async fn main() -> ExitCode {
             return finish_error(curated, json);
         }
     };
+    if let args::Command::Completion { shell } = &cli.command {
+        // Global flags placed before a subcommand need an explicit check.
+        if cli.json {
+            return finish_error(
+                AppError::input(
+                    "Shell completion emits a script and cannot be combined with --json",
+                ),
+                true,
+            );
+        }
+        return match completion::write(*shell, &mut std::io::stdout().lock()) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) if error.kind() == std::io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
+            Err(_) => finish_error(
+                AppError::new(5, "Cannot write shell completion script"),
+                false,
+            ),
+        };
+    }
     let blocking = blocking::BlockingPool::new();
     let result = tokio::select! {
         biased;
