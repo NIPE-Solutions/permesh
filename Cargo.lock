@@ -1467,6 +1467,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "permesh-provider-protocol"
+version = "0.1.0-dev"
+dependencies = [
+ "permesh-core",
+ "permesh-provider-sdk",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "permesh-provider-sdk"
 version = "0.1.0-dev"
 dependencies = [

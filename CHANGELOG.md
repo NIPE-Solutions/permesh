@@ -4,6 +4,8 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
+- Add bounded offline external-provider protocol validation, normalized Python interoperability fixtures and a developer transcript validator; plugin execution remains disabled.
+
 - Add static shell completion for Bash, Zsh, Fish, PowerShell and Elvish without workspace or provider access.
 
 - Add `permesh orphaned` with explicit authoritative sources, conservative inactive/unmatched/ambiguous classifications, separate non-human/external accounts, preserved paths and unassessed results on authority failure.

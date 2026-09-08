@@ -1,0 +1,8 @@
+{"protocol":1,"id":"handshake","event":"handshake","provider":"synthetic-example","capabilities":["accounts","identities","resources","groups","memberships","grants"],"draft":true}
+{"protocol":1,"id":"discover","event":"record","kind":"identity","data":{"id":"alice@example.com","kind":"human","status":"active","verified_emails":["alice@example.com"]}}
+{"protocol":1,"id":"discover","event":"record","kind":"account","data":{"key":{"provider":"example-main","id":"alice"},"login":"alice-dev","kind":"human","verified_emails":["alice@example.com"]}}
+{"protocol":1,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"example-main","id":"repository"},"name":"Synthetic repository"}}
+{"protocol":1,"id":"discover","event":"record","kind":"group","data":{"key":{"provider":"example-main","id":"backend"},"name":"Backend"}}
+{"protocol":1,"id":"discover","event":"record","kind":"membership","data":{"member":{"kind":"account","key":{"provider":"example-main","id":"alice"}},"group":{"provider":"example-main","id":"backend"},"provenance":{"method":"synthetic fixture","observed_at":"2026-01-01T00:00:00Z"}}}
+{"protocol":1,"id":"discover","event":"record","kind":"grant","data":{"id":"read","subject":{"kind":"group","key":{"provider":"example-main","id":"backend"}},"resource":{"provider":"example-main","id":"repository"},"role":"read","privilege":"standard","certainty":"observed","provenance":{"method":"synthetic fixture","observed_at":"2026-01-01T00:00:00Z"}}}
+{"protocol":1,"id":"discover","event":"complete","count":6,"complete":true,"limitations":[]}

@@ -1,16 +1,52 @@
 # Synthetic external-provider example
 
-This Python 3 example illustrates the [draft protocol](../../docs/provider-development.md). It uses only the standard library, no credentials and no network. **Permesh does not execute it or accept an external provider configuration.** Record payloads are illustrative draft wire objects, not the current Rust snapshot schema.
+This Python 3 peer implements the [draft protocol](../../docs/provider-protocol.md)
+using only the standard library, synthetic data and no network or credentials.
+**Permesh does not execute it or accept an external provider configuration.**
+Its normalized records can now be validated by the Rust protocol crate.
 
-Run it deliberately in a terminal with `python3 examples/external-provider/provider.py`, then send one JSON object per line:
+Run the peer deliberately with `python3 examples/external-provider/provider.py`,
+then send these requests and close stdin (EOF):
 
 ```json
-{"protocol":1,"id":"hello","method":"handshake"}
-{"protocol":1,"id":"health","method":"check"}
-{"protocol":1,"id":"snapshot","method":"discover"}
-{"protocol":1,"id":"stop","method":"cancel"}
+{"protocol":1,"id":"handshake","method":"handshake","instance":"example-main"}
+{"protocol":1,"id":"discover","method":"discover"}
 ```
 
-The peer writes a handshake, health, three synthetic records and completion, then cancellation acknowledgment. It rejects oversized or malformed frames without reflecting their contents. The example is synchronous; it demonstrates framing and orderly cancellation between requests, not interruption of a blocked discovery operation or host process supervision.
+The output is the checked-in [discovery transcript](discovery.ndjson): a
+handshake, six records and completion. Alice has read access to a synthetic
+repository through the Backend group. The Rust tests pass that snapshot through
+the ordinary core identity query and assert the preserved membership path.
+Every identity, email and resource here is fictional.
 
-Run its tests with `python3 -m unittest discover -s examples/external-provider -p 'test_*.py'`. These tests do not qualify a future runtime's trust or sandbox behavior.
+From the repository root, validate the finite fixture on Unix:
+
+```sh
+cargo run --locked -q -p permesh-provider-protocol --example validate -- synthetic-example example-main < examples/external-provider/discovery.ndjson
+```
+
+The developer validator prints JSON counts only; it does not print identities or
+access records. Exit 0 means valid (possibly explicitly incomplete) input, exit 2
+means invalid input/arguments, and exit 5 means output failure. This summary is a
+developer-tool output, separate from Permesh CLI output schema 1.
+
+For a cross-platform check that deliberately runs the known Python peer, validates
+its actual output in Rust and rejects a duplicate-key exchange:
+
+```sh
+python scripts/check_protocol_example.py
+```
+
+Use `python3` if that is your Python command. The helper works on Windows without
+shell input-redirection syntax. CI runs it on Linux, macOS and Windows.
+
+The peer also supports one `check` request and a `cancel` acknowledgment for
+manual exploration. It is synchronous: cancellation works between requests,
+not during blocked discovery. The offline validator consumes stdin until EOF;
+it provides no live-process deadlines. No trust registration, sandbox or
+process-tree supervision is implemented or qualified by these tests.
+
+```sh
+python -m unittest discover -s examples/external-provider -p 'test_*.py'
+cargo test --locked -p permesh-provider-protocol
+```
