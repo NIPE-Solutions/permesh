@@ -8,7 +8,7 @@ The release is deliberately smaller than the long-term product vision.
 4. **Candidate workflow implemented; qualification pending** — Release qualification: native platform CI, supply-chain checks, credentialed GitHub fixture organization acceptance, release automation and checksums. No public release before this passes.
 5. **Implemented** — Privileged-access inspection: `admins` retains known privileged paths, unknown role semantics, ambiguous identities, and group grants without observed accounts. It does not require an employee directory.
 6. **Implemented; live tenant qualification pending** — Google Workspace directory source: explicit customer and authority, immutable identity IDs, conservative status mapping and OAuth access-token references. `orphaned` now reviews observed accounts with conservative source-completeness handling and separate service/bot/external categories. Additional authentication flows follow separately.
-7. External providers: implement the documented protocol and local trust registration; hostile-process tests before execution is enabled.
+7. **Offline protocol validation implemented; execution deferred** — External providers: bounded framing, strict capability/envelope validation, normalized Python-to-Rust fixtures and domain validation. Next implement local trust registration and native process supervision; hostile-process tests must pass before execution is enabled.
 8. Additional providers: AWS and Cloudflare incrementally, with documented limitations and identical contract tests.
 
 Release acceptance criteria are in [releasing.md](releasing.md). Future scopes are intentionally unsupported, not fake adapters.

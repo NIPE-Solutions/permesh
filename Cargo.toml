@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/permesh-core", "crates/permesh-config", "crates/permesh-secrets", "crates/permesh-provider-sdk", "crates/permesh-cli", "crates/providers/permesh-provider-demo", "crates/providers/permesh-provider-github", "crates/providers/permesh-provider-google"]
+members = ["crates/permesh-core", "crates/permesh-config", "crates/permesh-secrets", "crates/permesh-provider-sdk", "crates/permesh-provider-protocol", "crates/permesh-cli", "crates/providers/permesh-provider-demo", "crates/providers/permesh-provider-github", "crates/providers/permesh-provider-google"]
 
 [workspace.package]
 version = "0.1.0-dev"

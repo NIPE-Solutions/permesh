@@ -49,6 +49,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s examples/external-provider -p 'test_*.py'
+      - name: Validate Python-to-Rust discovery protocol
+        run: python scripts/check_protocol_example.py
   msrv:
     runs-on: ubuntu-latest
     timeout-minutes: 30

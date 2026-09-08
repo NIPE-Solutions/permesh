@@ -1,0 +1,2 @@
+# Protocol fixtures are compared byte-for-byte on every platform.
+examples/external-provider/discovery.ndjson text eol=lf

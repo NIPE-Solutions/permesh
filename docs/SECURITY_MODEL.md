@@ -11,3 +11,5 @@ Configuration size and parser expansion budgets bound hostile input. Workspace c
 Plugins are not executed in this milestone. The future subprocess protocol requires user-level explicit trust, absolute executable paths, bounded frames, timeout/kill/reap semantics, sanitized stderr, and capability negotiation. Repository presence is never authorization.
 
 Known boundaries: an overprivileged token remains powerful outside Permesh; the process/OS can inspect live memory; a compromised provider can lie; shell redirection determines report permissions; collection is not a transaction. No software here eliminates those risks.
+
+Offline external transcript validation rejects duplicate JSON keys, unknown fields, mismatched identities/capabilities, incorrect terminal counts and invalid graph relationships. Frame, total-byte and record budgets are enforced before accepting a snapshot. This parser is not a subprocess supervisor or a trust decision; it cannot establish the truth of provider assertions.
