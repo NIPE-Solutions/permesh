@@ -1,12 +1,17 @@
-# Output schema 1 and exit codes
+# Output schemas and exit codes
 
 `--json` is global and can appear before or after a subcommand. Normal successful command output goes to stdout. Human errors go to stderr; JSON errors go to stdout as one object. JSON contains no ANSI, progress lines or logs. Help/version flags are Clap's text presentation; use `permesh version --json` for structured version output.
+
+Access-bearing commands (`user`, `admins`, `orphaned`, `external_discover`) use
+schema 2. Control commands retain schema 1. See the [migration guide](migrations/domain-schema-2.md)
+for the intentional prerelease transition. Output versions are independent of
+workspace and provider protocol versions.
 
 ## Successful command envelope
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "command": "user",
   "complete": true,
   "started_at": "2026-09-08T09:00:00Z",
@@ -22,13 +27,14 @@ Common `command` values include `init`, `provider_add`, `provider_migrate`, `pro
 
 ## User result
 
-- `identity`: null for an uncorrelated account lookup, otherwise `{id, kind, status, verified_emails}`.
-- `accounts`: sorted records `{key: {provider,id}, login, kind, verified_emails}`.
-- `access`: sorted paths `{account, groups, memberships, resource, grant}`. `account` is a scoped key. A group/resource is `{key,name}`. Membership is `{member,group,provenance}`.
+- `identity`: null for an uncorrelated account lookup, otherwise `{id, kind, affiliation, status, verified_emails}`.
+- `accounts`: sorted records `{key: {provider,id}, login, kind, affiliation, status, verified_emails}`.
+- `access`: sorted paths `{account, groups, memberships, resource, grant, certainty}`. `account` is a scoped key. A group is `{key,name}`. A resource is `{key,name,kind,parent}`; kind and parent are nullable, and parent is a scoped key. Membership is `{member,group,provenance}`.
 - A subject is `{kind: "account" | "group", key: {provider,id}}`.
-- A grant is `{id,subject,resource,role,privilege,certainty,provenance}`. Native role text is preserved. Privilege is `standard`, `elevated`, `admin`, `owner`, or `unknown`. Certainty is `observed`, `inferred`, or `unknown`.
+- A grant is `{id,subject,resource,role,privilege,certainty,evidence_kind,provenance}`. Native role text is preserved. Privilege is `standard`, `elevated`, `admin`, `owner`, or `unknown`. Certainty is `observed`, `derived`, `inferred`, or `unknown`. Evidence kind is `permission`, `assignment`, `policy_attachment`, or `unknown`. None of these certifies effective authorization.
 - Provenance is `{method,observed_at}` with UTC RFC3339 time. Membership provenance is retained at every hop.
-- Identity kind is `human`, `external`, `service`, `bot`, `unknown`; status is `active`, `inactive`, `external`, `service`, `unknown`.
+- Identity/account kind is `human`, `service`, `bot`, `unknown`; affiliation is `internal`, `external`, `unknown`; lifecycle status is `active`, `inactive`, `suspended`, `unknown`. Account lifecycle is provider-local evidence.
+- Path certainty is separate from grant certainty: an observed grant reached through membership has derived path certainty while the original grant stays observed.
 - Additional curated `message`/`warnings` can explain missing evidence. Consumers must tolerate additive fields.
 
 With all providers failed, `result` is `{}` and provider failures explain the absence of a query result. With partial providers and no match, a user result contains empty arrays plus a message; this is not a definitive not-found result.
@@ -50,10 +56,10 @@ Standard grants are excluded. Arrays are deterministic, scoped by provider and n
 
 - `authorities`: sorted, deduplicated configured authoritative provider IDs.
 - `authority_complete`: true only when every named authority has a complete snapshot. This does not imply unrestricted directory visibility.
-- `accounts`: sorted `{account, identity, reason}` records. Account and identity resolution use the existing user/admin shapes. `reason` is one of `inactive_identity`, `unknown_identity`, `unknown_status`, `ambiguous_identity`, `external_identity`, `service_account`, `bot`, or `unassessed`.
+- `accounts`: sorted `{account, identity, reason}` records. Account and identity resolution use the existing user/admin shapes. `reason` is one of `inactive_identity`, `suspended_identity`, `unknown_identity`, `unknown_status`, `ambiguous_identity`, `external_identity`, `service_account`, `bot`, or `unassessed`.
 - `access`: existing AccessPath records for returned accounts, preserving membership and grant provenance. Accounts without observed paths remain present.
 
-When any authority is absent or partial, every observed account has reason `unassessed`; identity evidence remains available but no orphan classification is made. With complete authorities, ordinary active identities are omitted and service, bot and external identities are listed separately. Ambiguity and resolved inactivity take precedence over those separate categories. All-provider failure leaves `result: {}` and `complete: false`. No authoritative source is a configuration error (exit 2). Completed inspection returns 0 regardless of findings; provider failure codes remain 3/4. See [classification details](orphaned.md).
+When any authority is absent or partial, every observed account has reason `unassessed`; identity evidence remains available but no orphan classification is made. With complete authorities, ordinary active identities are omitted and service, bot and external identities are listed separately. Ambiguity and resolved inactivity/suspension take precedence over those separate categories. All-provider failure leaves `result: {}` and `complete: false`. No authoritative source is a configuration error (exit 2). Completed inspection returns 0 regardless of findings; provider failure codes remain 3/4. See [classification details](orphaned.md).
 
 ## Other results
 
@@ -64,6 +70,8 @@ When any authority is absent or partial, every observed account has reason `unas
 ```json
 {"schema_version":1,"error":{"code":2,"message":"Invalid command arguments. Run permesh --help or permesh <command> --help for usage."}}
 ```
+
+Errors after parsing an access-bearing command use schema 2; control-command and generic argument-parser errors use schema 1.
 
 Errors deliberately omit raw arguments, YAML snippets, tokens, provider response bodies and low-level credential-store errors. Configuration syntax errors expose numeric line/column when the parser supplies it. Normal human output escapes provider-controlled terminal controls and bidi overrides; JSON strings preserve data using JSON escaping.
 
@@ -86,7 +94,7 @@ A broken stdout pipe exits cleanly with 0, following Unix pipeline conventions. 
 ## Explicit external commands
 
 Standalone external commands (`inspect`, `trust`, `list`, `remove`, `discover`)
-bypass workspace loading and retain the schema-1 report envelope. Workspace
+bypass workspace loading. Discovery uses schema 2; the other standalone operations retain schema 1. Workspace
 `review` and `approve` load the selected configuration; `revoke` uses its canonical
 path. These workspace commands manage local execution permission without discovery
 or credential resolution.
@@ -97,7 +105,7 @@ or credential resolution.
 - `external_remove`: `{id, storage, message}`.
 - `external_discover`: `{snapshot, storage}` and one provider-status entry. Snapshot
   fields are `provider`, `identities`, `accounts`, `resources`, `groups`,
-  `memberships`, `grants`, `complete` and `limitations`, using the domain schema.
+  `memberships`, `grants`, `complete` and `limitations`, using the explicit schema-2 record shapes above, not internal domain serialization.
 
 The registration schema is independent of the output and wire versions. Digests
 are lowercase SHA-256 hex; size is bytes. Capabilities describe normalized record

@@ -24,6 +24,7 @@ pub struct OrphanedAccount {
 #[serde(rename_all = "snake_case")]
 pub enum OrphanReason {
     InactiveIdentity,
+    SuspendedIdentity,
     UnknownIdentity,
     UnknownStatus,
     AmbiguousIdentity,
@@ -84,27 +85,30 @@ pub fn query_orphaned(
     })
 }
 fn classify(account: &Account, resolution: &IdentityResolution) -> Option<OrphanReason> {
-    let (kind, status) = match resolution {
+    let (kind, affiliation, status) = match resolution {
         IdentityResolution::Ambiguous { .. } => return Some(OrphanReason::AmbiguousIdentity),
-        IdentityResolution::Resolved { identity } => (identity.kind, identity.status),
-        IdentityResolution::Unmapped => (IdentityKind::Unknown, IdentityStatus::Unknown),
+        IdentityResolution::Resolved { identity } => {
+            (identity.kind, identity.affiliation, identity.status)
+        }
+        IdentityResolution::Unmapped => (
+            IdentityKind::Unknown,
+            Affiliation::Unknown,
+            IdentityStatus::Unknown,
+        ),
     };
     if status == IdentityStatus::Inactive {
         return Some(OrphanReason::InactiveIdentity);
     }
+    if status == IdentityStatus::Suspended {
+        return Some(OrphanReason::SuspendedIdentity);
+    }
     if kind == IdentityKind::Bot || account.kind == IdentityKind::Bot {
         return Some(OrphanReason::Bot);
     }
-    if kind == IdentityKind::Service
-        || account.kind == IdentityKind::Service
-        || status == IdentityStatus::Service
-    {
+    if kind == IdentityKind::Service || account.kind == IdentityKind::Service {
         return Some(OrphanReason::ServiceAccount);
     }
-    if kind == IdentityKind::External
-        || account.kind == IdentityKind::External
-        || status == IdentityStatus::External
-    {
+    if affiliation == Affiliation::External || account.affiliation == Affiliation::External {
         return Some(OrphanReason::ExternalIdentity);
     }
     match resolution {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-use crate::output::{field, safe, write_path};
+use crate::output::{field, safe, write_classification, write_path};
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
@@ -9,6 +9,7 @@ use std::{
 const SECTIONS: &[(&str, &str)] = &[
     ("unassessed", "Unassessed accounts"),
     ("inactive_identity", "Inactive identities"),
+    ("suspended_identity", "Suspended identities"),
     ("ambiguous_identity", "Ambiguous identities"),
     ("unknown_identity", "Unmatched accounts"),
     ("unknown_status", "Unknown identity status"),
@@ -68,10 +69,12 @@ pub(crate) fn write_orphaned(out: &mut impl Write, result: &Value, dot: &str) ->
                 safe(field(&account["key"], "provider")),
                 safe(field(account, "login"))
             )?;
+            write_classification(out, "Account", account)?;
             let identity = &record["identity"];
             match field(identity, "state") {
                 "resolved" => {
                     let person = &identity["identity"];
+                    write_classification(out, "Identity", person)?;
                     let label = person["verified_emails"]
                         .as_array()
                         .and_then(|v| v.first())
@@ -118,6 +121,22 @@ pub(crate) fn write_orphaned(out: &mut impl Write, result: &Value, dot: &str) ->
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn suspended_service_identity_is_presented_as_a_review_finding() {
+        let result = serde_json::json!({"authority_complete":true,"accounts":[{
+            "account":{"key":{"provider":"app","id":"1"},"login":"automation","kind":"service","status":"active","affiliation":"external"},
+            "identity":{"state":"resolved","identity":{"id":"automation","kind":"service","status":"suspended","affiliation":"external","verified_emails":[]}},
+            "reason":"suspended_identity"}],"access":[]});
+        let mut bytes = Vec::new();
+        write_orphaned(&mut bytes, &result, "/").unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        assert!(text.contains("Suspended identities"));
+        assert!(text.contains("Account classification: service / active / external"));
+        assert!(text.contains("Identity classification: service / suspended / external"));
+        assert!(text.contains("Accounts needing identity review: 1"));
+        assert!(text.contains("Service, bot or external accounts: 0"));
+    }
+
     #[test]
     fn terminal_controls_are_escaped_and_no_paths_do_not_imply_no_access() {
         let result = serde_json::json!({"authority_complete":true,"accounts":[{"account":{"key":{"provider":"source\u{1b}","id":"1"},"login":"account\n"},"identity":{"state":"ambiguous","candidates":["identity\u{202e}"]},"reason":"ambiguous_identity"}],"access":[]});

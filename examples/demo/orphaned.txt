@@ -5,25 +5,61 @@ Orphaned account review
 Inactive identities
 
 demo · former-dev
+  Account classification: human / active / internal
+  Identity classification: human / inactive / internal
   Identity: former@example.com (inactive)
   acme/payments-api
     Read (standard)
     via synthetic demo fixture
-    certainty: observed
+    evidence: permission
+    grant certainty: observed
+    path certainty: observed
+
+External identities
+  Listed separately; this classification does not establish approved access.
+
+demo · contractor-dev
+  Account classification: human / active / external
+  Identity classification: human / active / external
+  Identity: contractor@example.com (active)
+  acme/payments-api
+    Read (standard)
+    via synthetic demo fixture
+    evidence: permission
+    grant certainty: observed
+    path certainty: observed
+
+Service accounts
+  Listed separately; this classification does not establish approved access.
+
+demo · automation-service
+  Account classification: service / active / internal
+  Identity classification: service / active / internal
+  Identity: automation@example.com (active)
+  acme/infrastructure
+    Write (standard)
+    via synthetic demo fixture
+    evidence: permission
+    grant certainty: observed
+    path certainty: observed
 
 Bots
   Listed separately; this classification does not establish approved access.
 
 demo · build-bot
-  Identity: build@example.com (service)
+  Account classification: bot / active / internal
+  Identity classification: bot / active / internal
+  Identity: build@example.com (active)
   acme/payments-api
     Write (standard)
     via synthetic demo fixture
-    certainty: observed
+    evidence: permission
+    grant certainty: observed
+    path certainty: observed
 
 Summary
   Accounts needing identity review: 1
-  Service, bot or external accounts: 1
+  Service, bot or external accounts: 3
   Unassessed accounts: 0
 
 Providers

@@ -185,7 +185,7 @@ pub async fn run(
                     &config.identity.aliases,
                     &authorities,
                 )?;
-                outcome.report.result = serde_json::to_value(crate::schema1::OrphanedAccess::from(
+                outcome.report.result = serde_json::to_value(crate::schema2::OrphanedAccess::from(
                     &result,
                 ))
                 .map_err(|_| AppError::new(5, "Cannot serialize orphaned account review"))?;
@@ -193,7 +193,7 @@ pub async fn run(
             }
             if matches!(cli.command, Command::Admins) {
                 let result = permesh_core::query_admins(&snapshots, &config.identity.aliases)?;
-                outcome.report.result = serde_json::to_value(crate::schema1::AdminAccess::from(
+                outcome.report.result = serde_json::to_value(crate::schema2::AdminAccess::from(
                     &result,
                 ))
                 .map_err(|_| AppError::new(5, "Cannot serialize privileged-access result"))?;
@@ -205,7 +205,7 @@ pub async fn run(
             match permesh_core::query_user(&snapshots, &config.identity.aliases, identity) {
                 Ok(result) => {
                     outcome.report.result =
-                        serde_json::to_value(crate::schema1::UserAccess::from(&result))
+                        serde_json::to_value(crate::schema2::UserAccess::from(&result))
                             .map_err(|_| AppError::new(5, "Cannot serialize query result"))?;
                 }
                 Err(permesh_core::DomainError::NotFound) if !outcome.report.complete => {

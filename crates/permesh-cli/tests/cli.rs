@@ -27,12 +27,19 @@ fn requested_demo_flow_and_nested_discovery() {
     assert!(human.status.success());
     let text = String::from_utf8(human.stdout).unwrap();
     assert!(text.contains("team/backend"));
+    assert!(text.contains("Identity classification: human / active / internal"));
+    assert!(text.contains("evidence: assignment"));
+    assert!(text.contains("grant certainty: observed"));
+    assert!(text.contains("path certainty: derived"));
     assert!(text.contains("acme/payments-api"));
     assert!(!text.contains('\x1b'));
     let json = run(d.path(), &["user", "alice@example.com", "--json"]);
     assert!(json.status.success());
     let v: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
-    assert_eq!(v["schema_version"], 1);
+    assert_eq!(v["schema_version"], 2);
+    assert_eq!(v["result"]["identity"]["affiliation"], "internal");
+    assert_eq!(v["result"]["access"][0]["certainty"], "derived");
+    assert_eq!(v["result"]["access"][0]["grant"]["certainty"], "observed");
     assert_eq!(v["complete"], true);
     assert_eq!(v["result"]["access"].as_array().unwrap().len(), 2);
     assert!(json.stderr.is_empty());
@@ -88,6 +95,7 @@ fn partial_failure_keeps_demo_access_and_marks_incomplete() {
     assert_eq!(o.status.code(), Some(4));
     let v: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
     assert_eq!(v["complete"], false);
+    assert_eq!(v["schema_version"], 2);
     assert_eq!(v["result"]["access"].as_array().unwrap().len(), 2);
 }
 #[test]
@@ -235,4 +243,21 @@ fn provider_add_preserves_workspace_when_yaml_expansion_exceeds_limit() {
     );
     assert_eq!(output.status.code(), Some(2));
     assert_eq!(std::fs::read(path).unwrap(), original);
+}
+
+#[test]
+fn parsed_access_failures_use_schema_two_while_control_failures_use_one() {
+    let d = tempfile::tempdir().unwrap();
+    for (args, version) in [
+        (vec!["user", "missing", "--json"], 2),
+        (vec!["admins", "--json"], 2),
+        (vec!["orphaned", "--json"], 2),
+        (vec!["doctor", "--json"], 1),
+    ] {
+        let output = run(d.path(), &args);
+        assert!(!output.status.success());
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(value["schema_version"], version, "{args:?}");
+        assert!(value["error"].is_object());
+    }
 }

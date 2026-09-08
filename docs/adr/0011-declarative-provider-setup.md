@@ -58,3 +58,7 @@ under the original full-workspace approval scope (now superseded by
 races and malicious behavior by trusted native code remain outside the protection
 boundary. Workspace and output schemas remain 1; setup schema 1 and wire draft 3
 are independently versioned.
+
+Subsequent domain hardening migrates access reports to output schema 2; setup
+reports and setup specifications retain schema 1. See the
+[migration guide](../migrations/domain-schema-2.md).

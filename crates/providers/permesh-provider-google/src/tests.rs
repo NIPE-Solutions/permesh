@@ -118,7 +118,7 @@ async fn status_is_conservative_and_tenant_mismatch_excluded() {
         [
             IdentityStatus::Active,
             IdentityStatus::Unknown,
-            IdentityStatus::Inactive,
+            IdentityStatus::Suspended,
             IdentityStatus::Inactive,
             IdentityStatus::Unknown
         ]
@@ -371,6 +371,8 @@ async fn canonical_alias_survives_primary_email_rename_and_instance_change() {
             key: EntityKey::new("github", "456"),
             login: "octocat".into(),
             kind: IdentityKind::Human,
+            affiliation: Affiliation::Unknown,
+            status: IdentityStatus::Unknown,
             verified_emails: vec![],
         });
         let snapshots = [directory, github];
@@ -391,5 +393,28 @@ async fn canonical_alias_survives_primary_email_rename_and_instance_change() {
                 .is_none()
         );
         assert!(query_user(&snapshots, &aliases, "FIRST@example.com").is_err());
+    }
+}
+
+#[tokio::test]
+async fn suspension_and_archival_are_distinct_account_lifecycle_evidence() {
+    let (provider, _) = mock(vec![]).await;
+    for (suspended, archived, expected) in [
+        (false, false, "active"),
+        (true, false, "suspended"),
+        (false, true, "inactive"),
+        (true, true, "inactive"),
+    ] {
+        let mut row = user("1");
+        row["suspended"] = json!(suspended);
+        row["archived"] = json!(archived);
+        let (account, identity, malformed) = provider.record(&row).unwrap();
+        assert!(!malformed);
+        let account = serde_json::to_value(account).unwrap();
+        let identity = serde_json::to_value(identity).unwrap();
+        assert_eq!(identity["status"], json!(expected));
+        assert_eq!(account["status"], json!(expected));
+        assert_eq!(identity["affiliation"], json!("unknown"));
+        assert_eq!(account["affiliation"], json!("unknown"));
     }
 }

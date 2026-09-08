@@ -9,6 +9,8 @@ fn empty_snapshot_is_valid() {
 fn cross_provider_account_is_rejected() {
     let mut snapshot = Snapshot::new("demo");
     snapshot.accounts.push(Account {
+        affiliation: Affiliation::Unknown,
+        status: IdentityStatus::Unknown,
         key: EntityKey::new("other", "1"),
         login: "alice".into(),
         kind: IdentityKind::Human,
@@ -19,18 +21,23 @@ fn cross_provider_account_is_rejected() {
 fn fixture() -> Snapshot {
     let mut s = Snapshot::new("demo");
     s.accounts.push(Account {
+        affiliation: Affiliation::Unknown,
+        status: IdentityStatus::Unknown,
         key: EntityKey::new("demo", "1"),
         login: "alice-dev".into(),
         kind: IdentityKind::Human,
         verified_emails: vec![],
     });
     s.identities.push(Identity {
+        affiliation: Affiliation::Unknown,
         id: "alice@example.com".into(),
         kind: IdentityKind::Human,
         status: IdentityStatus::Active,
         verified_emails: vec!["alice@example.com".into()],
     });
     s.resources.push(Resource {
+        kind: None,
+        parent: None,
         key: EntityKey::new("demo", "r"),
         name: "acme/api".into(),
     });
@@ -60,6 +67,7 @@ fn fixture() -> Snapshot {
         provenance: p.clone(),
     });
     s.grants.push(Grant {
+        evidence_kind: EvidenceKind::Unknown,
         id: "g".into(),
         subject: Subject::Group(s.groups[1].key.clone()),
         resource: s.resources[0].key.clone(),
@@ -106,6 +114,7 @@ fn conflicting_verified_identities_remain_ambiguous() {
         .verified_emails
         .push("alice@example.com".into());
     s.identities.push(Identity {
+        affiliation: Affiliation::Unknown,
         id: "someone-else".into(),
         kind: IdentityKind::Human,
         status: IdentityStatus::Active,
@@ -310,6 +319,7 @@ fn admins_separates_all_levels_and_preserves_native_roles() {
     .enumerate()
     {
         s.grants.push(Grant {
+            evidence_kind: EvidenceKind::Unknown,
             id: i.to_string(),
             subject: Subject::Account(s.accounts[0].key.clone()),
             resource: s.resources[0].key.clone(),
@@ -408,6 +418,8 @@ fn admins_prunes_fifty_thousand_irrelevant_accounts_and_standard_paths() {
     for i in 0..50_000 {
         let key = EntityKey::new("demo", format!("irrelevant-{i}"));
         s.accounts.push(Account {
+            affiliation: Affiliation::Unknown,
+            status: IdentityStatus::Unknown,
             key: key.clone(),
             login: format!("service-{i}"),
             kind: IdentityKind::Bot,
@@ -523,6 +535,7 @@ fn admins_direct_grants_fail_explicitly_above_output_limit() {
     s.groups.clear();
     s.grants = (0..100_001)
         .map(|id| Grant {
+            evidence_kind: EvidenceKind::Unknown,
             id: id.to_string(),
             ..grant.clone()
         })
@@ -539,6 +552,8 @@ fn admins_observed_grant_does_not_hide_same_native_id_in_another_provider() {
     a.grants[0].privilege = Privilege::Admin;
     let mut b = Snapshot::new("second");
     b.resources.push(Resource {
+        kind: None,
+        parent: None,
         key: EntityKey::new("second", "r"),
         name: "other resource".into(),
     });
@@ -547,6 +562,7 @@ fn admins_observed_grant_does_not_hide_same_native_id_in_another_provider() {
         name: "unobserved group".into(),
     });
     b.grants.push(Grant {
+        evidence_kind: EvidenceKind::Unknown,
         subject: Subject::Group(b.groups[0].key.clone()),
         resource: b.resources[0].key.clone(),
         ..a.grants[0].clone()

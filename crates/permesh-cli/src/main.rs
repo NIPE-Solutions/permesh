@@ -22,8 +22,8 @@ mod output;
 mod provider_migration;
 mod provider_operation;
 mod report;
-mod schema1;
 mod schema1_control;
+mod schema2;
 mod setup;
 mod setup_output;
 mod setup_prompt;
@@ -52,7 +52,7 @@ async fn main() -> ExitCode {
             let curated = AppError::input(
                 "Invalid command arguments. Run permesh --help or permesh <command> --help for usage.",
             );
-            return finish_error(curated, json);
+            return finish_error(curated, json, 1);
         }
     };
     if let args::Command::Completion { shell } = &cli.command {
@@ -63,6 +63,7 @@ async fn main() -> ExitCode {
                     "Shell completion emits a script and cannot be combined with --json",
                 ),
                 true,
+                1,
             );
         }
         return match completion::write(*shell, &mut std::io::stdout().lock()) {
@@ -71,9 +72,11 @@ async fn main() -> ExitCode {
             Err(_) => finish_error(
                 AppError::new(5, "Cannot write shell completion script"),
                 false,
+                1,
             ),
         };
     }
+    let schema_version = report::command_schema_version(&cli.command);
     let blocking = blocking::BlockingPool::new();
     let result = if let args::Command::Provider {
         command: args::ProviderCommand::External { command },
@@ -91,7 +94,7 @@ async fn main() -> ExitCode {
                 let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Provider { command: args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) | args::ProviderCommand::Add(_) });
                 if drains {
                     let result = operation.await;
-                    if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json); }
+                    if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json, schema_version); }
                 }
                 if signal.is_ok() { Err(AppError::new(130,"Cancelled")) } else { Err(AppError::new(5,"Cannot install Ctrl+C handler")) }
             },
@@ -106,11 +109,11 @@ async fn main() -> ExitCode {
                 Err(_) => ExitCode::from(5),
             }
         }
-        Err(error) => finish_error(error, cli.json),
+        Err(error) => finish_error(error, cli.json, schema_version),
     }
 }
-fn finish_error(error: AppError, json: bool) -> ExitCode {
-    match output::write_error(&error, json) {
+fn finish_error(error: AppError, json: bool, schema_version: u32) -> ExitCode {
+    match output::write_error(&error, json, schema_version) {
         Ok(()) => ExitCode::from(error.code),
         Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
         Err(_) => ExitCode::from(5),

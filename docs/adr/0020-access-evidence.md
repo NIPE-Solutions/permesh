@@ -1,6 +1,6 @@
 # ADR 0020: Preserve access evidence without claiming effective authorization
 
-Status: Proposed for the domain migration slice
+Status: Accepted for the domain model; new wire emission remains unnegotiated
 
 ## Decision
 
@@ -25,3 +25,6 @@ permission records; branch protection and other policy effects remain unknown.
 Resource containment never synthesizes access. Old-wire observations default to
 unknown evidence kind, preserving the original certainty and role without
 claiming semantics the sender could not express.
+
+The implementation uses access JSON schema 2 and retains legacy wire DTOs with
+conservative ingress mapping. See the [migration guide](../migrations/domain-schema-2.md).

@@ -26,6 +26,19 @@ Implemented source and qualified releases are tracked separately.
   Alpha.2 promotes the exact subjects from [run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910),
   with its verified bundle; later revisions need their own qualification.
 
+## Contract hardening
+
+The [architecture audit and backlog](audits/architecture-hardening-backlog.md)
+track the pre-stability work. Frozen legacy wire DTOs, independent output DTOs,
+scoped approvals and guided GitHub setup are implemented. Core now separates
+principal dimensions, validates resource containment and distinguishes access
+evidence; access reports use JSON schema 2.
+
+Next are negotiated operations/records that carry these dimensions to native
+providers, explicit enterprise networking and target-aware provider pins. A
+whole-contract review remains required before SDK or protocol stability. The
+source changes do not qualify or replace published artifacts.
+
 ## Before stable release and provider publication
 
 1. Complete the broader credentialed GitHub fixture exercise, live Google

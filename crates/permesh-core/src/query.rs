@@ -20,6 +20,20 @@ pub struct AccessPath {
     pub grant: Grant,
 }
 
+impl AccessPath {
+    /// A membership path derives reachability from the original grant evidence.
+    /// It does not establish that the reported permission is effective access.
+    pub fn certainty(&self) -> Certainty {
+        if self.grant.certainty == Certainty::Observed
+            && (!self.groups.is_empty() || !self.memberships.is_empty())
+        {
+            Certainty::Derived
+        } else {
+            self.grant.certainty
+        }
+    }
+}
+
 /// Query one identity or account using exact, verified matching.
 pub fn query_user(
     snapshots: &[Snapshot],

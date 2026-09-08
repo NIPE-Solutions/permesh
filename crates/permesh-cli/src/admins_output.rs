@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-use crate::output::{field, safe, write_path};
+use crate::output::{field, safe, write_classification, write_grant_evidence, write_path};
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -12,7 +12,7 @@ fn key(value: &Value) -> AccountKey<'_> {
 }
 
 pub(crate) fn write_admins(out: &mut impl Write, result: &Value, dot: &str) -> io::Result<()> {
-    writeln!(out, "Privileged access")?;
+    writeln!(out, "Privileged access evidence")?;
     if !result["access"].is_array() {
         return writeln!(
             out,
@@ -66,13 +66,13 @@ pub(crate) fn write_admins(out: &mut impl Write, result: &Value, dot: &str) -> i
             )?;
             writeln!(
                 out,
-                "  {}\n    {} ({})\n    certainty: {}\n    observed via {}",
+                "  {}\n    {} ({})\n    observed via {}",
                 safe(field(&record["resource"], "name")),
                 safe(field(grant, "role")),
                 safe(field(grant, "privilege")),
-                safe(field(grant, "certainty")),
                 safe(field(&grant["provenance"], "method"))
             )?;
+            write_grant_evidence(out, grant)?;
         }
     }
     let privileged_accounts: BTreeSet<_> = known.iter().map(|path| key(&path["account"])).collect();
@@ -103,6 +103,10 @@ fn write_paths(
                 safe(account_key.0),
                 safe(field(&record["account"], "login"))
             )?;
+            write_classification(out, "Account", &record["account"])?;
+            if field(&record["identity"], "state") == "resolved" {
+                write_classification(out, "Identity", &record["identity"]["identity"])?;
+            }
             match field(&record["identity"], "state") {
                 "resolved" => writeln!(
                     out,

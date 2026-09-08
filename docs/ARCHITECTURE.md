@@ -70,6 +70,13 @@ flowchart LR
   DTO --> Human[Curated human rendering]
 ```
 
-Domain semantics are not frozen yet. See the
+Core principals now separate kind, affiliation and lifecycle. Resource containment
+is validated independently from access edges; grants retain explicit evidence
+kinds and paths derive certainty without rewriting source observations. Access
+JSON uses schema 2 while control reports remain schema 1. Legacy wire mapping
+leaves unexpressed fields unknown; native provider packages need a negotiated
+contract before emitting the new dimensions.
+
+Domain semantics are not declared stable yet. See the
 [architecture audit](audits/architecture-hardening.md) for identity dimensions,
 resource containment, evidence and negotiated-operation migration decisions.

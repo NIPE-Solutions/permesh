@@ -1,0 +1,360 @@
+{
+  "provider": "demo",
+  "identities": [
+    {
+      "id": "alice@example.com",
+      "kind": "human",
+      "status": "active",
+      "verified_emails": [
+        "alice@example.com"
+      ],
+      "affiliation": "internal"
+    },
+    {
+      "id": "automation@example.com",
+      "kind": "service",
+      "status": "active",
+      "affiliation": "internal",
+      "verified_emails": [
+        "automation@example.com"
+      ]
+    },
+    {
+      "id": "bob@example.com",
+      "kind": "human",
+      "status": "active",
+      "verified_emails": [
+        "bob@example.com"
+      ],
+      "affiliation": "internal"
+    },
+    {
+      "id": "build@example.com",
+      "kind": "bot",
+      "status": "active",
+      "verified_emails": [
+        "build@example.com"
+      ],
+      "affiliation": "internal"
+    },
+    {
+      "id": "contractor@example.com",
+      "kind": "human",
+      "status": "active",
+      "affiliation": "external",
+      "verified_emails": [
+        "contractor@example.com"
+      ]
+    },
+    {
+      "id": "former@example.com",
+      "kind": "human",
+      "status": "inactive",
+      "verified_emails": [
+        "former@example.com"
+      ],
+      "affiliation": "internal"
+    }
+  ],
+  "accounts": [
+    {
+      "key": {
+        "id": "100",
+        "provider": "demo"
+      },
+      "kind": "human",
+      "login": "alice-dev",
+      "verified_emails": [
+        "alice@example.com"
+      ],
+      "affiliation": "internal",
+      "status": "active"
+    },
+    {
+      "key": {
+        "id": "101",
+        "provider": "demo"
+      },
+      "kind": "human",
+      "login": "bob-admin",
+      "verified_emails": [
+        "bob@example.com"
+      ],
+      "affiliation": "internal",
+      "status": "active"
+    },
+    {
+      "key": {
+        "id": "102",
+        "provider": "demo"
+      },
+      "kind": "human",
+      "login": "former-dev",
+      "verified_emails": [
+        "former@example.com"
+      ],
+      "affiliation": "internal",
+      "status": "active"
+    },
+    {
+      "key": {
+        "id": "103",
+        "provider": "demo"
+      },
+      "kind": "bot",
+      "login": "build-bot",
+      "verified_emails": [
+        "build@example.com"
+      ],
+      "affiliation": "internal",
+      "status": "active"
+    },
+    {
+      "key": {
+        "provider": "demo",
+        "id": "104"
+      },
+      "login": "contractor-dev",
+      "kind": "human",
+      "status": "active",
+      "affiliation": "external",
+      "verified_emails": [
+        "contractor@example.com"
+      ]
+    },
+    {
+      "key": {
+        "provider": "demo",
+        "id": "105"
+      },
+      "login": "automation-service",
+      "kind": "service",
+      "status": "active",
+      "affiliation": "internal",
+      "verified_emails": [
+        "automation@example.com"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "key": {
+        "provider": "demo",
+        "id": "org-1"
+      },
+      "name": "acme",
+      "kind": "demo.organization",
+      "parent": null
+    },
+    {
+      "key": {
+        "id": "repo-20",
+        "provider": "demo"
+      },
+      "name": "acme/payments-api",
+      "kind": "demo.repository",
+      "parent": {
+        "provider": "demo",
+        "id": "org-1"
+      }
+    },
+    {
+      "key": {
+        "id": "repo-21",
+        "provider": "demo"
+      },
+      "name": "acme/infrastructure",
+      "kind": "demo.repository",
+      "parent": {
+        "provider": "demo",
+        "id": "org-1"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "key": {
+        "id": "team-10",
+        "provider": "demo"
+      },
+      "name": "team/backend"
+    }
+  ],
+  "memberships": [
+    {
+      "group": {
+        "id": "team-10",
+        "provider": "demo"
+      },
+      "member": {
+        "key": {
+          "id": "100",
+          "provider": "demo"
+        },
+        "kind": "account"
+      },
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      }
+    }
+  ],
+  "grants": [
+    {
+      "certainty": "observed",
+      "id": "grant-1",
+      "privilege": "standard",
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      },
+      "resource": {
+        "id": "repo-20",
+        "provider": "demo"
+      },
+      "role": "Write",
+      "subject": {
+        "key": {
+          "id": "team-10",
+          "provider": "demo"
+        },
+        "kind": "group"
+      },
+      "evidence_kind": "assignment"
+    },
+    {
+      "certainty": "observed",
+      "id": "grant-2",
+      "privilege": "standard",
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      },
+      "resource": {
+        "id": "repo-21",
+        "provider": "demo"
+      },
+      "role": "Read",
+      "subject": {
+        "key": {
+          "id": "100",
+          "provider": "demo"
+        },
+        "kind": "account"
+      },
+      "evidence_kind": "permission"
+    },
+    {
+      "certainty": "observed",
+      "id": "grant-3",
+      "privilege": "admin",
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      },
+      "resource": {
+        "id": "repo-21",
+        "provider": "demo"
+      },
+      "role": "Admin",
+      "subject": {
+        "key": {
+          "id": "101",
+          "provider": "demo"
+        },
+        "kind": "account"
+      },
+      "evidence_kind": "permission"
+    },
+    {
+      "certainty": "observed",
+      "id": "grant-4",
+      "privilege": "standard",
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      },
+      "resource": {
+        "id": "repo-20",
+        "provider": "demo"
+      },
+      "role": "Read",
+      "subject": {
+        "key": {
+          "id": "102",
+          "provider": "demo"
+        },
+        "kind": "account"
+      },
+      "evidence_kind": "permission"
+    },
+    {
+      "certainty": "observed",
+      "id": "grant-5",
+      "privilege": "standard",
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      },
+      "resource": {
+        "id": "repo-20",
+        "provider": "demo"
+      },
+      "role": "Write",
+      "subject": {
+        "key": {
+          "id": "103",
+          "provider": "demo"
+        },
+        "kind": "account"
+      },
+      "evidence_kind": "permission"
+    },
+    {
+      "id": "grant-6",
+      "subject": {
+        "kind": "account",
+        "key": {
+          "provider": "demo",
+          "id": "104"
+        }
+      },
+      "resource": {
+        "provider": "demo",
+        "id": "repo-20"
+      },
+      "role": "Read",
+      "privilege": "standard",
+      "certainty": "observed",
+      "evidence_kind": "permission",
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "grant-7",
+      "subject": {
+        "kind": "account",
+        "key": {
+          "provider": "demo",
+          "id": "105"
+        }
+      },
+      "resource": {
+        "provider": "demo",
+        "id": "repo-21"
+      },
+      "role": "Write",
+      "privilege": "standard",
+      "certainty": "observed",
+      "evidence_kind": "permission",
+      "provenance": {
+        "method": "synthetic demo fixture",
+        "observed_at": "2026-01-01T00:00:00Z"
+      }
+    }
+  ],
+  "limitations": [],
+  "complete": true
+}

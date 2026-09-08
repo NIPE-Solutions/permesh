@@ -1,6 +1,6 @@
 # ADR 0019: Provider-owned resource kinds and containment
 
-Status: Proposed for the domain migration slice
+Status: Accepted for the domain model; new wire emission remains unnegotiated
 
 ## Decision
 
@@ -21,3 +21,6 @@ input order. Parent links can arrive out of order during discovery, but a comple
 snapshot is accepted only after graph validation. New fields require negotiated
 wire support and an intentional output-schema migration; old records remain valid
 through the compatibility mapper.
+
+The implementation uses access JSON schema 2 and retains legacy wire DTOs with
+conservative ingress mapping. See the [migration guide](../migrations/domain-schema-2.md).

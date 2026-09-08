@@ -20,15 +20,16 @@ unknown status unless an authoritative source supplies the canonical identity.
 | JSON reason | Meaning |
 | --- | --- |
 | `inactive_identity` | The resolved authoritative identity is inactive, including an inactive service, bot, or external identity. |
+| `suspended_identity` | The resolved authoritative identity is suspended, including service, bot or external identities. |
 | `unknown_identity` | No confident identity match exists in the available complete authority observations. |
-| `unknown_status` | An identity was resolved, but its status does not establish active or known service/external status. |
+| `unknown_status` | An identity was resolved, but its status does not establish active lifecycle or a separately identified service/external classification. |
 | `ambiguous_identity` | Conflicting or multiple identity candidates remain unresolved. |
 | `service_account` | A known service account or service identity, listed separately. |
 | `bot` | A known bot, listed separately. |
 | `external_identity` | A known external identity, listed separately. |
 | `unassessed` | At least one configured authority is missing or incomplete; no orphan classification is made. |
 
-Ambiguity takes precedence over exemptions. Resolved inactivity takes precedence
+Ambiguity takes precedence over exemptions. Resolved inactivity and suspension take precedence
 over service, bot, and external classification. Recognized non-human and external
 accounts are listed separately rather than automatically treated as orphaned;
 that does not certify ownership or approved access. Ordinary accounts associated
@@ -73,7 +74,7 @@ RSS: input snapshots, indexes, relevance lookups, allocator overhead and CLI
 output conversion remain outside that estimate.
 
 Human output groups accounts by reason and separates service, bot and external
-identities. JSON uses [output schema 1](output-schema.md) with deterministic
+identities. JSON uses [access output schema 2](output-schema.md) with deterministic
 account and path ordering. The operation does not write configuration or persist
 an access graph.
 

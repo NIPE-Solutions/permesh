@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "command": "user",
   "complete": true,
-  "started_at": "2026-09-08T08:58:50.279756Z",
-  "completed_at": "2026-09-08T08:58:50.279853Z",
+  "started_at": "2026-09-09T00:00:00Z",
+  "completed_at": "2026-09-09T00:00:00Z",
   "providers": [
     {
       "id": "demo",
@@ -20,8 +20,10 @@
           "id": "100",
           "provider": "demo"
         },
+        "certainty": "derived",
         "grant": {
           "certainty": "observed",
+          "evidence_kind": "assignment",
           "id": "grant-1",
           "privilege": "standard",
           "provenance": {
@@ -74,7 +76,12 @@
             "id": "repo-20",
             "provider": "demo"
           },
-          "name": "acme/payments-api"
+          "kind": "demo.repository",
+          "name": "acme/payments-api",
+          "parent": {
+            "id": "org-1",
+            "provider": "demo"
+          }
         }
       },
       {
@@ -82,8 +89,10 @@
           "id": "100",
           "provider": "demo"
         },
+        "certainty": "observed",
         "grant": {
           "certainty": "observed",
+          "evidence_kind": "permission",
           "id": "grant-2",
           "privilege": "standard",
           "provenance": {
@@ -110,24 +119,32 @@
             "id": "repo-21",
             "provider": "demo"
           },
-          "name": "acme/infrastructure"
+          "kind": "demo.repository",
+          "name": "acme/infrastructure",
+          "parent": {
+            "id": "org-1",
+            "provider": "demo"
+          }
         }
       }
     ],
     "accounts": [
       {
+        "affiliation": "internal",
         "key": {
           "id": "100",
           "provider": "demo"
         },
         "kind": "human",
         "login": "alice-dev",
+        "status": "active",
         "verified_emails": [
           "alice@example.com"
         ]
       }
     ],
     "identity": {
+      "affiliation": "internal",
       "id": "alice@example.com",
       "kind": "human",
       "status": "active",

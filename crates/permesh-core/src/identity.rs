@@ -54,7 +54,10 @@ impl<'a> IdentityIndex<'a> {
                 let merged = identities
                     .entry(identity.id.clone())
                     .or_insert_with(|| identity.clone());
-                if merged.status != identity.status || merged.kind != identity.kind {
+                if merged.status != identity.status
+                    || merged.kind != identity.kind
+                    || merged.affiliation != identity.affiliation
+                {
                     conflicting.insert(identity.id.clone());
                 }
                 merged
@@ -82,6 +85,7 @@ impl<'a> IdentityIndex<'a> {
                 .or_insert_with(|| Identity {
                     id: identity.clone(),
                     kind: IdentityKind::Unknown,
+                    affiliation: Affiliation::Unknown,
                     status: IdentityStatus::Unknown,
                     verified_emails: vec![],
                 });

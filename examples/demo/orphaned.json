@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "command": "orphaned",
   "complete": true,
-  "started_at": "2026-09-08T10:37:51.858971Z",
-  "completed_at": "2026-09-08T10:37:51.859048Z",
+  "started_at": "2026-09-09T00:00:00Z",
+  "completed_at": "2026-09-09T00:00:00Z",
   "providers": [
     {
       "id": "demo",
@@ -20,8 +20,10 @@
           "id": "102",
           "provider": "demo"
         },
+        "certainty": "observed",
         "grant": {
           "certainty": "observed",
+          "evidence_kind": "permission",
           "id": "grant-4",
           "privilege": "standard",
           "provenance": {
@@ -48,7 +50,12 @@
             "id": "repo-20",
             "provider": "demo"
           },
-          "name": "acme/payments-api"
+          "kind": "demo.repository",
+          "name": "acme/payments-api",
+          "parent": {
+            "id": "org-1",
+            "provider": "demo"
+          }
         }
       },
       {
@@ -56,8 +63,10 @@
           "id": "103",
           "provider": "demo"
         },
+        "certainty": "observed",
         "grant": {
           "certainty": "observed",
+          "evidence_kind": "permission",
           "id": "grant-5",
           "privilege": "standard",
           "provenance": {
@@ -84,25 +93,119 @@
             "id": "repo-20",
             "provider": "demo"
           },
-          "name": "acme/payments-api"
+          "kind": "demo.repository",
+          "name": "acme/payments-api",
+          "parent": {
+            "id": "org-1",
+            "provider": "demo"
+          }
+        }
+      },
+      {
+        "account": {
+          "id": "104",
+          "provider": "demo"
+        },
+        "certainty": "observed",
+        "grant": {
+          "certainty": "observed",
+          "evidence_kind": "permission",
+          "id": "grant-6",
+          "privilege": "standard",
+          "provenance": {
+            "method": "synthetic demo fixture",
+            "observed_at": "2026-01-01T00:00:00Z"
+          },
+          "resource": {
+            "id": "repo-20",
+            "provider": "demo"
+          },
+          "role": "Read",
+          "subject": {
+            "key": {
+              "id": "104",
+              "provider": "demo"
+            },
+            "kind": "account"
+          }
+        },
+        "groups": [],
+        "memberships": [],
+        "resource": {
+          "key": {
+            "id": "repo-20",
+            "provider": "demo"
+          },
+          "kind": "demo.repository",
+          "name": "acme/payments-api",
+          "parent": {
+            "id": "org-1",
+            "provider": "demo"
+          }
+        }
+      },
+      {
+        "account": {
+          "id": "105",
+          "provider": "demo"
+        },
+        "certainty": "observed",
+        "grant": {
+          "certainty": "observed",
+          "evidence_kind": "permission",
+          "id": "grant-7",
+          "privilege": "standard",
+          "provenance": {
+            "method": "synthetic demo fixture",
+            "observed_at": "2026-01-01T00:00:00Z"
+          },
+          "resource": {
+            "id": "repo-21",
+            "provider": "demo"
+          },
+          "role": "Write",
+          "subject": {
+            "key": {
+              "id": "105",
+              "provider": "demo"
+            },
+            "kind": "account"
+          }
+        },
+        "groups": [],
+        "memberships": [],
+        "resource": {
+          "key": {
+            "id": "repo-21",
+            "provider": "demo"
+          },
+          "kind": "demo.repository",
+          "name": "acme/infrastructure",
+          "parent": {
+            "id": "org-1",
+            "provider": "demo"
+          }
         }
       }
     ],
     "accounts": [
       {
         "account": {
+          "affiliation": "internal",
           "key": {
             "id": "102",
             "provider": "demo"
           },
           "kind": "human",
           "login": "former-dev",
+          "status": "active",
           "verified_emails": [
             "former@example.com"
           ]
         },
         "identity": {
           "identity": {
+            "affiliation": "internal",
             "id": "former@example.com",
             "kind": "human",
             "status": "inactive",
@@ -116,21 +219,24 @@
       },
       {
         "account": {
+          "affiliation": "internal",
           "key": {
             "id": "103",
             "provider": "demo"
           },
           "kind": "bot",
           "login": "build-bot",
+          "status": "active",
           "verified_emails": [
             "build@example.com"
           ]
         },
         "identity": {
           "identity": {
+            "affiliation": "internal",
             "id": "build@example.com",
             "kind": "bot",
-            "status": "service",
+            "status": "active",
             "verified_emails": [
               "build@example.com"
             ]
@@ -138,6 +244,62 @@
           "state": "resolved"
         },
         "reason": "bot"
+      },
+      {
+        "account": {
+          "affiliation": "external",
+          "key": {
+            "id": "104",
+            "provider": "demo"
+          },
+          "kind": "human",
+          "login": "contractor-dev",
+          "status": "active",
+          "verified_emails": [
+            "contractor@example.com"
+          ]
+        },
+        "identity": {
+          "identity": {
+            "affiliation": "external",
+            "id": "contractor@example.com",
+            "kind": "human",
+            "status": "active",
+            "verified_emails": [
+              "contractor@example.com"
+            ]
+          },
+          "state": "resolved"
+        },
+        "reason": "external_identity"
+      },
+      {
+        "account": {
+          "affiliation": "internal",
+          "key": {
+            "id": "105",
+            "provider": "demo"
+          },
+          "kind": "service",
+          "login": "automation-service",
+          "status": "active",
+          "verified_emails": [
+            "automation@example.com"
+          ]
+        },
+        "identity": {
+          "identity": {
+            "affiliation": "internal",
+            "id": "automation@example.com",
+            "kind": "service",
+            "status": "active",
+            "verified_emails": [
+              "automation@example.com"
+            ]
+          },
+          "state": "resolved"
+        },
+        "reason": "service_account"
       }
     ],
     "authorities": [

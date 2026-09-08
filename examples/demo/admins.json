@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "command": "admins",
   "complete": true,
-  "started_at": "2026-09-08T09:09:51.350544Z",
-  "completed_at": "2026-09-08T09:09:51.35061Z",
+  "started_at": "2026-09-09T00:00:00Z",
+  "completed_at": "2026-09-09T00:00:00Z",
   "providers": [
     {
       "id": "demo",
@@ -20,8 +20,10 @@
           "id": "101",
           "provider": "demo"
         },
+        "certainty": "observed",
         "grant": {
           "certainty": "observed",
+          "evidence_kind": "permission",
           "id": "grant-3",
           "privilege": "admin",
           "provenance": {
@@ -48,25 +50,33 @@
             "id": "repo-21",
             "provider": "demo"
           },
-          "name": "acme/infrastructure"
+          "kind": "demo.repository",
+          "name": "acme/infrastructure",
+          "parent": {
+            "id": "org-1",
+            "provider": "demo"
+          }
         }
       }
     ],
     "accounts": [
       {
         "account": {
+          "affiliation": "internal",
           "key": {
             "id": "101",
             "provider": "demo"
           },
           "kind": "human",
           "login": "bob-admin",
+          "status": "active",
           "verified_emails": [
             "bob@example.com"
           ]
         },
         "identity": {
           "identity": {
+            "affiliation": "internal",
             "id": "bob@example.com",
             "kind": "human",
             "status": "active",
