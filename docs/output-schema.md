@@ -16,7 +16,7 @@
 }
 ```
 
-`command` is one of `init`, `provider_add`, `provider_list`, `provider_capabilities`, `provider_status`, `auth_login`, `auth_logout`, `auth_status`, `doctor`, `user`, `admins`, `version`. Times use UTC RFC3339. They delimit the command collection window, not a cross-provider transaction.
+`command` is one of `init`, `provider_add`, `provider_list`, `provider_capabilities`, `provider_status`, `auth_login`, `auth_logout`, `auth_status`, `doctor`, `user`, `admins`, `orphaned`, `version`. Times use UTC RFC3339. They delimit the command collection window, not a cross-provider transaction.
 
 `providers` is sorted by instance ID. Each entry has `id`, `kind`, `state` (`connected`, `partial`, `failed`), curated `message`, and `limitations` array. `complete` describes completion within supported adapter scope. Even true does not certify exhaustive effective authorization. Failures never appear as empty successful provider snapshots.
 
@@ -43,6 +43,17 @@ With all providers failed, `result` is `{}` and provider failures explain the ab
 - `unresolved_grants`: `{grant,resource,group}` records for nonstandard grants with no observed account path. The group is the subject group record, or null if unavailable. These records retain privilege, certainty, role, and provenance. They do not certify an empty group or unused grant.
 
 Standard grants are excluded. Arrays are deterministic, scoped by provider and native IDs. Multiple paths to the same grant are retained. All-provider failure leaves `result: {}` with `complete: false`, as for user queries. There is no policy finding exit code: completed inspection returns 0 even if administrators are present. Source ambiguity is data here; it remains an error for a user lookup that cannot resolve uniquely. Provider failures still return 3/4.
+
+## Orphaned result
+
+`orphaned` uses the same envelope. `result` contains:
+
+- `authorities`: sorted, deduplicated configured authoritative provider IDs.
+- `authority_complete`: true only when every named authority has a complete snapshot. This does not imply unrestricted directory visibility.
+- `accounts`: sorted `{account, identity, reason}` records. Account and identity resolution use the existing user/admin shapes. `reason` is one of `inactive_identity`, `unknown_identity`, `unknown_status`, `ambiguous_identity`, `external_identity`, `service_account`, `bot`, or `unassessed`.
+- `access`: existing AccessPath records for returned accounts, preserving membership and grant provenance. Accounts without observed paths remain present.
+
+When any authority is absent or partial, every observed account has reason `unassessed`; identity evidence remains available but no orphan classification is made. With complete authorities, ordinary active identities are omitted and service, bot and external identities are listed separately. Ambiguity and resolved inactivity take precedence over those separate categories. All-provider failure leaves `result: {}` and `complete: false`. No authoritative source is a configuration error (exit 2). Completed inspection returns 0 regardless of findings; provider failure codes remain 3/4. See [classification details](orphaned.md).
 
 ## Other results
 

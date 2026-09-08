@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "command": "orphaned",
+  "complete": true,
+  "started_at": "2026-09-08T10:37:51.858971Z",
+  "completed_at": "2026-09-08T10:37:51.859048Z",
+  "providers": [
+    {
+      "id": "demo",
+      "kind": "demo",
+      "state": "connected",
+      "message": "Discovery completed",
+      "limitations": []
+    }
+  ],
+  "result": {
+    "access": [
+      {
+        "account": {
+          "id": "102",
+          "provider": "demo"
+        },
+        "grant": {
+          "certainty": "observed",
+          "id": "grant-4",
+          "privilege": "standard",
+          "provenance": {
+            "method": "synthetic demo fixture",
+            "observed_at": "2026-01-01T00:00:00Z"
+          },
+          "resource": {
+            "id": "repo-20",
+            "provider": "demo"
+          },
+          "role": "Read",
+          "subject": {
+            "key": {
+              "id": "102",
+              "provider": "demo"
+            },
+            "kind": "account"
+          }
+        },
+        "groups": [],
+        "memberships": [],
+        "resource": {
+          "key": {
+            "id": "repo-20",
+            "provider": "demo"
+          },
+          "name": "acme/payments-api"
+        }
+      },
+      {
+        "account": {
+          "id": "103",
+          "provider": "demo"
+        },
+        "grant": {
+          "certainty": "observed",
+          "id": "grant-5",
+          "privilege": "standard",
+          "provenance": {
+            "method": "synthetic demo fixture",
+            "observed_at": "2026-01-01T00:00:00Z"
+          },
+          "resource": {
+            "id": "repo-20",
+            "provider": "demo"
+          },
+          "role": "Write",
+          "subject": {
+            "key": {
+              "id": "103",
+              "provider": "demo"
+            },
+            "kind": "account"
+          }
+        },
+        "groups": [],
+        "memberships": [],
+        "resource": {
+          "key": {
+            "id": "repo-20",
+            "provider": "demo"
+          },
+          "name": "acme/payments-api"
+        }
+      }
+    ],
+    "accounts": [
+      {
+        "account": {
+          "key": {
+            "id": "102",
+            "provider": "demo"
+          },
+          "kind": "human",
+          "login": "former-dev",
+          "verified_emails": [
+            "former@example.com"
+          ]
+        },
+        "identity": {
+          "identity": {
+            "id": "former@example.com",
+            "kind": "human",
+            "status": "inactive",
+            "verified_emails": [
+              "former@example.com"
+            ]
+          },
+          "state": "resolved"
+        },
+        "reason": "inactive_identity"
+      },
+      {
+        "account": {
+          "key": {
+            "id": "103",
+            "provider": "demo"
+          },
+          "kind": "bot",
+          "login": "build-bot",
+          "verified_emails": [
+            "build@example.com"
+          ]
+        },
+        "identity": {
+          "identity": {
+            "id": "build@example.com",
+            "kind": "bot",
+            "status": "service",
+            "verified_emails": [
+              "build@example.com"
+            ]
+          },
+          "state": "resolved"
+        },
+        "reason": "bot"
+      }
+    ],
+    "authorities": [
+      "demo"
+    ],
+    "authority_complete": true
+  }
+}

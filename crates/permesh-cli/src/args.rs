@@ -51,6 +51,8 @@ pub enum Command {
     User { identity: String },
     /// Show privileged access, uncertain roles, and unresolved group grants.
     Admins,
+    /// Review accounts not confidently associated with an active authoritative identity.
+    Orphaned,
     /// Show version and privacy defaults.
     Version,
 }

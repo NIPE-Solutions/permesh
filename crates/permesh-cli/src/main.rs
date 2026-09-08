@@ -6,6 +6,7 @@ mod auth;
 mod blocking;
 mod collection;
 mod error;
+mod orphaned_output;
 mod output;
 mod report;
 mod workspace;
