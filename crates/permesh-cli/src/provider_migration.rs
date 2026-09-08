@@ -4,11 +4,11 @@ use crate::{
     args::Cli, blocking::BlockingPool, cancellation::Cancellation, error::AppError, report::Outcome,
 };
 use clap::Args;
-use permesh_config::{Config, ExternalConfig, ProviderKind};
+mod provider;
+use permesh_config::Config;
 use permesh_provider_external::trust::Registry;
-use permesh_provider_sdk::Capability;
+use provider::Legacy;
 use std::{
-    collections::BTreeMap,
     fs::File,
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -17,20 +17,13 @@ use std::{
 
 #[derive(Clone, Args)]
 pub struct MigrationArgs {
-    /// Existing legacy GitHub instance to migrate, preserving its ID and references.
+    /// Existing GitHub or Google instance to migrate, preserving its ID and references.
     #[arg(value_name = "INSTANCE")]
     pub id: String,
-    /// Exact SHA-256 of an already trusted external github binary.
+    /// Exact SHA-256 of an already trusted external provider binary.
     #[arg(long, value_name = "DIGEST")]
     pub sha256: String,
 }
-const CAPABILITIES: [Capability; 5] = [
-    Capability::Accounts,
-    Capability::Resources,
-    Capability::Groups,
-    Capability::Memberships,
-    Capability::Grants,
-];
 fn cancelled() -> AppError {
     AppError::new(130, "Cancelled")
 }
@@ -47,13 +40,14 @@ pub async fn run(
     let registry =
         Registry::new(crate::external::storage_root()?).map_err(crate::external::failure)?;
     let digest = args.sha256.clone();
+    let kind = draft.kind;
     tokio::select! {
         biased;
         ()=cancellation.cancelled()=>return Err(cancelled()),
         result=tokio::time::timeout(Duration::from_secs(120),pool.run(move|| {
-            let registration=registry.load_pinned("github",&digest).map_err(crate::external::failure)?;
-            if registration.capabilities.len()!=CAPABILITIES.len() || !CAPABILITIES.iter().all(|cap|registration.capabilities.contains(cap)) {
-                return Err(AppError::input("Migration requires the trusted GitHub capabilities: accounts, resources, groups, memberships and grants"));
+            let registration=registry.load_pinned(kind.name(),&digest).map_err(crate::external::failure)?;
+            if registration.capabilities.len()!=kind.capabilities().len() || !kind.capabilities().iter().all(|cap|registration.capabilities.contains(cap)) {
+                return Err(AppError::input(format!("Migration requires the exact trusted {} capabilities: {:?}", kind.name(), kind.capabilities())));
             }
             registry.verify(&registration).map_err(crate::external::failure)?;
             Ok::<_,AppError>(())
@@ -67,6 +61,7 @@ struct Draft {
     path: PathBuf,
     original: Vec<u8>,
     config: Config,
+    kind: Legacy,
 }
 fn source(path: &Path) -> Result<Vec<u8>, AppError> {
     if !std::fs::symlink_metadata(path)
@@ -108,46 +103,7 @@ impl Draft {
             .ok_or_else(|| {
                 AppError::input("Unknown provider instance; run permesh provider list")
             })?;
-        if provider.kind != ProviderKind::Github {
-            return Err(AppError::input(
-                "Migration requires an existing legacy type: github instance; external instances are already migrated",
-            ));
-        }
-        if args.id.len() > 64
-            || !args
-                .id
-                .as_bytes()
-                .first()
-                .is_some_and(u8::is_ascii_alphabetic)
-        {
-            return Err(AppError::input(
-                "External instance IDs must start with an ASCII letter and contain at most 64 bytes. Rename this legacy ID and its aliases/keychain references explicitly before migration",
-            ));
-        }
-        if provider.organizations.len() > 100
-            || provider.organizations.iter().any(|org| org.len() > 100)
-        {
-            return Err(AppError::input(
-                "External GitHub supports at most 100 organizations with names at most 100 bytes; edit the legacy configuration explicitly before migration",
-            ));
-        }
-        let token = provider
-            .auth
-            .take()
-            .ok_or_else(|| AppError::input("Legacy GitHub token reference is missing"))?
-            .token;
-        let organizations = std::mem::take(&mut provider.organizations);
-        provider.kind = ProviderKind::External;
-        provider.customer_id = None;
-        provider.external = Some(ExternalConfig {
-            provider: "github".into(),
-            sha256: args.sha256.clone(),
-            configuration: BTreeMap::from([(
-                "organizations".into(),
-                serde_json::json!(organizations),
-            )]),
-            credentials: BTreeMap::from([("token".into(), token)]),
-        });
+        let kind = provider::convert(provider, &args.sha256)?;
         config.validate()?;
         let path = path
             .canonicalize()
@@ -156,6 +112,7 @@ impl Draft {
             path,
             original,
             config,
+            kind,
         })
     }
     fn commit(
@@ -171,9 +128,9 @@ impl Draft {
         let outcome = Outcome::new(
             "provider_migrate",
             serde_json::json!({
-                "id":args.id,"provider":"github","sha256":args.sha256,"file":self.path,"changed":true,
+                "id":args.id,"provider":self.kind.name(),"sha256":args.sha256,"file":self.path,"changed":true,
                 "trust_changed":false,"approval_records_changed":false,"execution_approvals_require_review":true,"credentials_resolved":false,
-                "message":"Migrated GitHub instance; ID, organizations, aliases and token reference were preserved. Configuration formatting was normalized. Review the diff. This workspace change invalidates execution approvals for all external instances; review and approve each before querying. No provider was executed and no credentials were resolved or stored.",
+                "message":format!("{} Configuration formatting was normalized. Review the diff. This workspace change invalidates execution approvals for all external instances; review and approve each before querying. No provider was executed and no credentials were resolved or stored.", self.kind.message()),
                 "next":format!("permesh provider external review {}",args.id)
             }),
         )?;

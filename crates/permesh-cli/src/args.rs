@@ -63,7 +63,7 @@ pub enum Command {
 }
 #[derive(Subcommand, Clone)]
 pub enum ProviderCommand {
-    /// Migrate one legacy GitHub instance to an explicitly pinned trusted external provider.
+    /// Migrate one GitHub or Google instance to an explicitly pinned trusted external provider.
     Migrate(crate::provider_migration::MigrationArgs),
     /// Download an exact official provider package without executing or trusting it.
     Install(crate::distribution::InstallArgs),

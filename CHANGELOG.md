@@ -2,6 +2,10 @@
 
 User-visible changes are recorded here. Alpha releases are for evaluation; stable qualification remains open.
 
+## Unreleased
+
+- Extend explicit provider migration to Google directory instances, preserving customer IDs, canonical identity mappings, authority and token references without execution or credential access.
+
 ## 0.1.0-alpha.1 — 2026-09-08
 
 - Bound external-provider supervisor stack usage so setup remains reliable on small native main-thread stacks, including Windows.

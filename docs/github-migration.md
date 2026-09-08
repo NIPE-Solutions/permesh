@@ -60,7 +60,7 @@ untouched; each affected instance needs a fresh `provider external review` and
 explicit `approve --fingerprint ... --accept-risk` before queries. Migration never
 runs `doctor` or a query automatically.
 
-Migration refuses unknown, non-GitHub or already external instances, untrusted or
+The command also supports [Google migration](google-migration.md). It refuses unknown, unsupported or already external instances, untrusted or
 tampered binaries, and incompatible capabilities without changing the workspace.
 An external ID must start with an ASCII letter and be at most 64 bytes; some legacy
 IDs permitted up to 128 bytes or a leading digit. Such IDs require an explicit

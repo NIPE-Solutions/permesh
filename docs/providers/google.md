@@ -139,3 +139,7 @@ Quota responses and server errors allow at most two retries, with exponential
 backoff and jitter. `Retry-After` is honored up to five seconds; a longer delay
 ends collection with a quota error instead of retrying early. These are defensive
 limits, not scale guarantees.
+
+## External provider migration
+
+An existing Google instance can be converted explicitly once the separate Google executable is qualified and trusted. See [Google migration](../google-migration.md). Conversion preserves authority and token references; it does not authenticate or approve execution.
