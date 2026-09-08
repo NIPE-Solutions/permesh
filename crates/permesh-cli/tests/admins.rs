@@ -80,6 +80,7 @@ fn failed_provider_does_not_hide_known_admin_and_all_failed_is_not_empty_success
     c.providers.push(permesh_config::ProviderConfig {
         id: "github-main".into(),
         kind: permesh_config::ProviderKind::Github,
+        external: None,
         customer_id: None,
         organizations: vec!["example".into()],
         auth: Some(permesh_config::AuthConfig {

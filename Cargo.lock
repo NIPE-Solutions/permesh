@@ -1475,6 +1475,7 @@ dependencies = [
  "permesh-secrets",
  "serde",
  "serde-saphyr",
+ "serde_json",
  "tempfile",
  "thiserror",
 ]
@@ -1506,6 +1507,7 @@ dependencies = [
  "permesh-core",
  "permesh-provider-protocol",
  "permesh-provider-sdk",
+ "permesh-secrets",
  "process-wrap",
  "rustix",
  "serde",
@@ -1515,6 +1517,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]

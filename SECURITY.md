@@ -8,4 +8,6 @@ Include the affected revision, operating system, minimal synthetic reproduction,
 
 Maintainers should acknowledge privately, reproduce with synthetic fixtures, agree disclosure timing with the reporter, patch and add regression coverage, and publish an advisory when distribution warrants it. These are intended practices, not a guaranteed response time.
 
-See the [security model](docs/SECURITY_MODEL.md), [threat model](docs/threat-model.md), and [privacy statement](docs/privacy.md). External provider execution is not enabled.
+See the [security model](docs/SECURITY_MODEL.md), [threat model](docs/threat-model.md), and [privacy statement](docs/privacy.md). External native execution requires explicit local trust; workspace execution also
+requires exact local approval. It is not sandboxed; see the
+[external provider boundary](docs/external-providers.md).

@@ -10,9 +10,17 @@ Do not attach real organization reports or raw error bodies to issues. Reproduce
 
 Build and development tools have their own network behavior: Cargo downloads dependencies, and security checks fetch advisory information. That development activity is distinct from CLI runtime behavior.
 
-Explicitly trusted external providers are separate native programs. Permesh does
-not transmit credentials or workspace configuration to them, and does not retain
-their stderr. They still execute with your operating-system authority and can
-independently read files or contact services. The project's no-backend guarantee
-does not attest third-party code; review its behavior before granting local trust.
+Explicitly trusted external providers are separate native programs. Standalone
+draft-1 discovery receives no workspace settings or credentials. Locally approved
+draft-2 workspace operations receive the selected instance's configuration and
+resolved named credentials on stdin after handshake validation. The complete
+workspace configuration is used to bind the local approval but is not transmitted
+to the provider. Approval storage contains binding metadata and fingerprints,
+not resolved credentials or access reports; raw child stderr is not retained.
+
+These programs execute with your operating-system authority and can independently
+read files, retain received credentials or contact services. Response-reflection
+checks are not an exfiltration barrier. The project's no-backend guarantee does
+not attest third-party code; review its behavior and requested credential slots
+before granting binary trust and workspace approval.
 See [external-provider security boundaries](external-providers.md).

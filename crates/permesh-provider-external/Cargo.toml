@@ -18,6 +18,8 @@ expect_used = "deny"
 
 [dependencies]
 permesh-core.workspace = true
+permesh-secrets.workspace = true
+zeroize = "1.8"
 permesh-provider-sdk.workspace = true
 permesh-provider-protocol = { path = "../permesh-provider-protocol" }
 serde.workspace = true

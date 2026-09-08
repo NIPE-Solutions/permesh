@@ -76,6 +76,7 @@ fn partial_failure_keeps_demo_access_and_marks_incomplete() {
     c.providers.push(permesh_config::ProviderConfig {
         id: "github-main".into(),
         kind: permesh_config::ProviderKind::Github,
+        external: None,
         customer_id: None,
         organizations: vec!["acme".into()],
         auth: Some(permesh_config::AuthConfig {
@@ -107,6 +108,7 @@ fn mixed_auth_status_is_partial_and_env_login_does_not_write() {
     config.providers.push(permesh_config::ProviderConfig {
         id: "github-main".into(),
         kind: permesh_config::ProviderKind::Github,
+        external: None,
         customer_id: None,
         organizations: vec!["acme".into()],
         auth: Some(permesh_config::AuthConfig {

@@ -21,7 +21,9 @@ Reviewed against upstream documentation and crates.io metadata on **2026-09-08**
 
 [zeroize](https://docs.rs/zeroize/latest/zeroize/) 1 (MIT OR Apache-2.0) is also a direct CLI dependency so temporary stdin/terminal credential buffers are cleared on success and error paths. It already underpins secrecy.
 
-All except secrecy have observed 2026 publications at review time. Upstream links and exact license/version metadata can be reproduced using `https://crates.io/api/v1/crates/NAME` or `cargo info NAME@VERSION`. Check the source repository and changelog as well as the registry before updates. No runtime analytics, updater, plugin loader, or embedded foreign-language engine is selected.
+All except secrecy have observed 2026 publications at review time. Upstream links and exact license/version metadata can be reproduced using `https://crates.io/api/v1/crates/NAME` or `cargo info NAME@VERSION`. Check the source repository and changelog as well as the registry before updates. No runtime analytics, updater, automatic plugin downloader or embedded
+foreign-language engine is selected. Explicitly trusted native execution uses the
+separately reviewed host dependencies below.
 
 ## Supply-chain policy
 

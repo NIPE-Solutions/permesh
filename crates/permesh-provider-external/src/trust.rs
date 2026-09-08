@@ -42,14 +42,14 @@ pub struct Registry {
     root: PathBuf,
 }
 
-fn valid_id(id: &str) -> bool {
+pub(crate) fn valid_id(id: &str) -> bool {
     (1..=64).contains(&id.len())
         && id.as_bytes()[0].is_ascii_alphabetic()
         && id
             .bytes()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'_' | b'-'))
 }
-fn valid_digest(digest: &str) -> bool {
+pub(crate) fn valid_digest(digest: &str) -> bool {
     digest.len() == 64
         && digest
             .bytes()
@@ -58,14 +58,14 @@ fn valid_digest(digest: &str) -> bool {
 fn valid_caps(caps: &[Capability]) -> bool {
     caps.len() <= 6 && caps.iter().enumerate().all(|(i, c)| !caps[..i].contains(c))
 }
-fn valid_registration(reg: &Registration) -> bool {
+pub(crate) fn valid_registration(reg: &Registration) -> bool {
     reg.schema == 1
         && valid_id(&reg.id)
         && valid_digest(&reg.sha256)
         && valid_caps(&reg.capabilities)
 }
 // Reject symlinks in every existing component, including directory aliases.
-fn checked_path(
+pub(crate) fn checked_path(
     path: &Path,
     allow_missing: bool,
     trusted_ancestry: bool,
@@ -119,7 +119,7 @@ fn checked_path(
     }
     Ok(())
 }
-fn private(path: &Path, directory: bool) -> Result<(), ExternalError> {
+pub(crate) fn private(path: &Path, directory: bool) -> Result<(), ExternalError> {
     checked_path(path, false, true)?;
     let meta = fs::symlink_metadata(path).map_err(|_| ExternalError::Trust)?;
     if (directory && !meta.is_dir()) || (!directory && !meta.is_file()) {
@@ -152,7 +152,7 @@ fn make_dir(path: &Path) -> Result<(), ExternalError> {
 fn make_dir(path: &Path) -> Result<(), ExternalError> {
     windows::make_dir(path)
 }
-fn ensure_root(path: &Path) -> Result<(), ExternalError> {
+pub(crate) fn ensure_root(path: &Path) -> Result<(), ExternalError> {
     checked_path(path, true, true)?;
     match fs::symlink_metadata(path) {
         Ok(_) => private(path, true),
@@ -167,7 +167,7 @@ fn ensure_root(path: &Path) -> Result<(), ExternalError> {
         Err(_) => Err(ExternalError::Storage),
     }
 }
-fn write_new(path: &Path, bytes: &[u8], executable: bool) -> Result<(), ExternalError> {
+pub(crate) fn create_private_file(path: &Path, executable: bool) -> Result<File, ExternalError> {
     #[cfg(not(windows))]
     let mut options = OpenOptions::new();
     #[cfg(not(windows))]
@@ -180,14 +180,18 @@ fn write_new(path: &Path, bytes: &[u8], executable: bool) -> Result<(), External
     #[cfg(not(unix))]
     let _ = executable;
     #[cfg(not(windows))]
-    let mut file = options.open(path).map_err(|_| ExternalError::Storage)?;
+    let file = options.open(path).map_err(|_| ExternalError::Storage)?;
     #[cfg(windows)]
-    let mut file = windows::create_file(path)?;
+    let file = windows::create_file(path)?;
+    Ok(file)
+}
+pub(crate) fn write_new(path: &Path, bytes: &[u8], executable: bool) -> Result<(), ExternalError> {
+    let mut file = create_private_file(path, executable)?;
     file.write_all(bytes)
         .and_then(|()| file.sync_all())
         .map_err(|_| ExternalError::Storage)
 }
-fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>, ExternalError> {
+pub(crate) fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>, ExternalError> {
     checked_path(path, false, false)?;
     let metadata = fs::symlink_metadata(path).map_err(|_| ExternalError::Trust)?;
     if !metadata.is_file() || metadata.len() > limit {

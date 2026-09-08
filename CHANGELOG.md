@@ -4,9 +4,11 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
-- Add explicit native external-provider inspection, local digest-bound trust registration and supervised discovery with bounded streams and cancellation cleanup. Workspace integration and credential transport remain unsupported.
+- Add approved native external providers to workspace user/admins/orphaned queries and doctor/status health checks. Local approval binds the canonical configuration path, full normalized configuration and registered binary metadata; clones, edits and revocation fail closed before external credential resolution or launch.
+- Add draft-2 configuration and named env/keychain credential delivery over stdin after exact handshake matching, with bounded zeroizing requests and decoded response-reflection checks. Add external review/approve/revoke and named auth slots; native code remains unsandboxed.
+- Add explicit native external-provider inspection, local digest-bound trust registration and draft-1 standalone discovery with bounded streams and cancellation cleanup.
 
-- Add bounded offline external-provider protocol validation, normalized Python interoperability fixtures and a developer transcript validator; ordinary workspace queries do not execute plugins.
+- Add bounded offline external-provider protocol validation, normalized Python interoperability fixtures and a developer transcript validator; workspace execution requires separate local approval.
 
 - Add static shell completion for Bash, Zsh, Fish, PowerShell and Elvish without workspace or provider access.
 

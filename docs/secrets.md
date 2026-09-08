@@ -1,9 +1,11 @@
 # Credentials
 
-Workspace configuration accepts only `env://NAME` and
-`keychain://provider-id/token`. Literal credentials, executable references,
-URL parameters, encoded paths and alternate accounts are rejected. Keychain
-references must match the containing provider ID.
+Workspace configuration accepts `env://NAME` and
+`keychain://instance-id/credential-name`. Built-in providers continue to use the
+`token` account only. Approved external instances can declare named credential
+slots; the keychain service must match the containing instance and the account
+must equal the slot name. Literal credentials, executable references, URL
+parameters and encoded paths are rejected.
 
 Environment names use ASCII letters, digits and underscore, beginning with a
 letter or underscore. Provider IDs use ASCII letters, digits, hyphen and
@@ -11,7 +13,8 @@ underscore. A reference is a locator; it is safe to commit a locator, but never
 commit its resolved value. Environment values are read literally, without shell
 execution or interpolation.
 
-Native entries use service `permesh:<provider-id>` and account `token`. Keyring
+Native entries use service `permesh:<instance-id>` and the selected credential
+slot as account (`token` for built-in providers). Keyring
 4's native adapter selects macOS Keychain, Windows Credential Manager, or Secret
 Service on Linux. A working user session and unlocked credential store may be
 required. Reading configuration does not contact the credential store. Resolving
@@ -31,7 +34,9 @@ messages. Workspace YAML is limited to 1 MiB, one document, 16 levels, 30,000
 nodes and 100,000 parser events. Anchors, aliases, merge keys, unsupported tags
 and includes are rejected. Properties and filesystem includes are not enabled.
 Duplicate map keys, provider IDs, organizations, identity sources and explicit
-account assignments are rejected. No workspace setting starts a process.
+account assignments are rejected. Workspace references alone do not authorize
+external execution: matching local binary trust and workspace approval are
+required before resolving an external instance's credentials.
 
 Package tests use temporary directories and a child process with an isolated
 environment. They do not create, read or delete real native credentials. Native
@@ -51,7 +56,43 @@ locations, never source excerpts.
 
 Ctrl+C stops waiting and exits; a native keychain write already in progress may have completed. Check `auth status` before retrying interrupted login/logout. No rollback is promised for native operations.
 
-Keychain names are shared at user level: the same provider instance ID in two workspaces resolves the same `permesh:<id>` entry. Choose distinct instance IDs for unrelated credentials. Login explicitly replaces that entry; it does not establish tenant-specific isolation.
+Keychain names are shared at user level: the same instance ID and slot in two
+workspaces resolve the same `permesh:<id>` service/account pair. Choose distinct
+instance IDs for unrelated credentials. Login explicitly replaces that entry;
+it does not establish tenant-specific isolation.
+
+## Named external credentials
+
+Declare references under `external.credentials`, for example
+`token: keychain://internal-main/token` or
+`tenant_key: env://PERMESH_TENANT_KEY`. Slot names begin with an ASCII letter,
+use letters, digits, hyphens or underscores, and are at most 64 bytes.
+
+```sh
+permesh auth login internal-main --credential token
+permesh auth status
+permesh auth logout internal-main --credential token
+```
+
+For noninteractive login, use `--token-stdin` to read the selected slot's value
+from stdin; never pass it as a command argument. Environment-backed slots are
+managed outside Permesh. `auth status` checks named credential availability;
+it does not authenticate against the provider. Explicit login/logout manage local
+credentials, not workspace execution approval or remote token revocation.
+
+Workspace discovery and health require a matching approval before external
+credential resolution. The host verifies the draft-2 handshake's exact version,
+provider ID and capability set before sending configuration and credentials on
+stdin. It clears the child environment and supplies no credential arguments.
+Each credential is bounded to 16 KiB, all credentials to 64 KiB and 16 slots;
+the serialized operation frame zeroizes on drop.
+
+Raw stderr is discarded and response strings/keys reflecting supplied credential
+values are rejected after JSON decoding. These controls reduce accidental echo;
+a trusted executable can still encode, save or send credentials elsewhere. Review
+its source, endpoint settings and authority before approving it. Changing a
+reference invalidates approval; rotating the value behind an unchanged reference
+does not.
 
 ## Native integration checks
 

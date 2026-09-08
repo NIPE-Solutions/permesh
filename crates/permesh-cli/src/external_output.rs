@@ -7,6 +7,52 @@ pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<
         writeln!(out, "Local provider storage\n  {}\n", safe(storage))?;
     }
     match command {
+        "external_review" => {
+            writeln!(
+                out,
+                "Workspace\n  {}\n\nInstance\n  {}\n",
+                safe(field(result, "workspace")),
+                safe(field(result, "instance"))
+            )?;
+            registration(out, &result["registration"])?;
+            writeln!(
+                out,
+                "\nApproval\n  {}\n  Fingerprint: {}\n",
+                if result["approved"] == true {
+                    "Current"
+                } else {
+                    "Required"
+                },
+                safe(field(result, "fingerprint"))
+            )?;
+            for (key, title) in [
+                ("configuration", "Provider configuration"),
+                ("credential_references", "Credential references"),
+                ("identity", "Identity configuration"),
+            ] {
+                writeln!(out, "{title}")?;
+                let formatted =
+                    serde_json::to_string_pretty(&result[key]).map_err(io::Error::other)?;
+                for line in formatted.lines() {
+                    writeln!(out, "  {}", safe(line))?;
+                }
+                writeln!(out)?;
+            }
+            writeln!(
+                out,
+                "To approve after review (use the same --config FILE if supplied):\n  permesh provider external approve {} --fingerprint {} --accept-risk\n",
+                safe(field(result, "instance")),
+                safe(field(result, "fingerprint"))
+            )?;
+        }
+        "external_approve" => {
+            writeln!(
+                out,
+                "Workspace\n  {}\n\nApproved instance\n  {}\n",
+                safe(field(&result["approval"], "workspace")),
+                safe(field(&result["approval"], "instance"))
+            )?;
+        }
         "external_inspect" => {
             writeln!(
                 out,
