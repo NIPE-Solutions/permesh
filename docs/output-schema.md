@@ -154,7 +154,7 @@ informational and does not return audit-findings exit 1.
 
 `provider_migrate` returns `{id, provider, sha256, file, changed, trust_changed,
 approval_records_changed, execution_approvals_require_review, credentials_resolved,
-message, next}`. `id` is the preserved workspace instance, `provider` is `github`,
+message, next}`. `id` is the preserved workspace instance, `provider` is `github` or `google`,
 `sha256` is the reviewed trusted digest, and `file` is the canonical workspace
 path. Successful conversion sets `changed: true`, `trust_changed: false`,
 `approval_records_changed: false`, `execution_approvals_require_review: true` and
@@ -164,4 +164,4 @@ This describes an explicit configuration conversion, not authentication or acces
 discovery. Approval records remain stored, but their old whole-workspace
 fingerprints no longer approve the changed configuration. Repeated conversion of
 an already external instance returns input error 2 without rewriting it. See
-[migration behavior and exit codes](github-migration.md).
+[GitHub migration](github-migration.md) or [Google migration](google-migration.md) for behavior and exit codes.

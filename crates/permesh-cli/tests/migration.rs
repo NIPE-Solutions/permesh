@@ -240,3 +240,85 @@ fn legacy_organization_bounds_and_unsafe_workspace_fail_before_writing() -> Test
     }
     Ok(())
 }
+
+#[test]
+fn google_migration_preserves_authority_customer_and_immutable_aliases() -> TestResult {
+    for reference in [
+        "env://PERMESH_MIGRATION_UNSET",
+        "keychain://google-work/token",
+    ] {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path().canonicalize()?;
+        let path = root.join("permesh.yaml");
+        let original = serde_json::json!({
+            "version":1,"organization":{"name":"Example"},
+            "providers":[{"id":"google-work","type":"google","customer_id":"C01234567","auth":{"token":reference}}],
+            "identity":{"sources":[{"provider":"google-work","authoritative":true}],
+            "aliases":{"google:C01234567:123":{"google-work":["123"]}}}
+        });
+        fs::write(&path, serde_json::to_vec(&original)?)?;
+        let registry = Registry::new(root.join("state/providers"))?;
+        let fixture = root.join("inert-google");
+        fs::write(&fixture, b"\x7fELFmust never execute")?;
+        let digest = inspect(&fixture)?.sha256;
+        registry.trust(
+            &fixture,
+            "google",
+            &digest,
+            &[Capability::Accounts, Capability::Identities],
+        )?;
+        let output = run(&root, "google-work", &digest)?;
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+        assert_eq!(report["result"]["provider"], "google");
+        assert_eq!(report["result"]["credentials_resolved"], false);
+        let after = permesh_config::Config::load(&path)?;
+        assert_eq!(serde_json::to_value(&after.identity)?, original["identity"]);
+        let provider = &after.providers[0];
+        assert_eq!(provider.id, "google-work");
+        assert!(provider.auth.is_none() && provider.customer_id.is_none());
+        let external = provider.external.as_ref().ok_or("missing external")?;
+        assert_eq!(external.provider, "google");
+        assert_eq!(
+            external.configuration,
+            std::collections::BTreeMap::from([
+                ("customer_id".into(), serde_json::json!("C01234567")),
+                ("auth_mode".into(), serde_json::json!("access_token")),
+            ])
+        );
+        assert_eq!(external.credentials["token"], reference);
+        assert!(!root.join("state/workspace-approvals").exists());
+    }
+    Ok(())
+}
+
+#[test]
+fn google_migration_rejects_wrong_provider_or_missing_identity_capability() -> TestResult {
+    for (kind, capabilities) in [
+        ("github", CAPS.to_vec()),
+        ("google", vec![Capability::Accounts]),
+    ] {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path().canonicalize()?;
+        let path = root.join("permesh.yaml");
+        fs::write(&path, b"version: 1\norganization: {name: Example}\nproviders:\n- id: google-work\n  type: google\n  customer_id: C123\n  auth: {token: env://PERMESH_MIGRATION_UNSET}\n")?;
+        let before = fs::read(&path)?;
+        let fixture = root.join("inert");
+        fs::write(&fixture, b"\x7fELFinert")?;
+        let digest = inspect(&fixture)?.sha256;
+        Registry::new(root.join("state/providers"))?.trust(
+            &fixture,
+            kind,
+            &digest,
+            &capabilities,
+        )?;
+        assert_eq!(run(&root, "google-work", &digest)?.status.code(), Some(2));
+        assert_eq!(fs::read(&path)?, before);
+    }
+    Ok(())
+}
