@@ -38,6 +38,31 @@ At that revision, Windows Credential Manager and Linux Secret Service integratio
 
 An [initial live smoke test](getting-started.md#live-validation) passed on macOS Apple Silicon on 2026-09-08 using an uncommitted development build. This supplies early integration evidence for connectivity and observed access, but does not qualify a release revision or complete the broader credentialed exercise in gate 3. Public demo documentation contains no live identities, resource identifiers, access counts, credentials, or raw reports.
 
+## Automated Unix terminal acceptance
+
+Native candidate jobs run `scripts/check_terminal.py` against the optimized CLI
+on all four macOS/Linux targets using a real controlling pseudo-terminal. The
+checks exercise interactive organization input, JSON mode without prompts even
+when attached to a terminal, hidden credential entry, EOF handling, restoration
+of terminal echo, and exclusion of synthetic input from captured terminal output.
+The credential check types synthetic text, clears it, and sends EOF without ever
+submitting a nonempty credential. Each test uses a temporary workspace and a
+unique credential instance; an unconditional logout cleanup guard handles an
+unexpected synthetic write. No provider request is made and captured terminal
+output is not uploaded or included in assertion failures.
+
+Run locally after building a native binary:
+
+```sh
+python3 scripts/check_terminal.py target/debug/permesh
+```
+
+These checks supply runner-specific terminal evidence only after the corresponding
+native job succeeds. They do not qualify Windows terminal behavior, interactive
+desktop credential stores, or manual accessibility/terminal-emulator acceptance.
+They create no SBOM, signatures, notarization, or provenance attestations; those
+distribution decisions remain open.
+
 ## Earlier tool evaluation (2026-09-08)
 
 [cargo-dist](https://axodotdev.github.io/cargo-dist/book/) 0.32.0 is the candidate for future cross-platform archives, installers, and release orchestration. Defer adopting its generated workflow until repository identity, target support, signing strategy, and the gates above are settled. Generating an installer now would imply a distribution promise the project has not validated. Review generated workflows and pin their actions; do not execute downloaded installer scripts in CI.
@@ -48,7 +73,7 @@ CI installs [cargo-deny](https://embarkstudios.github.io/cargo-deny/) and [cargo
 
 ## Unsigned native candidates
 
-[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (MIT license text), `THIRD-PARTY-NOTICES.txt`, and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
+[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check and Unix terminal acceptance where supported, and packages only that binary, `LICENSE` (MIT license text), `THIRD-PARTY-NOTICES.txt`, and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
 
 | Candidate target | Native GitHub runner | Archive |
 | --- | --- | --- |

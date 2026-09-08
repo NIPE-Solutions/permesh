@@ -54,6 +54,9 @@ jobs:
         run: cargo +stable build --release --locked --package permesh-cli --bin permesh --target ${{ matrix.target }}
       - name: Smoke synthetic demo
         run: python scripts/smoke_candidate.py target/${{ matrix.target }}/release/${{ matrix.binary }}
+      - name: Exercise Unix controlling terminal
+        if: runner.os != 'Windows'
+        run: python scripts/check_terminal.py target/${{ matrix.target }}/release/${{ matrix.binary }}
       - name: Package allowlisted candidate files
         shell: bash
         run: |
