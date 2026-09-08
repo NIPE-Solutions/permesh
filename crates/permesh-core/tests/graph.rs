@@ -628,3 +628,42 @@ fn user_prunes_deep_groups_without_grants_and_preserves_observed_paths() {
                 && m.provenance.observed_at == "2026-01-01T00:00:00Z")
     );
 }
+
+#[test]
+fn large_labels_cannot_amplify_into_unbounded_path_copies() {
+    let mut snapshot = fixture();
+    snapshot.groups.clear();
+    snapshot.memberships.clear();
+    let template = snapshot.grants.remove(0);
+    for n in 0..32 {
+        let lower = EntityKey::new("demo", format!("lower-{n}"));
+        let upper = EntityKey::new("demo", format!("upper-{n}"));
+        for key in [&lower, &upper] {
+            snapshot.groups.push(Group {
+                key: key.clone(),
+                name: "x".repeat(64 * 1024),
+            });
+        }
+        snapshot.memberships.push(Membership {
+            member: Subject::Account(snapshot.accounts[0].key.clone()),
+            group: lower.clone(),
+            provenance: template.provenance.clone(),
+        });
+        for parent in 0..32 {
+            snapshot.memberships.push(Membership {
+                member: Subject::Group(lower.clone()),
+                group: EntityKey::new("demo", format!("upper-{parent}")),
+                provenance: template.provenance.clone(),
+            });
+        }
+        let mut grant = template.clone();
+        grant.id = format!("grant-{n}");
+        grant.subject = Subject::Group(upper);
+        snapshot.grants.push(grant);
+    }
+    snapshot.validate().unwrap();
+    assert!(matches!(
+        query_user(&[snapshot], &aliases(), "alice@example.com"),
+        Err(DomainError::PathLimit)
+    ));
+}

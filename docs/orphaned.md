@@ -66,7 +66,11 @@ unresolved privileged group grants.
 Traversal skips membership branches that cannot reach an observed grant. Accounts
 without paths remain in the review, even in large inventories. Snapshot validation
 and limits on relevant access paths still apply; exceeding a limit fails explicitly
-instead of returning a silently truncated result.
+instead of returning a silently truncated result. Path expansion also has a
+64 MiB cumulative record-copy estimate to prevent large labels multiplying
+across many paths. This includes repeated prefix/result copies, not total process
+RSS: input snapshots, indexes, relevance lookups, allocator overhead and CLI
+output conversion remain outside that estimate.
 
 Human output groups accounts by reason and separates service, bot and external
 identities. JSON uses [output schema 1](output-schema.md) with deterministic
