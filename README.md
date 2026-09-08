@@ -2,7 +2,9 @@
 
 **Know who has access to what.**
 
-Permesh is a local-first CLI for discovering and correlating identities and access across your infrastructure.
+Permesh is a local-first CLI for inspecting access across your infrastructure.
+It connects to your providers, correlates accounts, and shows the roles and
+membership paths behind their access.
 
 ```console
 $ permesh user alice@example.com
@@ -22,28 +24,36 @@ demo
     certainty: observed
 ```
 
-This excerpt uses synthetic demo data. Real provider results retain observation methods, native roles, identity uncertainty, and visibility limitations.
+*Example from the offline demo. All names and access records are synthetic.*
 
-Instead of checking each admin console by hand, build the access picture locally. Keep provider definitions and explicit identity mappings in Git; each administrator resolves their own credentials. Permesh inspects access metadata and never changes access.
+Permesh is read-only. Provider configuration and identity mappings can live in
+Git; credentials stay in your environment or OS keychain. Results are processed
+locally and discarded when the command exits.
 
-## Quick start
+## Try it
 
-This is a development milestone, **not a qualified public release**. Rust 1.91 or newer is required; no registry package or hosted download is claimed yet.
+Permesh is under development. Build from source with Rust 1.91 or newer:
 
 ```bash
 cargo install --path crates/permesh-cli --locked
-mkdir access
-cd access
+mkdir access-demo
+cd access-demo
 permesh init --demo
 permesh doctor
 permesh user alice@example.com
-permesh user alice@example.com --json
 permesh admins
 ```
 
-The demo needs no credentials or network. A separate read-only live GitHub smoke test passed for connectivity, user lookup, and privileged-access JSON; observed privileged grants matched an independent GitHub API comparison. See the [anonymized validation note](docs/getting-started.md#live-validation). All demo data remains synthetic.
+The demo needs no network or credentials. Add `--json` for structured output:
 
-To connect GitHub in a separate workspace:
+```bash
+permesh user alice@example.com --json
+permesh admins --json
+```
+
+## Connect GitHub
+
+In a separate directory:
 
 ```bash
 permesh init --organization Acme
@@ -53,28 +63,22 @@ permesh doctor
 permesh user alice-dev
 ```
 
-Use a fine-grained read-only token as described in the [GitHub guide](docs/providers/github.md). A GitHub login lookup does not imply a verified email match. To query a canonical email, add an explicit mapping to the account's immutable numeric ID.
+Use a token with the [documented read permissions](docs/providers/github.md).
+`auth login` stores it in the native OS keychain. Environment-variable references
+are also supported.
 
-`permesh admins --json` reports observed elevated, admin, and owner access. Unknown roles and grants without an observed account path are shown separately; ambiguous identities stay visible. Finding administrators is a successful inspection, not a failed policy check. [Privileged-access guide](docs/admins.md).
+GitHub discovery covers organization members and owners, repositories, teams,
+memberships, and observed roles. Results retain their source and visibility
+limitations. A login lookup selects an account; correlating it with an email
+requires an explicit mapping or verified identity evidence.
 
-## Provider status
-
-| Provider | This milestone |
-| --- | --- |
-| Demo | Deterministic synthetic identities, direct and group paths; fully offline |
-| GitHub.com | Real read-only REST adapter; members/owners, repositories, teams, memberships and observed roles; mock-tested, initial live smoke test passed; full qualification pending |
-| Google Workspace, AWS, Cloudflare | Planned; no placeholder adapters |
-| External providers | Draft protocol and Python example; execution deliberately disabled |
-
-GitHub results describe what the token can observe. They do not prove complete effective authorization. See [limitations and required permissions](docs/providers/github.md).
-
-## Privacy
-
-**Permesh has no backend. Access data is fetched directly from the providers you configure and processed locally. Permesh never sends infrastructure data to the project maintainers.**
-
-There is no telemetry implementation, analytics, update check, hosted account, remote configuration, or persistent access database. Query commands do not change shared configuration. JSON reports contain sensitive access metadata; you control where stdout is redirected. [Privacy details](docs/privacy.md).
+The GitHub adapter has passed a [live validation exercise](docs/getting-started.md#live-validation).
+Google Workspace, AWS, and Cloudflare are planned. External provider execution
+is not available yet.
 
 ## Configuration
+
+A workspace uses one `permesh.yaml` file:
 
 ```yaml
 version: 1
@@ -92,16 +96,37 @@ identity:
       github-main: ["123456"]
 ```
 
-Only secret references belong in Git. Native keychain references use `keychain://github-main/token`. Configuration discovery walks up from the current directory, or use `--config FILE`. Unknown fields and duplicate IDs are rejected. [Configuration schema](docs/CONFIGURATION.md) · [Secrets](docs/secrets.md).
+Aliases reference immutable provider account IDs. Only secret references belong
+in the file. Permesh searches parent directories for the workspace; `--config FILE`
+selects one explicitly.
+
+## Privacy
+
+**Permesh has no backend. Access data is fetched directly from the providers you
+configure and processed locally. Permesh never sends infrastructure data to the
+project maintainers.**
+
+There is no telemetry, update check, or persistent access database. Exported JSON
+contains access metadata; keep it somewhere appropriate for your organization.
+[Privacy details](docs/privacy.md).
 
 ## Documentation
 
-[Getting started](docs/getting-started.md) · [Concepts](docs/concepts.md) · [Providers](docs/providers.md) · [Identity resolution](docs/identity-resolution.md) · [Output schema](docs/output-schema.md) · [Troubleshooting](docs/troubleshooting.md) · [Architecture](docs/ARCHITECTURE.md) · [Security](docs/security.md) · [Roadmap](docs/ROADMAP.md)
+- [Getting started](docs/getting-started.md)
+- [Configuration](docs/CONFIGURATION.md) and [credentials](docs/secrets.md)
+- [GitHub provider](docs/providers/github.md)
+- [Identity resolution](docs/identity-resolution.md) and [privileged access](docs/admins.md)
+- [JSON schema and exit codes](docs/output-schema.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Architecture](docs/ARCHITECTURE.md) and [roadmap](docs/ROADMAP.md)
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [provider development guide](docs/provider-development.md). Ordinary tests need no live credentials. Release qualification is tracked in [docs/releasing.md](docs/releasing.md). Report security issues using [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks, and the
+[provider guide](docs/provider-development.md) for adapter development.
+Report vulnerabilities through the process in [SECURITY.md](SECURITY.md).
+[Release qualification](docs/releasing.md) tracks tested platforms and remaining gates.
 
 ## License
 
-Licensed under either [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option. No edition split or commercial feature gates.
+[MIT OR Apache-2.0](LICENSE), at your option.

@@ -52,7 +52,7 @@ def package(root, target, version, output):
     root = Path(root).resolve(strict=True)
     executable = 'permesh.exe' if 'windows' in target else 'permesh'
     entries = [(executable, regular_bytes(root, Path('target') / target / 'release' / executable), 0o755)]
-    entries += [(name, regular_bytes(root, Path(name)), 0o644) for name in ('LICENSE-MIT', 'LICENSE-APACHE')]
+    entries += [(name, regular_bytes(root, Path(name)), 0o644) for name in ('LICENSE',)]
     entries.append(('INSTALL.txt', INSTALL, 0o644))
     output = Path(output).absolute()
     if any(parent.is_symlink() for parent in (output, *output.parents)):
