@@ -11,6 +11,12 @@ pub async fn run(
     blocking: &crate::blocking::BlockingPool,
     cancellation: &crate::cancellation::Cancellation,
 ) -> Result<Outcome, AppError> {
+    if let Command::Provider {
+        command: ProviderCommand::Setup(args),
+    } = &cli.command
+    {
+        return crate::setup::run(cli, args, blocking, cancellation).await;
+    }
     if let Command::Init { demo, organization } = &cli.command {
         let owned_cli = cli.clone();
         let demo = *demo;

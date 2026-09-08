@@ -71,6 +71,8 @@ pub enum ProviderCommand {
         id: String,
     },
     Add(AddProvider),
+    /// Configure a new instance using a trusted provider's declarative setup form.
+    Setup(crate::setup::SetupArgs),
     /// Explicitly manage and run trusted native external providers.
     External {
         #[command(subcommand)]

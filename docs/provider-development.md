@@ -10,7 +10,7 @@ fixtures and local mock APIs for contract tests.
 ## Protocol and native execution
 
 The pure `permesh-provider-protocol` crate validates bounded draft-1 and draft-2
-discovery, plus draft-2 health. Read the [wire specification](provider-protocol.md).
+discovery, draft-2 health and draft-3 setup descriptions. Read the [wire specification](provider-protocol.md).
 The [Python example and offline validator](../examples/external-provider/README.md)
 remain draft-1 interoperability references exercising all six normalized record
 kinds. Scripts and interpreter commands cannot be registered as native providers.
@@ -39,5 +39,11 @@ capabilities, missing health limitations, floods, hangs, cancellation, descendan
 changed executable bytes, rejected approvals and escaped credential reflection.
 The parser alone cannot satisfy execution or credential-delivery requirements.
 External code runs as the user's account; neither the protocol nor registration
-provides a sandbox. Catalogs, setup wizards and interpreter/dependency-bundle trust
-remain deferred.
+provides a sandbox.
+
+For guided setup, implement draft-3 handshake/describe and return SDK setup schema
+1. The CLI owns prompts and validates conditional answers locally; the provider
+receives no answers or credentials in this exchange. Keep draft-2 query support.
+Read the [setup contract](provider-setup.md#provider-owned-schema-cli-owned-questions)
+and [synthetic examples](../examples/setup/README.md). Catalogs, dynamic
+provider-driven steps and interpreter/dependency-bundle trust remain deferred.

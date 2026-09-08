@@ -16,7 +16,7 @@
 }
 ```
 
-`command` is one of `init`, `provider_add`, `provider_list`, `provider_capabilities`, `provider_status`, `auth_login`, `auth_logout`, `auth_status`, `doctor`, `user`, `admins`, `orphaned`, `version`. Times use UTC RFC3339. They delimit the command collection window, not a cross-provider transaction.
+`command` is one of `init`, `provider_add`, `provider_setup`, `provider_setup_describe`, `provider_list`, `provider_capabilities`, `provider_status`, `auth_login`, `auth_logout`, `auth_status`, `doctor`, `user`, `admins`, `orphaned`, `version`. Times use UTC RFC3339. They delimit the command collection window, not a cross-provider transaction.
 
 `providers` is sorted by instance ID. Each entry has `id`, `kind`, `state` (`connected`, `partial`, `failed`), curated `message`, and `limitations` array. `complete` describes completion within supported adapter scope. Even true does not certify exhaustive effective authorization. Failures never appear as empty successful provider snapshots.
 
@@ -123,3 +123,17 @@ Approved workspace external providers feed the existing user/admins/orphaned
 shapes. Health contributes curated status and limitation text to doctor/status;
 it does not return a discovery snapshot. Missing/stale approval is a provider
 failure during collection, preserving the existing all-failed/partial exit rules.
+
+## Provider setup
+
+`provider_setup_describe` returns `{provider, id, sha256, spec, message}` under
+`result`. It executes a verified registered provider to obtain validated setup
+schema 1, without loading or writing a workspace. `spec.schema_version` is
+independent of report schema 1 and wire draft 3.
+
+`provider_setup` returns `{provider, id, sha256, file, next, message}` after adding
+an instance. `provider` is the registered ID, `id` is the workspace instance, and
+`sha256` is the registered digest pinned in configuration. This result does not
+indicate workspace approval or successful remote authentication. Noninteractive
+and JSON mutation require `--answers FILE`; prompts never appear in JSON output.
+See [setup behavior and answer format](provider-setup.md).

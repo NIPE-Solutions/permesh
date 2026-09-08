@@ -14,4 +14,4 @@ Configure multiple instances by assigning different IDs. A single GitHub instanc
 AWS and Cloudflare built-in adapters are not implemented. Native external
 providers can be registered locally and, after exact workspace approval, used for
 health and ordinary access queries. See [external providers](external-providers.md).
-Provider catalogs, downloads and setup wizards remain deferred. See [provider development](provider-development.md) for extension design and [roadmap](ROADMAP.md) for release gates.
+[Declarative setup](provider-setup.md) supports registered native providers. Provider catalogs, downloads and dynamic provider-driven steps remain deferred. See [provider development](provider-development.md) for extension design and [roadmap](ROADMAP.md) for release gates.

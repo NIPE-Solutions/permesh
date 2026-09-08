@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "title": "Example provider",
+  "description": "Synthetic configuration; enter nonsecret settings and credential references only.",
+  "steps": [
+    {
+      "id": "authentication",
+      "title": "Authentication",
+      "description": "Choose how this instance authenticates.",
+      "fields": [
+        {
+          "key": "auth_method",
+          "label": "Authentication method",
+          "help": "",
+          "required": true,
+          "input": {
+            "type": "choice",
+            "options": [
+              {
+                "value": "token",
+                "label": "API token"
+              },
+              {
+                "value": "service",
+                "label": "Service credentials"
+              }
+            ]
+          },
+          "default": "token"
+        },
+        {
+          "key": "token",
+          "label": "Token reference",
+          "help": "",
+          "required": true,
+          "input": {
+            "type": "credential"
+          },
+          "when": {
+            "field": "auth_method",
+            "equals": "token"
+          }
+        },
+        {
+          "key": "client_id",
+          "label": "Client ID",
+          "help": "",
+          "required": true,
+          "input": {
+            "type": "text",
+            "min_length": 1,
+            "max_length": 128
+          },
+          "when": {
+            "field": "auth_method",
+            "equals": "service"
+          }
+        },
+        {
+          "key": "client_secret",
+          "label": "Client secret reference",
+          "help": "",
+          "required": true,
+          "input": {
+            "type": "credential"
+          },
+          "when": {
+            "field": "auth_method",
+            "equals": "service"
+          }
+        }
+      ]
+    },
+    {
+      "id": "connection",
+      "title": "Connection",
+      "description": "Nonsecret connection settings.",
+      "fields": [
+        {
+          "key": "tenant",
+          "label": "Tenant",
+          "help": "",
+          "required": true,
+          "input": {
+            "type": "text",
+            "min_length": 1,
+            "max_length": 128
+          }
+        },
+        {
+          "key": "port",
+          "label": "Port",
+          "help": "",
+          "required": true,
+          "input": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "default": 443
+        },
+        {
+          "key": "enabled",
+          "label": "Enabled",
+          "help": "",
+          "required": true,
+          "input": {
+            "type": "boolean"
+          },
+          "default": true
+        },
+        {
+          "key": "regions",
+          "label": "Regions",
+          "help": "",
+          "required": false,
+          "input": {
+            "type": "string_list",
+            "min_items": 0,
+            "max_items": 16
+          },
+          "default": []
+        },
+        {
+          "key": "metadata",
+          "label": "Metadata",
+          "help": "",
+          "required": false,
+          "input": {
+            "type": "json"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1565,6 +1565,7 @@ version = "0.1.0-dev"
 dependencies = [
  "permesh-core",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
 ]

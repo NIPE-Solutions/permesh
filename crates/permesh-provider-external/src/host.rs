@@ -4,11 +4,12 @@ use crate::ExternalError;
 pub use crate::invocation::Invocation;
 use permesh_core::Snapshot;
 use permesh_provider_protocol::{
-    DiscoveryDecoder, HealthDecoder, MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES, Progress,
+    DiscoveryDecoder, HealthDecoder, MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES, Progress, SetupDecoder,
     handshake_request, handshake_request_versioned,
 };
 use permesh_provider_sdk::Capability;
 use permesh_provider_sdk::Health;
+use permesh_provider_sdk::setup::SetupSpec;
 use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
 use std::{future::Future, io, path::Path, process::Stdio, time::Duration};
 use tokio::{
@@ -134,6 +135,58 @@ impl Decoder for HealthDecoder {
     fn finish(self) -> Result<Health, permesh_provider_protocol::ProtocolError> {
         self.finish()
     }
+}
+impl Decoder for SetupDecoder {
+    type Output = SetupSpec;
+    fn push(&mut self, frame: &[u8]) -> Result<Progress, permesh_provider_protocol::ProtocolError> {
+        self.push_frame(frame)
+    }
+    fn finish(self) -> Result<Self::Output, permesh_provider_protocol::ProtocolError> {
+        self.finish()
+    }
+}
+/// Retrieve a validated setup description using draft3, without delivering answers or credentials.
+pub async fn describe(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    cancellation: impl Future<Output = ()>,
+) -> Result<SetupSpec, ExternalError> {
+    describe_with_deadlines(
+        executable,
+        provider,
+        instance,
+        capabilities,
+        cancellation,
+        Deadlines::default(),
+    )
+    .await
+}
+async fn describe_with_deadlines(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    cancellation: impl Future<Output = ()>,
+    deadlines: Deadlines,
+) -> Result<SetupSpec, ExternalError> {
+    let decoder = SetupDecoder::new(provider, instance, Some(capabilities))
+        .map_err(|_| ExternalError::Input)?;
+    let handshake = handshake_request_versioned(instance, 3).map_err(|_| ExternalError::Input)?;
+    supervise(
+        executable,
+        Exchange {
+            decoder,
+            handshake,
+            invocation: None,
+            method: "describe",
+            version: 3,
+        },
+        cancellation,
+        deadlines,
+    )
+    .await
 }
 struct Exchange<'a, D> {
     decoder: D,
@@ -327,7 +380,9 @@ async fn supervise<D: Decoder>(
                 async {
                     if let Some(input) = &mut stdin {
                         input
-                            .write_all(if version == 2 {
+                            .write_all(if version == 3 {
+                                b"{\"protocol\":3,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
+                            } else if version == 2 {
                                 b"{\"protocol\":2,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
                             } else {
                                 b"{\"protocol\":1,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
@@ -420,7 +475,7 @@ async fn exchange<D: Decoder>(
         handshake,
         invocation,
         method,
-        ..
+        version,
     } = spec;
     let mut frame = Zeroizing::new(Vec::new());
     let mut chunk = [0u8; 8192];
@@ -473,6 +528,10 @@ async fn exchange<D: Decoder>(
                         negotiated = true;
                         let request = match invocation {
                             Some(invocation) => invocation.request(method)?,
+                            None if version == 3 => Zeroizing::new(
+                                b"{\"protocol\":3,\"id\":\"describe\",\"method\":\"describe\"}\n"
+                                    .to_vec(),
+                            ),
                             None => Zeroizing::new(
                                 b"{\"protocol\":1,\"id\":\"discover\",\"method\":\"discover\"}\n"
                                     .to_vec(),

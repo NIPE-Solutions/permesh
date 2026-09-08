@@ -44,15 +44,17 @@ fn discovery_and_requests_pin_supported_versions() {
         assert_eq!(decoder.push_frame(&frame(json!({"protocol":version,"id":"discover","event":"complete","count":0,"complete":true,"limitations":[]}))),Ok(Progress::Complete));
         assert!(decoder.finish().unwrap().complete);
     }
-    for version in [0, 3, u32::MAX] {
+    for version in [0, 3, 4, u32::MAX] {
         assert!(matches!(
             DiscoveryDecoder::new_versioned("fixture", "main", None, version),
             Err(ProtocolError::Version)
         ));
-        assert_eq!(
-            handshake_request_versioned("main", version),
-            Err(ProtocolError::Version)
-        );
+        if version != 3 {
+            assert_eq!(
+                handshake_request_versioned("main", version),
+                Err(ProtocolError::Version)
+            );
+        }
     }
     let mut decoder = DiscoveryDecoder::new_versioned("fixture", "main", None, 2).unwrap();
     assert_eq!(
