@@ -4,9 +4,9 @@ The project distributes an explicitly marked alpha for evaluation. Stable v0.1 q
 
 ## Alpha publication policy
 
-For `0.1.0-alpha.1`, require locked fmt/Clippy/tests, minimum Rust, fresh dependency checks, all five native build/test/smoke jobs, independent archive/checksum/notice inspection, exact binary version checks, and a public-catalog install/update smoke test. Private vulnerability reporting must be enabled. Promote only the exact reviewed source tree and original qualified artifact bytes to a draft GitHub prerelease; verify uploaded names, sizes and SHA-256 digests before publication. Tag the merged revision, confirm it has the qualified tree, and record run URLs and hashes in the release notes. Do not mark this release as latest stable.
+For each alpha, require locked fmt/Clippy/tests, minimum Rust, fresh dependency checks, all five native build/test/smoke jobs, independent archive/checksum/notice inspection, exact binary version checks, and a public-catalog install/update smoke test. Private vulnerability reporting must be enabled. Promote only the exact reviewed source tree and original qualified artifact bytes to a draft GitHub prerelease; verify uploaded names, sizes and SHA-256 digests before publication. Tag the merged revision, confirm it has the qualified tree, and record run URLs and hashes in the release notes. Do not mark this release as latest stable.
 
-Interactive Windows/Linux credential-store and terminal acceptance, broader live GitHub fixtures and Google tenant acceptance remain **stable-release gates**, explicitly unqualified in the [alpha notes](releases/0.1.0-alpha.1.md). Unsigned/unnotarized distribution, absent SBOM/attestations and runner-only compatibility are disclosed; none is represented as tested or implemented.
+Interactive Windows/Linux credential-store and terminal acceptance, broader live GitHub fixtures and Google tenant/browser acceptance remain **stable-release gates**. The historical [alpha.1 notes](releases/0.1.0-alpha.1.md) describe its immutable published assets. For the [alpha.2 candidate](releases/0.1.0-alpha.2.md), require fresh five-target evidence, inventory/checksum inspection, and verification of provenance for the exact merged release revision before publication. A standards SBOM, platform code signing and notarization remain absent; synthetic tests do not establish live-provider or desktop acceptance.
 
 Packaging includes the exact project MIT `LICENSE` and complete source-supplied dependency license/notice texts in `THIRD-PARTY-NOTICES.txt`, collected from the locked target dependency graph. Collection fails on missing or unsafe source notices. Re-check the contents whenever dependencies change. Build jobs have read-only permissions and no release credentials; a maintainer publishes with the [GitHub CLI](https://cli.github.com/manual/gh_release_create) after all gates above pass.
 
@@ -153,7 +153,7 @@ cargo test --workspace --locked --target aarch64-apple-darwin
 cargo build --release --locked --package permesh-cli --bin permesh --target aarch64-apple-darwin
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/smoke_candidate.py target/aarch64-apple-darwin/release/permesh
-python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1.0-alpha.1 --output candidate-output
+python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1.0-alpha.2 --output candidate-output
 ```
 
 Use `python` and `permesh.exe` on Windows. `candidate-output` must not already exist, and its parent path must be free of symlinks (use a canonical path if your temporary directory is aliased). The smoke helper uses an automatically removed synthetic workspace; it performs no live-provider or credential-store validation. Candidates include local invocation and uninstall instructions. All candidates remain unsigned and unnotarized. Candidate jobs alone do not authorize promotion: complete the alpha publication checks above. Stable native credential-store and live-provider qualification remains open.

@@ -12,6 +12,12 @@ Download an archive and its adjacent `.sha256` file from the [0.1.0-alpha.1 rele
 
 These unsigned alpha binaries are for evaluation. Read the [limitations](releases/0.1.0-alpha.1.md), particularly OS compatibility and credential storage.
 
+The current checkout prepares [0.1.0-alpha.2](releases/0.1.0-alpha.2.md).
+Use the published release linked above until alpha.2 qualification and publication
+are complete. Candidate builds are not installation releases. After publication,
+select assets from the [release list](https://github.com/NIPE-Solutions/permesh/releases)
+and verify the exact version stated on that release page.
+
 ## Verify before extracting
 
 On macOS, replace `ARCHIVE` with the downloaded filename:
@@ -37,7 +43,7 @@ Compare the hash with the first field in the checksum file (case does not matter
 
 Extract into a new directory using `tar -xzf ARCHIVE.tar.gz` or PowerShell `Expand-Archive .\ARCHIVE.zip -DestinationPath .\permesh-alpha`. Each archive contains `permesh` (Windows: `permesh.exe`), `LICENSE`, `THIRD-PARTY-NOTICES.txt`, and `INSTALL.txt`.
 
-Run `./permesh --version` (Windows: `.\permesh.exe --version`) from that directory. The version must be `0.1.0-alpha.1`. You may copy the executable into a user-owned directory already on your PATH; no administrator privileges are needed. Keep license and dependency notices when redistributing. OS download protections may prompt or block unsigned programs; verify the source and follow your organization's policy rather than disabling protections globally.
+Run `./permesh --version` (Windows: `.\permesh.exe --version`) from that directory. The version must match the selected release (`0.1.0-alpha.1` for the published release linked above). You may copy the executable into a user-owned directory already on your PATH; no administrator privileges are needed. Keep license and dependency notices when redistributing. OS download protections may prompt or block unsigned programs; verify the source and follow your organization's policy rather than disabling protections globally.
 
 Try the [offline demo](getting-started.md#evaluate-offline), then configure providers explicitly. Installation itself does not fetch provider data or store credentials.
 

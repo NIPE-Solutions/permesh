@@ -34,6 +34,8 @@ locally and discarded when the command exits.
 
 Download the **[0.1.0-alpha.1 prerelease](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.1)** for macOS, Linux or Windows. Verify its checksum before extracting; see [installation](docs/installation.md). This is an unsigned evaluation release with [known limitations](docs/releases/0.1.0-alpha.1.md).
 
+The checkout is preparing **0.1.0-alpha.2**; see its [candidate scope and remaining checks](docs/releases/0.1.0-alpha.2.md). It is not yet a published release.
+
 Native candidates include checksums and a target-bound dependency inventory.
 A separate manual workflow prepares and verifies GitHub provenance attestations;
 a successful run must be recorded for the exact release revision before claiming
