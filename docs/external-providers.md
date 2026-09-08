@@ -186,5 +186,16 @@ Native authors should use the [provider development guide](provider-development.
 The Python example remains a draft-1 offline reference and cannot be registered as
 a native executable. [Declarative setup](provider-setup.md) can add an instance
 using provider-owned questions without sending answers or granting workspace
-approval. Provider catalogs, downloads, installation, automatic updates and
+approval. [Catalog installation and explicit updates](provider-packages.md) store packages without trusting them. Automatic updates and
 interpreter/dependency-bundle trust remain deferred.
+
+## Retained trusted versions
+
+Explicitly trusting another digest for the same provider ID retains earlier
+trusted binaries and selects the new digest for standalone discovery and setup.
+Workspace queries resolve their exact digest pin, so their existing approvals
+remain usable. A repeated trust of the same digest is rejected, including attempts
+to change its capabilities. To reuse an already trusted older version, explicitly
+review the workspace pin and configuration; downloading it again is not required.
+`external remove ID` removes all retained trusted versions for that ID and makes
+affected workspace approvals unusable. It does not remove downloaded packages.

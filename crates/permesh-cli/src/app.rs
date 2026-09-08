@@ -11,6 +11,35 @@ pub async fn run(
     blocking: &crate::blocking::BlockingPool,
     cancellation: &crate::cancellation::Cancellation,
 ) -> Result<Outcome, AppError> {
+    match &cli.command {
+        Command::Provider {
+            command: ProviderCommand::Install(args),
+        } => {
+            return crate::distribution::run(
+                &args.provider,
+                Some(&args.version),
+                false,
+                false,
+                blocking,
+                cancellation,
+            )
+            .await;
+        }
+        Command::Provider {
+            command: ProviderCommand::Update(args),
+        } => {
+            return crate::distribution::run(
+                &args.provider,
+                args.version.as_deref(),
+                true,
+                args.check,
+                blocking,
+                cancellation,
+            )
+            .await;
+        }
+        _ => (),
+    }
     if let Command::Provider {
         command: ProviderCommand::Setup(args),
     } = &cli.command

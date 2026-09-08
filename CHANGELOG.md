@@ -30,3 +30,5 @@ User-visible changes are recorded here. No public release has been qualified.
 - Document a draft external-provider protocol and a synthetic Python example; the CLI does not execute it.
 
 Release remains gated on the checks in [releasing.md](docs/releasing.md). This entry is not a statement that all release gates have passed.
+
+- Add explicit official provider install/update/check commands, bounded catalog and ZIP validation, retained package versions, and digest-pinned trust lookup. No automatic update checks or provider execution during installation.

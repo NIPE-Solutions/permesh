@@ -137,3 +137,15 @@ an instance. `provider` is the registered ID, `id` is the workspace instance, an
 indicate workspace approval or successful remote authentication. Noninteractive
 and JSON mutation require `--answers FILE`; prompts never appear in JSON output.
 See [setup behavior and answer format](provider-setup.md).
+
+## Provider packages
+
+`provider_install` and `provider_update` use the normal schema-1 envelope. Results
+include `provider`, `target`, sorted `installed_versions` after the operation,
+`available_version`, `selected` (the full release record), `update_available`,
+`check_only`, `changed`, `package`, `trust_changed: false`,
+`workspace_changed: false`, and a curated `message`. `package` is null for checks;
+otherwise it contains `release` and the absolute local `executable` path.
+`changed` describes installation, never workspace adoption. No compatible release
+produces the ordinary versioned error envelope. Check-only update availability is
+informational and does not return audit-findings exit 1.

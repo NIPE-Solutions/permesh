@@ -139,3 +139,9 @@ Report vulnerabilities through the process in [SECURITY.md](SECURITY.md).
 ## License
 
 [MIT OR Apache-2.0](LICENSE), at your option.
+
+Official provider packages are maintained in
+[permesh-providers](https://github.com/NIPE-Solutions/permesh-providers).
+[Explicit install and update commands](docs/provider-packages.md) are implemented;
+the catalog remains empty until the first external release is qualified. Bundled
+providers remain available during migration.

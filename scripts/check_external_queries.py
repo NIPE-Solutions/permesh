@@ -70,6 +70,19 @@ def check():
         user = run('user', 'alice@example.com')
         assert user['result']['access'], user
         assert run('user', 'alice-dev')['result']['access'] == user['result']['access']
+        # Selecting a different trusted digest must not redirect pinned queries.
+        # This non-executable header fixture would fail if the selected binary ran.
+        replacement = root / 'never-executed-provider'
+        replacement.write_bytes(b'\x7fELFsynthetic-retained-pin-test')
+        replacement_digest = hashlib.sha256(replacement.read_bytes()).hexdigest()
+        replacement_args = ['provider', 'external', 'trust', str(replacement), '--id', 'fixture',
+                            '--sha256', replacement_digest, '--accept-risk']
+        for capability in CAPABILITIES:
+            replacement_args += ['--capability', capability]
+        run(*replacement_args)
+        review = run('provider', 'external', 'review', 'internal-main')['result']
+        assert review['registration']['sha256'] == digest and review['approved'] is True
+        assert run('user', 'alice@example.com')['result']['access'] == user['result']['access']
         assert run('admins')['result']['access']
         assert run('orphaned')['result']
         human = subprocess.run([str(binary), 'user', 'alice@example.com'], cwd=workspace,

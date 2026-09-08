@@ -97,6 +97,11 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
             }
         }
         writeln!(out, "  Unsupported: sessions, credentials, mutations")?;
+    } else if matches!(
+        report.command.as_str(),
+        "provider_install" | "provider_update"
+    ) {
+        crate::distribution_output::write(&mut out, result)?;
     } else if report.command.starts_with("external_") {
         crate::external_output::write(&mut out, &report.command, result)?;
     } else if report.command == "provider_setup_describe" {

@@ -139,7 +139,7 @@ pub(crate) fn private(path: &Path, directory: bool) -> Result<(), ExternalError>
     Ok(())
 }
 #[cfg(not(windows))]
-fn make_dir(path: &Path) -> Result<(), ExternalError> {
+pub(crate) fn make_dir(path: &Path) -> Result<(), ExternalError> {
     let mut builder = fs::DirBuilder::new();
     #[cfg(unix)]
     {
@@ -149,7 +149,7 @@ fn make_dir(path: &Path) -> Result<(), ExternalError> {
     builder.create(path).map_err(|_| ExternalError::Storage)
 }
 #[cfg(windows)]
-fn make_dir(path: &Path) -> Result<(), ExternalError> {
+pub(crate) fn make_dir(path: &Path) -> Result<(), ExternalError> {
     windows::make_dir(path)
 }
 pub(crate) fn ensure_root(path: &Path) -> Result<(), ExternalError> {
@@ -259,126 +259,8 @@ fn inspection(bytes: &[u8]) -> Result<Inspection, ExternalError> {
 pub fn inspect(path: &Path) -> Result<Inspection, ExternalError> {
     inspection(&read_bounded(path, MAX_BINARY)?)
 }
-impl Registry {
-    pub fn new(root: PathBuf) -> Result<Self, ExternalError> {
-        checked_path(&root, true, true)?;
-        if root.exists() {
-            private(&root, true)?;
-        }
-        Ok(Self { root })
-    }
-    pub fn trust(
-        &self,
-        source: &Path,
-        id: &str,
-        digest: &str,
-        capabilities: &[Capability],
-    ) -> Result<Registration, ExternalError> {
-        if !valid_id(id) || !valid_digest(digest) || !valid_caps(capabilities) {
-            return Err(ExternalError::Input);
-        }
-        let bytes = read_bounded(source, MAX_BINARY)?;
-        if inspection(&bytes)?.sha256 != digest {
-            return Err(ExternalError::Trust);
-        }
-        let reg = Registration {
-            schema: 1,
-            id: id.into(),
-            sha256: digest.into(),
-            capabilities: capabilities.into(),
-        };
-        let manifest = serde_json::to_vec(&reg).map_err(|_| ExternalError::Storage)?;
-        ensure_root(&self.root)?;
-        let dir = self.root.join(id);
-        // Exclusive reservation: an existing or incomplete registration is never replaced.
-        make_dir(&dir)?;
-        let result = (|| {
-            private(&dir, true)?;
-            write_new(&dir.join(BINARY), &bytes, true)?;
-            write_new(&dir.join(PENDING), &manifest, false)?;
-            // Link publishes a complete manifest atomically without replacing anything.
-            fs::hard_link(dir.join(PENDING), dir.join(MANIFEST))
-                .map_err(|_| ExternalError::Storage)?;
-            fs::remove_file(dir.join(PENDING)).map_err(|_| ExternalError::Storage)?;
-            Ok(reg)
-        })();
-        if result.is_err() && self.remove(id).is_err() {
-            return Err(ExternalError::Storage);
-        }
-        result
-    }
-    pub fn load(&self, id: &str) -> Result<Registration, ExternalError> {
-        if !valid_id(id) {
-            return Err(ExternalError::Input);
-        }
-        private(&self.root, true)?;
-        let dir = self.root.join(id);
-        private(&dir, true)?;
-        let path = dir.join(MANIFEST);
-        private(&path, false)?;
-        let reg: Registration = serde_json::from_slice(&read_bounded(&path, MAX_MANIFEST)?)
-            .map_err(|_| ExternalError::Trust)?;
-        if !valid_registration(&reg) || reg.id != id {
-            return Err(ExternalError::Trust);
-        }
-        Ok(reg)
-    }
-    pub fn verify(&self, reg: &Registration) -> Result<PathBuf, ExternalError> {
-        if !valid_registration(reg) || self.load(&reg.id)? != *reg {
-            return Err(ExternalError::Trust);
-        }
-        let executable = self.root.join(&reg.id).join(BINARY);
-        private(&executable, false)?;
-        if inspect(&executable)?.sha256 != reg.sha256 {
-            return Err(ExternalError::Trust);
-        }
-        Ok(executable)
-    }
-    pub fn list(&self) -> Result<Vec<Registration>, ExternalError> {
-        checked_path(&self.root, true, true)?;
-        if !self.root.exists() {
-            return Ok(Vec::new());
-        }
-        private(&self.root, true)?;
-        let mut result = Vec::new();
-        for entry in fs::read_dir(&self.root).map_err(|_| ExternalError::Storage)? {
-            let entry = entry.map_err(|_| ExternalError::Storage)?;
-            let id = entry
-                .file_name()
-                .into_string()
-                .map_err(|_| ExternalError::Trust)?;
-            result.push(self.load(&id)?);
-        }
-        result.sort_by(|a, b| a.id.cmp(&b.id));
-        Ok(result)
-    }
-    pub fn remove(&self, id: &str) -> Result<(), ExternalError> {
-        if !valid_id(id) {
-            return Err(ExternalError::Input);
-        }
-        private(&self.root, true)?;
-        let dir = self.root.join(id);
-        private(&dir, true)?;
-        let mut files = Vec::new();
-        for entry in fs::read_dir(&dir).map_err(|_| ExternalError::Storage)? {
-            let entry = entry.map_err(|_| ExternalError::Storage)?;
-            let name = entry.file_name();
-            if ![BINARY, MANIFEST, PENDING]
-                .iter()
-                .any(|allowed| name == *allowed)
-            {
-                return Err(ExternalError::Trust);
-            }
-            private(&entry.path(), false)?;
-            files.push(entry.path());
-        }
-        for path in files {
-            checked_path(&path, false, true)?;
-            fs::remove_file(path).map_err(|_| ExternalError::Storage)?;
-        }
-        fs::remove_dir(dir).map_err(|_| ExternalError::Storage)
-    }
-}
+#[path = "trust_registry.rs"]
+mod registry;
 
 #[cfg(windows)]
 pub(crate) fn private_working_directory() -> Result<windows::WorkingDirectory, ExternalError> {
