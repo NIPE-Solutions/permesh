@@ -5,7 +5,7 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 ## Unreleased
 
 - Prune membership branches that cannot reach observed grants in user and orphaned queries, keeping accounts without grants reviewable without consuming access-path limits. Preserve observed paths, provenance and ordering; compare path sort keys without allocating temporary vectors.
-- Separate legacy provider discovery records and CLI schema-1 query/snapshot output from internal domain serialization. Frozen protocol and JSON fixtures preserve existing field and enum contracts.
+- Separate legacy provider discovery records and CLI schema-1 query, snapshot and control-command output from internal domain serialization. Frozen protocol and JSON fixtures preserve existing field and enum contracts.
 - Scope workspace approval to the selected provider, credential references, relevant identity aliases/authority and registration. **Existing full-workspace approvals require one fresh review and approval.** Unrelated provider and organization changes then preserve approval; changed security inputs still fail closed.
 - Reject provider-add YAML updates that exceed the workspace load limit. Provider add/setup share captured-revision checks so detected concurrent edits leave the current configuration intact.
 - Add an implementation-backed architecture audit, prioritized hardening backlog and explicit migration decisions. Domain, negotiated protocol and onboarding proposals remain unstabilized.

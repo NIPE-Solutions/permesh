@@ -157,7 +157,7 @@ pub async fn run(
         let result = local(pool, move || inspect(&executable)).await?;
         return Outcome::new(
             "external_inspect",
-            serde_json::json!({"inspection":result,"message":"Digest inspection only; no code was executed or trusted."}),
+            serde_json::json!({"inspection":crate::schema1_control::Inspection::from(&result),"message":"Digest inspection only; no code was executed or trusted."}),
         );
     }
     let root = storage_root()?;
@@ -182,14 +182,14 @@ pub async fn run(
             .await?;
             Outcome::new(
                 "external_trust",
-                serde_json::json!({"registration":registration,"storage":root,"message":"Native provider registered locally. This code is not sandboxed; discovery executes it with your user privileges."}),
+                serde_json::json!({"registration":crate::schema1_control::Registration::from(&registration),"storage":root,"message":"Native provider registered locally. This code is not sandboxed; discovery executes it with your user privileges."}),
             )
         }
         ExternalCommand::List => {
             let registrations = local(pool, move || registry.list()).await?;
             Outcome::new(
                 "external_list",
-                serde_json::json!({"registrations":registrations,"storage":root}),
+                serde_json::json!({"registrations":crate::schema1_control::registrations(&registrations),"storage":root}),
             )
         }
         ExternalCommand::Remove { id } => {

@@ -148,6 +148,8 @@ pub async fn run(
         }
     })?;
     if args.describe {
+        // SetupSpec is an SDK-owned, independently versioned public boundary
+        // contract; schema 1 deliberately embeds it rather than storage serde.
         return Outcome::new(
             "provider_setup_describe",
             serde_json::json!({"provider":registration.id,"id":id,"sha256":registration.sha256,"spec":spec,"message":"Setup form from a trusted native provider. No workspace settings, answers or credentials were sent. No configuration was changed."}),

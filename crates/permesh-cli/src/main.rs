@@ -21,6 +21,7 @@ mod provider_migration;
 mod provider_operation;
 mod report;
 mod schema1;
+mod schema1_control;
 mod setup;
 mod setup_output;
 mod setup_prompt;
