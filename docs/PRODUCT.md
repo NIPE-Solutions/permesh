@@ -4,7 +4,7 @@
 
 Permesh is a local-first, read-only CLI for inspecting, correlating, explaining, and auditing access metadata. It has no backend, accounts, telemetry, background update checks, remote configuration, or persistent access database. Access queries contact only explicitly configured provider APIs. Explicit package installation and update commands also contact GitHub for the official catalog and release artifacts.
 
-The first implementation milestone delivers `init --demo`, `doctor`, `provider list/status/capabilities`, `user <identity>`, `admins`, `orphaned` and versioned JSON, plus GitHub access discovery and a Google Workspace directory source. Environment and native keychain references keep credentials out of shared YAML. Demo data is synthetic and requires no network. GitHub is an observed-access adapter, not a claim of complete effective authorization. A release remains gated on platform CI and a credentialed acceptance exercise.
+The first implementation milestone delivers `init --demo`, `doctor`, `provider list/status/capabilities`, `user <identity>`, `admins`, `orphaned` and versioned JSON, plus GitHub access discovery and a Google Workspace directory source. Environment and native keychain references keep credentials out of shared YAML. Demo data is synthetic and requires no network. GitHub is an observed-access adapter, not a claim of complete effective authorization. Stable qualification remains gated on broader platform and credentialed acceptance.
 
 Success means a new contributor can run the four demo commands without credentials, explain a team-derived grant, observe partial failures in both output formats, and reproduce tests without Internet access after dependencies are installed.
 
@@ -16,9 +16,16 @@ approval remain separate decisions. Interpreted-provider trust is unsupported.
 Declarative setup uses typed provider-owned questions with CLI-owned prompts and
 does not grant workspace execution approval.
 
+CLI [0.1.0-alpha.2](releases/0.1.0-alpha.2.md) publishes five native targets with
+verified same-run GitHub provenance, dependency inventories and checksums.
+Executables have no platform code signatures or notarization; the inventory is
+not a standards SBOM. Live browser/tenant and interactive desktop qualification
+remain open.
+
 Google browser authentication and the external Google, Cloudflare and AWS source
-implementations extend this foundation; live qualification and package publication
-remain separate gates. AWS currently inventories IAM policy attachments using
+implementations extend this foundation. Google 0.1.1, Cloudflare 0.1.0 and AWS
+0.1.0 remain unpublished drafts, absent from the catalog; GitHub 0.1.0 is the only
+published official provider package. AWS currently inventories IAM policy attachments using
 named credentials, without native profile/SSO loading or effective-policy evaluation.
 No mutation APIs, policy engine, web UI, provisioning, HR system, SSO, password
 manager, SIEM, billing, cloud synchronization, AI matching, or feature gates

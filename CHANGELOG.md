@@ -2,16 +2,16 @@
 
 User-visible changes are recorded here. Alpha releases are for evaluation; stable qualification remains open.
 
-## 0.1.0-alpha.2 — release candidate
+## 0.1.0-alpha.2
 
-Publication and five-target qualification are pending; see the [candidate release notes](docs/releases/0.1.0-alpha.2.md). Published alpha.1 assets remain unchanged.
+Evaluation prerelease built from [`aad5839`](https://github.com/NIPE-Solutions/permesh/commit/aad58397e139ed755fcf983da8e9f045e7e5a556) in [attested run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910); see [release notes](docs/releases/0.1.0-alpha.2.md). Published alpha.1 assets remain unchanged.
 
 - Add explicit `auth login INSTANCE --browser [--no-open]` for approved external providers declaring OAuth browser login. The host owns PKCE, state, a bounded loopback callback and token exchange, then stores only the configured same-instance refresh credential in the native keychain. Ordinary queries never open a browser or persist tokens.
 - Add optional protocol draft 4 browser-authentication descriptions while preserving draft-2 discovery, draft-3 setup and existing provider catalog compatibility. OAuth client details remain user-supplied; provider binaries and complete workspace configuration require approval before execution or credential access.
 - Extend explicit provider migration to Google directory instances, preserving customer IDs, canonical identity mappings, authority and token references without execution or credential access.
 - Add synthetic controlling-PTY acceptance checks on native macOS/Linux candidate jobs: prompts, hidden input, EOF, echo restoration and output redaction. Windows terminal and live browser/tenant qualification remain open.
 - Include a target-bound dependency inventory and checksum beside each candidate archive, binding the executable and Cargo.lock digests to the target and version. This is Permesh inventory schema 1, not a standards SBOM.
-- Add a manual same-run GitHub provenance attestation workflow and independent subject verification for candidate archives and inventories. Attested release assets may be claimed only after the exact merged revision's workflow and publication checks succeed; Apple notarization and Windows Authenticode are not included.
+- Add a manual same-run GitHub provenance attestation workflow and independent subject verification for candidate archives and inventories. Alpha.2 publishes the 20 verified same-run subjects and attestation bundle; Apple notarization and Windows Authenticode are not included.
 - Clarify the separation between provider source readiness and independently published provider releases. CLI upgrades never install, update or trust provider packages automatically.
 
 ## 0.1.0-alpha.1 — 2026-09-08
