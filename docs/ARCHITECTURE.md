@@ -40,7 +40,7 @@ External transcripts follow `bounded NDJSON → strict envelope/capabilities →
 operations follow `validated config → registered digest/capabilities → exact local
 approval → credential resolution → supervised draft-2 handshake → private request
 → validated health/snapshot`. Approval binds the canonical config path, instance,
-full normalized config and registration. Ordinary queries merge only validated
+selected provider configuration, relevant identity mappings/authority and registration. Ordinary queries merge only validated
 snapshots using existing partial-result and source-authority rules. Cancellation
 signals running external operations and awaits cleanup rather than dropping them.
 

@@ -48,3 +48,7 @@ receives no answers or credentials in this exchange. Keep draft-2 query support.
 Read the [setup contract](provider-setup.md#provider-owned-schema-cli-owned-questions)
 and [synthetic examples](../examples/setup/README.md). Catalogs, dynamic
 provider-driven steps and interpreter/dependency-bundle trust remain deferred.
+
+See [normalization guidelines](provider-development/normalization.md) for stable
+identifiers, evidence, authority and completeness rules, and [versioning](provider-protocol/versioning.md)
+for the frozen draft contracts.

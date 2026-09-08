@@ -245,7 +245,7 @@ pub async fn run(
                 message: "Trusted external discovery completed".into(),
                 limitations: snapshot.limitations.clone(),
             });
-            outcome.report.result = serde_json::json!({"snapshot":snapshot,"storage":root});
+            outcome.report.result = serde_json::json!({"snapshot":crate::schema1::Snapshot::from(&snapshot),"storage":root});
             outcome.report.completed_at = now()?;
             Ok(outcome)
         }

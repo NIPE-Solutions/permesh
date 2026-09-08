@@ -2,7 +2,8 @@
 use crate::{
     MAX_RECORDS, PROTOCOL_VERSION, ProtocolError,
     framing::read_json_frame,
-    wire::{Envelope, Event, Record, valid_name, validate_version},
+    records::Record,
+    wire::{Envelope, Event, valid_name, validate_version},
 };
 use permesh_core::Snapshot;
 use permesh_provider_sdk::{Capability, Health};
@@ -89,6 +90,10 @@ impl Session {
                     if !draft {
                         return Err(ProtocolError::Version);
                     }
+                    let capabilities: Vec<_> = capabilities
+                        .into_iter()
+                        .map(crate::mapping::capability)
+                        .collect();
                     if has_duplicates(&capabilities)
                         || self.expected.as_ref().is_some_and(|expected| {
                             expected.len() != capabilities.len()
@@ -178,21 +183,29 @@ impl DiscoveryDecoder {
                 if self.count == MAX_RECORDS {
                     return Err(ProtocolError::RecordLimit);
                 }
-                if !self
-                    .session
-                    .capabilities
-                    .as_ref()
-                    .is_some_and(|items| items.contains(&record.capability()))
-                {
+                if !self.session.capabilities.as_ref().is_some_and(|items| {
+                    items.contains(&crate::mapping::capability(record.capability()))
+                }) {
                     return Err(ProtocolError::Capability);
                 }
                 match record {
-                    Record::Identity(value) => self.snapshot.identities.push(value),
-                    Record::Account(value) => self.snapshot.accounts.push(value),
-                    Record::Resource(value) => self.snapshot.resources.push(value),
-                    Record::Group(value) => self.snapshot.groups.push(value),
-                    Record::Membership(value) => self.snapshot.memberships.push(value),
-                    Record::Grant(value) => self.snapshot.grants.push(value),
+                    Record::Identity(value) => self
+                        .snapshot
+                        .identities
+                        .push(crate::mapping::identity(value)),
+                    Record::Account(value) => {
+                        self.snapshot.accounts.push(crate::mapping::account(value))
+                    }
+                    Record::Resource(value) => self
+                        .snapshot
+                        .resources
+                        .push(crate::mapping::resource(value)),
+                    Record::Group(value) => self.snapshot.groups.push(crate::mapping::group(value)),
+                    Record::Membership(value) => self
+                        .snapshot
+                        .memberships
+                        .push(crate::mapping::membership(value)),
+                    Record::Grant(value) => self.snapshot.grants.push(crate::mapping::grant(value)),
                 }
                 self.count += 1;
                 Ok(Progress::Record)

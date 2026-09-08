@@ -112,8 +112,9 @@ Workspace approval commands also use the schema-1 report envelope:
 - `external_review`: `{workspace, instance, registration, fingerprint, approved,
   configuration, credential_references, identity, message}`. `workspace` is the
   canonical configuration-file path; `identity` contains configured sources and
-  aliases. The fingerprint binds the full normalized configuration, including
-  providers not separately displayed here. Settings and credential locators are
+  aliases. The fingerprint binds the selected provider configuration, its
+  aliases/authority and registration, not unrelated providers. The displayed
+  identity configuration also supplies surrounding context. Settings and credential locators are
   visible; resolved credential values are absent.
 - `external_approve`: `{approval: {schema, workspace, instance, fingerprint},
   message}` with approval schema 1.

@@ -93,8 +93,8 @@ permesh doctor
 
 For keychain references, store a value separately with
 `permesh auth login example-main --slot token` (using the selected slot). Supply
-environment values outside Permesh for `env://` references. Approval binds the full normalized workspace, so
-adding an instance can invalidate approvals for existing external instances too.
+environment values outside Permesh for `env://` references. Approval binds the selected instance's configuration and relevant identity
+context. Adding an unrelated instance does not invalidate existing approvals.
 See [workspace approval](external-providers.md) and [credentials](secrets.md).
 
 ## Provider-owned schema, CLI-owned questions

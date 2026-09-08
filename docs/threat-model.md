@@ -8,7 +8,7 @@ Assets include provider tokens, organizational identities and access metadata, w
 
 | Threat | Required control | Remaining boundary / validation |
 | --- | --- | --- |
-| Malicious cloned configuration | Strict schema/bounded parsing; no executable paths/includes/command interpolation; bind external approval to canonical config path and full normalized configuration before credential resolution | Parsing must not echo embedded credentials; test aliases, duplicate keys, oversized and malformed data |
+| Malicious cloned configuration | Strict schema/bounded parsing; no executable paths/includes/command interpolation; bind external approval to canonical config path, selected provider settings and relevant identity context before credential resolution | Parsing must not echo embedded credentials; test aliases, duplicate keys, oversized and malformed data |
 | Symlink or path replacement during initialization | Create-new files, restrictive Unix permissions, no overwrite of existing entries | Parent-directory replacement and OS ACLs require platform review; no promise against an attacker controlling the user's filesystem |
 | Credential leakage | References only in shared YAML; redacted, nonserializable secret wrapper; curated errors; no raw response/credential-store diagnostics | Memory inspection, shell history and environment visibility remain OS/user concerns |
 | Provider response redirects or pagination exfiltration | Fixed HTTPS origin, redirects disabled, validate pagination origin and endpoint before sending authorization | Test crafted Link headers and redirects with sentinel credentials |

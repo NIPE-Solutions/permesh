@@ -1,0 +1,8 @@
+{"protocol":1,"id":"handshake","event":"handshake","provider":"fixture","capabilities":["identities","accounts","resources","groups","memberships","grants"],"draft":true}
+{"protocol":1,"id":"discover","event":"record","kind":"identity","data":{"id":"person","kind":"human","status":"active","verified_emails":["person@example.test"]}}
+{"protocol":1,"id":"discover","event":"record","kind":"account","data":{"key":{"provider":"main","id":"account"},"login":"person","kind":"human","verified_emails":["person@example.test"]}}
+{"protocol":1,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"main","id":"resource"},"name":"Resource"}}
+{"protocol":1,"id":"discover","event":"record","kind":"group","data":{"key":{"provider":"main","id":"group"},"name":"Group"}}
+{"protocol":1,"id":"discover","event":"record","kind":"membership","data":{"member":{"kind":"account","key":{"provider":"main","id":"account"}},"group":{"provider":"main","id":"group"},"provenance":{"method":"synthetic","observed_at":"2026-01-01T00:00:00Z"}}}
+{"protocol":1,"id":"discover","event":"record","kind":"grant","data":{"id":"grant","subject":{"kind":"group","key":{"provider":"main","id":"group"}},"resource":{"provider":"main","id":"resource"},"role":"read","privilege":"standard","certainty":"observed","provenance":{"method":"synthetic","observed_at":"2026-01-01T00:00:00Z"}}}
+{"protocol":1,"id":"discover","event":"complete","count":6,"complete":true,"limitations":[]}

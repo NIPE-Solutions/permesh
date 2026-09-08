@@ -93,7 +93,31 @@ impl WorkspaceAccess {
         }
         let executable = registry.verify(&registration).map_err(failure)?;
         let path = workspace_path(path)?;
-        let fingerprint = fingerprint(&path, id, config, &registration).map_err(failure)?;
+        // Only reviewed inputs that affect this instance belong in its approval.
+        // Keep relevant identity mappings/authority because they change how its
+        // observations are interpreted, even though they are not sent to the child.
+        let aliases: BTreeMap<_, _> = config
+            .identity
+            .aliases
+            .iter()
+            .filter_map(|(identity, providers)| {
+                providers.get(id).map(|accounts| (identity, accounts))
+            })
+            .collect();
+        let sources: Vec<_> = config
+            .identity
+            .sources
+            .iter()
+            .filter(|source| source.provider == id)
+            .collect();
+        let context = serde_json::json!({
+            "approval_context": "permesh-provider-context-v2",
+            "workspace_schema": config.version,
+            "provider": provider,
+            "identity_sources": sources,
+            "identity_aliases": aliases,
+        });
+        let fingerprint = fingerprint(&path, id, &context, &registration).map_err(failure)?;
         Ok((executable, registration, fingerprint))
     }
     fn review(&self, config: &Config, path: &Path, id: &str) -> Result<Outcome, AppError> {
@@ -113,7 +137,7 @@ impl WorkspaceAccess {
                 "fingerprint":fingerprint, "approved":approved,
                 "configuration":external.configuration, "credential_references":external.credentials,
                 "identity":config.identity,
-                "message":"Review binds the complete workspace configuration, including aliases and identity authority. No credentials were resolved and no code was executed. Approval allows this trusted native code to execute with your user privileges and receive the named credentials; it is not sandboxed."
+                "message":"Review binds this provider instance, its credential references, relevant identity aliases and authority, and its registered binary. Unrelated provider and organization edits do not invalidate approval. No credentials were resolved and no code was executed. Approval allows this trusted native code to execute with your user privileges and receive the named credentials; it is not sandboxed."
             }),
         )
     }
@@ -143,7 +167,7 @@ impl WorkspaceAccess {
             .map_err(failure)?;
         Outcome::new(
             "external_approve",
-            serde_json::json!({"approval":approval,"message":"Workspace instance approved for this exact reviewed configuration and registered binary. Future configuration changes require a new approval."}),
+            serde_json::json!({"approval":approval,"message":"Workspace instance approved for this exact reviewed configuration and registered binary. Changes to this provider context require a new approval."}),
         )
     }
     fn revoke(&self, path: &Path, id: &str) -> Result<Outcome, AppError> {
@@ -173,7 +197,7 @@ impl WorkspaceAccess {
         provider: &ProviderConfig,
     ) -> Result<(PathBuf, Registration, Invocation), AppError> {
         let actual = selected(config, &provider.id)?;
-        // Bind the selected invocation to the same full configuration being
+        // Bind the selected invocation to the same selected configuration being
         // fingerprinted, even if a caller accidentally passes a stale clone.
         if serde_json::to_value(actual)
             .map_err(|_| AppError::input("Cannot validate provider configuration"))?
@@ -233,7 +257,7 @@ pub(crate) fn prepare(
     }
     .prepare(config, path, provider)
 }
-/// Verify binary and the complete workspace approval without resolving credentials.
+/// Verify binary and the provider-scoped workspace approval without resolving credentials.
 pub(crate) fn authorize(
     config: &Config,
     path: &Path,
@@ -363,7 +387,12 @@ mod tests {
         access
             .prepare(&config, &path, &config.providers[0])
             .map_err(|e| e.message)?;
-        config.organization.name = "changed".into();
+        config.providers[0]
+            .external
+            .as_mut()
+            .ok_or("external")?
+            .configuration
+            .insert("endpoint".into(), serde_json::json!("changed"));
         assert!(
             access
                 .prepare(&config, &path, &config.providers[0])
@@ -372,6 +401,157 @@ mod tests {
         access.revoke(&path, "instance").map_err(|e| e.message)?;
         Ok(())
     }
+    #[test]
+    fn approval_ignores_unrelated_providers_but_binds_instance_security_context() -> TestResult {
+        let (_temporary, access, mut config, path) = setup(&[Capability::Identities])?;
+        let (_, _, original) = access
+            .reviewed(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        access
+            .approve(&config, &path, "instance", &original, true)
+            .map_err(|e| e.message)?;
+        config.organization.name = "Renamed".into();
+        config.providers.push(ProviderConfig {
+            id: "demo".into(),
+            kind: ProviderKind::Demo,
+            organizations: vec![],
+            customer_id: None,
+            auth: None,
+            external: None,
+        });
+        config.identity.aliases.insert(
+            "unrelated@example.com".into(),
+            BTreeMap::from([("demo".into(), vec!["other".into()])]),
+        );
+        access
+            .authorize(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        let unchanged = config.clone();
+        config.providers[0]
+            .external
+            .as_mut()
+            .ok_or("external")?
+            .credentials
+            .insert("token".into(), "env://CHANGED_REFERENCE".into());
+        assert!(access.authorize(&config, &path, "instance").is_err());
+        config = unchanged.clone();
+        config
+            .identity
+            .sources
+            .push(permesh_config::IdentitySource {
+                provider: "instance".into(),
+                authoritative: true,
+            });
+        assert!(access.authorize(&config, &path, "instance").is_err());
+        config = unchanged;
+        config.identity.aliases.insert(
+            "mapped@example.com".into(),
+            BTreeMap::from([("instance".into(), vec!["native-id".into()])]),
+        );
+        assert!(access.authorize(&config, &path, "instance").is_err());
+        Ok(())
+    }
+    #[test]
+    fn stored_legacy_approval_cannot_authorize_or_resolve_credentials() -> TestResult {
+        let (_temporary, access, config, path) = setup(&[])?;
+        let (_, registration, _) = access
+            .reviewed(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        let legacy = fingerprint(&path, "instance", &config, &registration)?;
+        access
+            .approvals()
+            .map_err(|e| e.message)?
+            .approve(&path, "instance", &legacy)?;
+        assert!(
+            access
+                .authorize(&config, &path, "instance")
+                .is_err_and(|e| e.code == 2 && e.message.contains("approval"))
+        );
+        // The named environment credential is absent; approval must fail before
+        // resolution could instead report credential-unavailable (code 3).
+        assert!(
+            access
+                .prepare(&config, &path, &config.providers[0])
+                .is_err_and(|e| e.code == 2 && e.message.contains("approval"))
+        );
+        assert_eq!(
+            access
+                .review(&config, &path, "instance")
+                .map_err(|e| e.message)?
+                .report
+                .result["approved"],
+            false
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mixed_aliases_and_unrelated_authority_do_not_invalidate_selected_approval() -> TestResult {
+        let (_temporary, access, mut config, path) = setup(&[Capability::Identities])?;
+        config.providers.push(ProviderConfig {
+            id: "demo".into(),
+            kind: ProviderKind::Demo,
+            organizations: vec![],
+            customer_id: None,
+            auth: None,
+            external: None,
+        });
+        config.identity.aliases.insert(
+            "person@example.com".into(),
+            BTreeMap::from([
+                ("instance".into(), vec!["native-id".into()]),
+                ("demo".into(), vec!["other-id".into()]),
+            ]),
+        );
+        let (_, _, original) = access
+            .reviewed(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        access
+            .approve(&config, &path, "instance", &original, true)
+            .map_err(|e| e.message)?;
+        config
+            .identity
+            .sources
+            .push(permesh_config::IdentitySource {
+                provider: "demo".into(),
+                authoritative: true,
+            });
+        config
+            .identity
+            .aliases
+            .get_mut("person@example.com")
+            .ok_or("alias")?
+            .insert("demo".into(), vec!["changed-other-id".into()]);
+        access
+            .authorize(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        let unchanged = config.clone();
+        config
+            .identity
+            .aliases
+            .get_mut("person@example.com")
+            .ok_or("alias")?
+            .insert("instance".into(), vec!["changed-native-id".into()]);
+        assert!(
+            access
+                .authorize(&config, &path, "instance")
+                .is_err_and(|e| e.code == 2)
+        );
+        config = unchanged;
+        config
+            .identity
+            .aliases
+            .get_mut("person@example.com")
+            .ok_or("alias")?
+            .remove("instance");
+        assert!(
+            access
+                .authorize(&config, &path, "instance")
+                .is_err_and(|e| e.code == 2)
+        );
+        Ok(())
+    }
+
     #[test]
     fn digest_pin_and_identity_source_capability_are_required() -> TestResult {
         let (_temporary, access, mut config, path) = setup(&[])?;

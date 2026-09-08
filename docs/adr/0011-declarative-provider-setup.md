@@ -53,7 +53,8 @@ installation and automatic updates remain separate work.
 
 Answer files are reproducible local inputs containing nonsecret settings and
 credential locators. Workspace mutation can invalidate other external approvals
-because approval binds the full normalized configuration. Same-user filesystem
+under the original full-workspace approval scope (now superseded by
+[ADR 0017](0017-provider-scoped-workspace-approval.md)). Same-user filesystem
 races and malicious behavior by trusted native code remain outside the protection
 boundary. Workspace and output schemas remain 1; setup schema 1 and wire draft 3
 are independently versioned.

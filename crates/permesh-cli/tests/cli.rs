@@ -201,3 +201,38 @@ fn rejected_token_input_never_reaches_output() {
         assert!(serde_json::from_slice::<serde_json::Value>(&output.stdout).is_ok());
     }
 }
+
+#[test]
+fn provider_add_preserves_workspace_when_yaml_expansion_exceeds_limit() {
+    let directory = tempfile::tempdir().unwrap();
+    let aliases: serde_json::Map<String, serde_json::Value> = (0..3930)
+        .map(|n| {
+            (
+                format!("{n}{}", "a".repeat(120)),
+                serde_json::json!({"demo":[format!("{n}{}", "b".repeat(120))]}),
+            )
+        })
+        .collect();
+    let original = serde_json::to_vec(&serde_json::json!({
+        "version":1,"organization":{"name":"Example"},
+        "providers":[{"id":"demo","type":"demo"}],
+        "identity":{"aliases":aliases}
+    }))
+    .unwrap();
+    permesh_config::Config::from_bytes(&original).unwrap();
+    let path = directory.path().join("permesh.yaml");
+    std::fs::write(&path, &original).unwrap();
+    let output = run(
+        directory.path(),
+        &[
+            "provider",
+            "add",
+            "google",
+            "--customer-id",
+            "C123",
+            "--json",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(std::fs::read(path).unwrap(), original);
+}
