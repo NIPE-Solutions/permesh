@@ -166,3 +166,10 @@ discovery. Approval records remain stored, but their old whole-workspace
 fingerprints no longer approve the changed configuration. Repeated conversion of
 an already external instance returns input error 2 without rewriting it. See
 [GitHub migration](github-migration.md) or [Google migration](google-migration.md) for behavior and exit codes.
+
+CLI-owned DTOs define query records, snapshots and nested control-command data
+(metadata, identity summaries, registry records, approvals and package releases).
+Internal storage/configuration serialization does not define those output fields.
+Setup and browser-authentication specifications deliberately reuse their separate
+versioned SDK boundary schemas; changing them requires an explicit compatibility
+decision. Complete baseline fixtures cover control reports as well as queries.

@@ -133,10 +133,10 @@ impl WorkspaceAccess {
         Outcome::new(
             "external_review",
             serde_json::json!({
-                "workspace":path, "instance":id, "registration":registration,
+                "workspace":path, "instance":id, "registration":crate::schema1_control::Registration::from(&registration),
                 "fingerprint":fingerprint, "approved":approved,
                 "configuration":external.configuration, "credential_references":external.credentials,
-                "identity":config.identity,
+                "identity":crate::schema1_control::IdentityConfig::from(&config.identity),
                 "message":"Review binds this provider instance, its credential references, relevant identity aliases and authority, and its registered binary. Unrelated provider and organization edits do not invalidate approval. No credentials were resolved and no code was executed. Approval allows this trusted native code to execute with your user privileges and receive the named credentials; it is not sandboxed."
             }),
         )
@@ -167,7 +167,7 @@ impl WorkspaceAccess {
             .map_err(failure)?;
         Outcome::new(
             "external_approve",
-            serde_json::json!({"approval":approval,"message":"Workspace instance approved for this exact reviewed configuration and registered binary. Changes to this provider context require a new approval."}),
+            serde_json::json!({"approval":crate::schema1_control::Approval::from(&approval),"message":"Workspace instance approved for this exact reviewed configuration and registered binary. Changes to this provider context require a new approval."}),
         )
     }
     fn revoke(&self, path: &Path, id: &str) -> Result<Outcome, AppError> {

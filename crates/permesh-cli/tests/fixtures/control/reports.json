@@ -1,0 +1,331 @@
+{
+  "approve": {
+    "command": "external_approve",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "approval": {
+        "fingerprint": "<FINGERPRINT>",
+        "instance": "instance",
+        "schema": 1,
+        "workspace": "<ROOT>/permesh.yaml"
+      },
+      "message": "Workspace instance approved for this exact reviewed configuration and registered binary. Changes to this provider context require a new approval."
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "approved_review": {
+    "command": "external_review",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "approved": true,
+      "configuration": {
+        "enabled": true,
+        "optional": null,
+        "regions": [
+          "eu"
+        ]
+      },
+      "credential_references": {
+        "token": "env://PERMESH_CONTROL_ABSENT"
+      },
+      "fingerprint": "<FINGERPRINT>",
+      "identity": {
+        "aliases": {
+          "person@example.test": {
+            "instance": [
+              "native-id"
+            ]
+          }
+        },
+        "sources": [
+          {
+            "authoritative": true,
+            "provider": "instance"
+          }
+        ]
+      },
+      "instance": "instance",
+      "message": "Review binds this provider instance, its credential references, relevant identity aliases and authority, and its registered binary. Unrelated provider and organization edits do not invalidate approval. No credentials were resolved and no code was executed. Approval allows this trusted native code to execute with your user privileges and receive the named credentials; it is not sandboxed.",
+      "registration": {
+        "capabilities": [
+          "accounts",
+          "identities",
+          "resources",
+          "groups",
+          "memberships",
+          "grants"
+        ],
+        "id": "fixture",
+        "schema": 1,
+        "sha256": "a4386baad300a6f080a5d9c9d5063161f0e46f1e9620b51430bcd2ca9993c11b"
+      },
+      "workspace": "<ROOT>/permesh.yaml"
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "doctor": {
+    "command": "doctor",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [
+      {
+        "id": "demo",
+        "kind": "demo",
+        "limitations": [],
+        "message": "Synthetic demo ready (offline)",
+        "state": "connected"
+      }
+    ],
+    "result": {
+      "external_providers": "External execution requires a pinned registered binary and approval of this workspace configuration",
+      "identity_sources": [
+        {
+          "authoritative": true,
+          "provider": "demo"
+        }
+      ],
+      "local_overrides": "Not loaded",
+      "message": "Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility.",
+      "organization": "My organization",
+      "workspace_schema": 1
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "empty_list": {
+    "command": "external_list",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "registrations": [],
+      "storage": "<ROOT>/state/providers"
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "external_metadata": {
+    "command": "provider_capabilities",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "id": "instance",
+      "metadata": {
+        "capabilities": [
+          "accounts",
+          "identities",
+          "resources",
+          "groups",
+          "memberships",
+          "grants"
+        ],
+        "kind": "external"
+      }
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "inspect": {
+    "command": "external_inspect",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "inspection": {
+        "sha256": "a4386baad300a6f080a5d9c9d5063161f0e46f1e9620b51430bcd2ca9993c11b",
+        "size": 27
+      },
+      "message": "Digest inspection only; no code was executed or trusted."
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "list": {
+    "command": "external_list",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "registrations": [
+        {
+          "capabilities": [
+            "accounts",
+            "identities",
+            "resources",
+            "groups",
+            "memberships",
+            "grants"
+          ],
+          "id": "fixture",
+          "schema": 1,
+          "sha256": "a4386baad300a6f080a5d9c9d5063161f0e46f1e9620b51430bcd2ca9993c11b"
+        }
+      ],
+      "storage": "<ROOT>/state/providers"
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "metadata": {
+    "command": "provider_capabilities",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "id": "demo",
+      "metadata": {
+        "capabilities": [
+          "accounts",
+          "identities",
+          "resources",
+          "groups",
+          "memberships",
+          "grants"
+        ],
+        "kind": "demo"
+      }
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "remove": {
+    "command": "external_remove",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "id": "fixture",
+      "message": "Local registration and managed binary removed. Provider-side state was not changed.",
+      "storage": "<ROOT>/state/providers"
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "review": {
+    "command": "external_review",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "approved": false,
+      "configuration": {
+        "enabled": true,
+        "optional": null,
+        "regions": [
+          "eu"
+        ]
+      },
+      "credential_references": {
+        "token": "env://PERMESH_CONTROL_ABSENT"
+      },
+      "fingerprint": "<FINGERPRINT>",
+      "identity": {
+        "aliases": {
+          "person@example.test": {
+            "instance": [
+              "native-id"
+            ]
+          }
+        },
+        "sources": [
+          {
+            "authoritative": true,
+            "provider": "instance"
+          }
+        ]
+      },
+      "instance": "instance",
+      "message": "Review binds this provider instance, its credential references, relevant identity aliases and authority, and its registered binary. Unrelated provider and organization edits do not invalidate approval. No credentials were resolved and no code was executed. Approval allows this trusted native code to execute with your user privileges and receive the named credentials; it is not sandboxed.",
+      "registration": {
+        "capabilities": [
+          "accounts",
+          "identities",
+          "resources",
+          "groups",
+          "memberships",
+          "grants"
+        ],
+        "id": "fixture",
+        "schema": 1,
+        "sha256": "a4386baad300a6f080a5d9c9d5063161f0e46f1e9620b51430bcd2ca9993c11b"
+      },
+      "workspace": "<ROOT>/permesh.yaml"
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "revoke": {
+    "command": "external_revoke",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "instance": "instance",
+      "message": "Workspace execution approval revoked.",
+      "workspace": "<ROOT>/permesh.yaml"
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "status": {
+    "command": "provider_status",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [
+      {
+        "id": "demo",
+        "kind": "demo",
+        "limitations": [],
+        "message": "Synthetic demo ready (offline)",
+        "state": "connected"
+      }
+    ],
+    "result": {
+      "external_providers": "External execution requires a pinned registered binary and approval of this workspace configuration",
+      "identity_sources": [
+        {
+          "authoritative": true,
+          "provider": "demo"
+        }
+      ],
+      "local_overrides": "Not loaded",
+      "message": "Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility.",
+      "organization": "My organization",
+      "workspace_schema": 1
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  },
+  "trust": {
+    "command": "external_trust",
+    "complete": true,
+    "completed_at": "<TIME>",
+    "providers": [],
+    "result": {
+      "message": "Native provider registered locally. This code is not sandboxed; discovery executes it with your user privileges.",
+      "registration": {
+        "capabilities": [
+          "accounts",
+          "identities",
+          "resources",
+          "groups",
+          "memberships",
+          "grants"
+        ],
+        "id": "fixture",
+        "schema": 1,
+        "sha256": "a4386baad300a6f080a5d9c9d5063161f0e46f1e9620b51430bcd2ca9993c11b"
+      },
+      "storage": "<ROOT>/state/providers"
+    },
+    "schema_version": 1,
+    "started_at": "<TIME>"
+  }
+}
