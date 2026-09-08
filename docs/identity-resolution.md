@@ -23,3 +23,9 @@ This is a reviewable statement about GitHub's immutable numeric user ID. It surv
 Exact matches are deterministic. Authoritative records with the same canonical ID and compatible kind/status union their verified addresses in stable order. Different canonical IDs sharing an address remain separate candidates. Discovery sorting is independent of provider response order. Input order cannot decide identity ownership.
 
 The demo includes an authoritative synthetic source. A real active/inactive identity provider is a future slice; `orphaned` is deliberately not implemented until its authority and service-account semantics can be tested end to end.
+
+Google directory identities use `google:CUSTOMER_ID:USER_ID` as their canonical
+ID. Their primary address is directory-attested and used for exact lookup; email
+renames preserve identity IDs. Explicit cross-provider aliases should name that
+canonical ID. Directory account state does not establish employment or human
+identity. See [Google identity semantics](providers/google.md#identity-semantics).

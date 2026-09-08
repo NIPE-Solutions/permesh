@@ -14,12 +14,14 @@ pub fn kind(provider: &ProviderConfig) -> &'static str {
     match provider.kind {
         ProviderKind::Demo => "demo",
         ProviderKind::Github => "github",
+        ProviderKind::Google => "google",
     }
 }
 pub fn metadata(provider: &ProviderConfig) -> Metadata {
     match provider.kind {
         ProviderKind::Demo => permesh_provider_demo::provider_metadata(),
         ProviderKind::Github => permesh_provider_github::provider_metadata(),
+        ProviderKind::Google => permesh_provider_google::provider_metadata(),
     }
 }
 pub fn build(provider: &ProviderConfig) -> Result<Arc<dyn Provider>, ProviderError> {
@@ -27,7 +29,7 @@ pub fn build(provider: &ProviderConfig) -> Result<Arc<dyn Provider>, ProviderErr
         ProviderKind::Demo => Ok(Arc::new(permesh_provider_demo::DemoProvider::new(
             &provider.id,
         ))),
-        ProviderKind::Github => {
+        ProviderKind::Github | ProviderKind::Google => {
             let reference = provider
                 .auth
                 .as_ref()
@@ -35,11 +37,22 @@ pub fn build(provider: &ProviderConfig) -> Result<Arc<dyn Provider>, ProviderErr
             let reference = SecretRef::parse(&reference.token)
                 .map_err(|_| ProviderError::new("auth", "Invalid secret reference"))?;
             let secret=SecretResolver.resolve(&reference).map_err(|_|ProviderError::new("auth","Authentication unavailable. Set the configured environment variable or run permesh auth login for this instance."))?;
-            Ok(Arc::new(permesh_provider_github::GithubProvider::new(
-                provider.id.clone(),
-                provider.organizations.clone(),
-                secret,
-            )?))
+            if provider.kind == ProviderKind::Google {
+                let customer = provider.customer_id.clone().ok_or_else(|| {
+                    ProviderError::new("configuration", "Google customer_id missing")
+                })?;
+                Ok(Arc::new(permesh_provider_google::GoogleProvider::new(
+                    provider.id.clone(),
+                    customer,
+                    secret,
+                )?))
+            } else {
+                Ok(Arc::new(permesh_provider_github::GithubProvider::new(
+                    provider.id.clone(),
+                    provider.organizations.clone(),
+                    secret,
+                )?))
+            }
         }
     }
 }

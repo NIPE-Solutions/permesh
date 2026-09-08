@@ -73,8 +73,9 @@ limitations. A login lookup selects an account; correlating it with an email
 requires an explicit mapping or verified identity evidence.
 
 The GitHub adapter has passed a [live validation exercise](docs/getting-started.md#live-validation).
-Google Workspace, AWS, and Cloudflare are planned. External provider execution
-is not available yet.
+Google Workspace directory discovery is available as an [identity source](docs/providers/google.md)
+with externally supplied OAuth access tokens; live tenant qualification is pending.
+AWS and Cloudflare are planned. External provider execution is not available yet.
 
 ## Configuration
 

@@ -83,7 +83,7 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
                     ));
                 }
                 zeroize::Zeroizing::new(
-                    rpassword::prompt_password("GitHub token (hidden): ")
+                    rpassword::prompt_password("Provider token (hidden): ")
                         .map_err(|_| AppError::input("Cannot read token from terminal"))?,
                 )
             };
@@ -103,7 +103,7 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
             permesh_secrets::delete(&keychain_ref(config,id)?).map_err(|_|AppError::new(3,"Cannot delete keychain credential. Check that it exists and native storage is available."))?;
             Outcome::new(
                 "auth_logout",
-                serde_json::json!({"message":"Deleted local keychain credential. The token is still valid at GitHub until you revoke it there."}),
+                serde_json::json!({"message":"Deleted local keychain credential. This does not revoke the token at its provider."}),
             )
         }
     }

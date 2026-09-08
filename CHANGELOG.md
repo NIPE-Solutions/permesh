@@ -4,6 +4,8 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
+- Add a read-only Google Workspace directory source with explicit customer/authority selection, immutable identity IDs, conservative account status and supplied OAuth access tokens. Live tenant qualification remains pending.
+
 - Add `permesh admins` with JSON and human output, retaining elevated/admin/owner roles, unknown privilege, ambiguous identities and unresolved group grants.
 - Share indexed identity resolution and bounded graph traversal; prune irrelevant standard-access branches before administrator inspection.
 - Add five-target native candidate CI with allowlisted archives, checksums and synthetic smoke checks; artifacts are unsigned and do not constitute a release.

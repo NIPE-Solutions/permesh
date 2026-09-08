@@ -118,3 +118,23 @@ fn named_pipe_is_rejected_without_waiting_for_a_writer() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 }
+
+#[test]
+fn google_source_is_explicit_and_rejects_wrong_provider_fields() {
+    let google = "version: 1\norganization: {name: Example}\nproviders:\n  - id: directory\n    type: google\n    customer_id: C12345\n    auth: {token: env://PERMESH_GOOGLE_TOKEN}\nidentity:\n  sources: [{provider: directory, authoritative: true}]\n";
+    let config = load(google).unwrap();
+    assert!(load(&to_yaml(&config).unwrap()).is_ok());
+    for invalid in [
+        google.replace("C12345", "my_customer"),
+        google.replace("C12345", "C"),
+        google.replace("C12345", "https://example.com"),
+        google.replace("    customer_id: C12345\n", ""),
+        google.replace("type: google", "type: google\n    organizations: [ignored]"),
+        google.replace("env://PERMESH_GOOGLE_TOKEN", "plaintext-sentinel"),
+        google.replace("env://PERMESH_GOOGLE_TOKEN", "keychain://other/token"),
+        google.replace("type: google", "type: github\n    organizations: [example]"),
+    ] {
+        let error = load(&invalid).unwrap_err();
+        assert!(!error.to_string().contains("plaintext-sentinel"));
+    }
+}
