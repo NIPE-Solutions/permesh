@@ -10,5 +10,16 @@ Success means a new contributor can run the four demo commands without credentia
 
 Native external discovery and health are available through local binary trust
 and separate exact workspace approval. Approved providers participate in ordinary
-queries and can receive reviewed named credential slots. Catalogs, distribution,
-installation and interpreted-provider trust remain separate. Declarative setup uses typed provider-owned questions with CLI-owned prompts and does not grant workspace execution approval. Future slices add further identity sources and additional providers. No mutation APIs, policy engine, web UI, provisioning, HR system, SSO, password manager, SIEM, billing, cloud synchronization, AI matching, or feature gates belong in this milestone.
+queries and can receive reviewed named credential slots. Explicit catalog
+installation and updates are available; downloading, binary trust and workspace
+approval remain separate decisions. Interpreted-provider trust is unsupported.
+Declarative setup uses typed provider-owned questions with CLI-owned prompts and
+does not grant workspace execution approval.
+
+Google browser authentication and the external Google, Cloudflare and AWS source
+implementations extend this foundation; live qualification and package publication
+remain separate gates. AWS currently inventories IAM policy attachments using
+named credentials, without native profile/SSO loading or effective-policy evaluation.
+No mutation APIs, policy engine, web UI, provisioning, HR system, SSO, password
+manager, SIEM, billing, cloud synchronization, AI matching, or feature gates
+belong in this milestone.
