@@ -75,6 +75,7 @@ No persistent access graph, telemetry or backend exists.
 | H13 | P2 | GitHub repeated stable IDs use first-wins metadata; conflicting duplicates need stronger completeness treatment. AWS lacks discovery runtime-to-host cross-decode coverage. | Add conflict fixtures and reusable normalization contracts, including conservative AWS evidence. |
 | H14 | P2 | Doctor/status collapse local approval, secret, protocol and remote failures; provider metadata lacks maturity/auth/compatibility details. | Curated stage/code diagnostics and separate concise overview from detailed preflight. |
 | H15 | P3 | Native auth ecosystems, Identity Center, Entra, developer trust mode, lock state, snapshots and policies need explicit contracts. | Design extensions after H01–H08; do not expand provider count or execute ambient credential processes. |
+| H16 | P1 | ExternalConfig has one executable SHA-256 while catalog Release binds each digest to a native target. A shared instance pin cannot automatically select distinct macOS/Linux/Windows binaries. | Design target-aware release pins or a reviewed per-target lock map before claiming seamless heterogeneous team setup. Never replace a pin silently based on the current host. |
 
 ## Proposed breaking changes and migration gates
 
