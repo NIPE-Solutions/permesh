@@ -6,11 +6,15 @@ The project distributes an explicitly marked alpha for evaluation. Stable v0.1 q
 
 For each alpha, require locked fmt/Clippy/tests, minimum Rust, fresh dependency checks, all five native build/test/smoke jobs, independent archive/checksum/notice inspection, exact binary version checks, and a public-catalog install/update smoke test. Private vulnerability reporting must be enabled. Promote only the exact reviewed source tree and original qualified artifact bytes to a draft GitHub prerelease; verify uploaded names, sizes and SHA-256 digests before publication. Tag the merged revision, confirm it has the qualified tree, and record run URLs and hashes in the release notes. Do not mark this release as latest stable.
 
-Interactive Windows/Linux credential-store and terminal acceptance, broader live GitHub fixtures and Google tenant/browser acceptance remain **stable-release gates**. The historical [alpha.1 notes](releases/0.1.0-alpha.1.md) describe its immutable published assets. For the [alpha.2 candidate](releases/0.1.0-alpha.2.md), require fresh five-target evidence, inventory/checksum inspection, and verification of provenance for the exact merged release revision before publication. A standards SBOM, platform code signing and notarization remain absent; synthetic tests do not establish live-provider or desktop acceptance.
+Interactive Windows/Linux credential-store and terminal acceptance, broader live GitHub fixtures and Google tenant/browser acceptance remain **stable-release gates**. The historical [alpha.1 notes](releases/0.1.0-alpha.1.md) describe its immutable published assets. For the [alpha.2 release](releases/0.1.0-alpha.2.md), require fresh five-target evidence, inventory/checksum inspection, and verification of provenance for the exact merged release revision before publication. A standards SBOM, platform code signing and notarization remain absent; synthetic tests do not establish live-provider or desktop acceptance.
 
 Packaging includes the exact project MIT `LICENSE` and complete source-supplied dependency license/notice texts in `THIRD-PARTY-NOTICES.txt`, collected from the locked target dependency graph. Collection fails on missing or unsafe source notices. Re-check the contents whenever dependencies change. Build jobs have read-only permissions and no release credentials; a maintainer publishes with the [GitHub CLI](https://cli.github.com/manual/gh_release_create) after all gates above pass.
 
 Private vulnerability reporting was enabled and verified via the repository API on 2026-09-08. The reporting route is linked in [SECURITY.md](../SECURITY.md).
+
+Alpha.2's [release evidence](releases/0.1.0-alpha.2.md#release-evidence) identifies
+source `aad58397e139ed755fcf983da8e9f045e7e5a556` and [attested run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910).
+Later releases must repeat qualification for their own exact merged revision.
 
 ## Additional alpha.2 publication gates
 

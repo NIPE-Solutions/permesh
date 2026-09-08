@@ -1,9 +1,11 @@
 # Roadmap
 
 Permesh's first stable release remains smaller than the long-term product vision.
-The CLI is currently published as an unsigned alpha; GitHub is the only published
-official provider package. Implemented source and qualified releases are tracked
-separately.
+CLI [0.1.0-alpha.2](releases/0.1.0-alpha.2.md) is published with verified GitHub
+provenance for its five native target artifact sets. Platform code signatures and
+notarization remain absent. GitHub 0.1.0 is the only published official provider
+package; Google 0.1.1, Cloudflare 0.1.0 and AWS 0.1.0 are unpublished drafts.
+Implemented source and qualified releases are tracked separately.
 
 ## Implemented source
 
@@ -20,20 +22,22 @@ separately.
   complete effective authorization. See [provider scope and status](providers.md).
 - Native candidate packaging, dependency notices, checksums, target-bound
   dependency inventories and Unix terminal checks. A separate manual workflow
-  generates and verifies GitHub provenance attestations for reviewed candidates;
-  only a successful run qualifies those exact artifacts.
+  generates and verifies GitHub provenance attestations for reviewed candidates.
+  Alpha.2 promotes the exact subjects from [run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910),
+  with its verified bundle; later revisions need their own qualification.
 
 ## Before stable release and provider publication
 
 1. Complete the broader credentialed GitHub fixture exercise, live Google
    directory/browser login, and live Cloudflare/AWS acceptance. Google and
-   Cloudflare draft packages are not cataloged; AWS also needs native artifact
-   qualification. Synthetic tests do not substitute for these checks.
+   Cloudflare draft packages and AWS 0.1.0 are not cataloged. Qualify their exact
+   candidate artifacts separately before publication. Synthetic tests do not
+   substitute for these checks.
 2. Complete remaining Windows terminal and interactive desktop credential-store
    acceptance, then qualify the exact release revision on all supported targets.
-3. Verify and promote the original qualified artifacts, update release evidence
-   and documentation, and keep versioned assets immutable. See [release
-   gates](releasing.md).
+3. Apply the same exact-revision qualification and public-verification gates to
+   subsequent CLI and provider releases; keep the published alpha.1 and alpha.2
+   assets immutable. See [release gates](releasing.md).
 4. Complete native signing/notarization once Apple and Windows signing identities
    are available. GitHub provenance does not replace either platform's signing
    requirements. Package-manager manifests must use the final distributed hashes.

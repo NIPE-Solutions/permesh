@@ -32,15 +32,14 @@ locally and discarded when the command exits.
 
 ## Try it
 
-Download the **[0.1.0-alpha.1 prerelease](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.1)** for macOS, Linux or Windows. Verify its checksum before extracting; see [installation](docs/installation.md). This is an unsigned evaluation release with [known limitations](docs/releases/0.1.0-alpha.1.md).
+Download the **[0.1.0-alpha.2 prerelease](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.2)** for macOS, Linux or Windows. Verify its provenance and checksum before extracting; see [installation](docs/installation.md). This evaluation release has [known limitations](docs/releases/0.1.0-alpha.2.md).
 
-The checkout is preparing **0.1.0-alpha.2**; see its [candidate scope and remaining checks](docs/releases/0.1.0-alpha.2.md). It is not yet a published release.
-
-Native candidates include checksums and a target-bound dependency inventory.
-A separate manual workflow prepares and verifies GitHub provenance attestations;
-a successful run must be recorded for the exact release revision before claiming
-attested assets. This does not add Apple notarization or Windows Authenticode
-signatures to the published alpha.
+The five target archives, dependency inventories and checksum files have signed
+GitHub provenance from [the reviewed release run](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910), built from
+[`aad5839`](https://github.com/NIPE-Solutions/permesh/commit/aad58397e139ed755fcf983da8e9f045e7e5a556).
+The release includes the verified attestation bundle. Executables still have no
+Apple notarization or Windows Authenticode signatures; build provenance does not
+replace platform signing. The published alpha.1 assets remain unchanged.
 
 Or build from a checkout with Rust 1.91 or newer:
 
@@ -111,8 +110,9 @@ Google Workspace directory discovery is available as an [identity source](docs/p
 The official provider repository also contains Google with refresh-token and
 browser-login support, Cloudflare account-access observations, and an AWS IAM
 policy-attachment inventory using named credential references. These source
-implementations still need live qualification and publication; Google and
-Cloudflare release drafts are not installable catalog entries. GitHub is currently
+implementations still need live qualification and publication. Google 0.1.1,
+Cloudflare 0.1.0 and AWS 0.1.0 are unpublished drafts, absent from the installable
+catalog. GitHub is currently
 the only published official provider package. See [provider scope and status](docs/providers.md).
 
 [External native providers](docs/external-providers.md) can be explicitly trusted
