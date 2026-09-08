@@ -15,7 +15,7 @@ variables, other instances' credentials, or arbitrary credential names. Missing
 OAuth client details must come from your own registered application; Permesh
 does not supply a shared client or use a backend.
 
-Review and approve the complete workspace before login:
+Review and approve the provider instance in this workspace before login:
 
 ```sh
 permesh provider external review INSTANCE

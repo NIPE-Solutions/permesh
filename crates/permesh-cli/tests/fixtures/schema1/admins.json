@@ -1,0 +1,68 @@
+{
+  "access": [
+    {
+      "account": {
+        "id": "101",
+        "provider": "demo"
+      },
+      "grant": {
+        "certainty": "observed",
+        "id": "grant-3",
+        "privilege": "admin",
+        "provenance": {
+          "method": "synthetic demo fixture",
+          "observed_at": "2026-01-01T00:00:00Z"
+        },
+        "resource": {
+          "id": "repo-21",
+          "provider": "demo"
+        },
+        "role": "Admin",
+        "subject": {
+          "key": {
+            "id": "101",
+            "provider": "demo"
+          },
+          "kind": "account"
+        }
+      },
+      "groups": [],
+      "memberships": [],
+      "resource": {
+        "key": {
+          "id": "repo-21",
+          "provider": "demo"
+        },
+        "name": "acme/infrastructure"
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "account": {
+        "key": {
+          "id": "101",
+          "provider": "demo"
+        },
+        "kind": "human",
+        "login": "bob-admin",
+        "verified_emails": [
+          "bob@example.com"
+        ]
+      },
+      "identity": {
+        "identity": {
+          "id": "bob@example.com",
+          "kind": "human",
+          "status": "active",
+          "verified_emails": [
+            "bob@example.com"
+          ]
+        },
+        "state": "resolved"
+      }
+    }
+  ],
+  "unknown_access": [],
+  "unresolved_grants": []
+}

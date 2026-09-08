@@ -2,6 +2,13 @@
 
 User-visible changes are recorded here. Alpha releases are for evaluation; stable qualification remains open.
 
+## Unreleased
+
+- Separate legacy provider discovery records and CLI schema-1 query/snapshot output from internal domain serialization. Frozen protocol and JSON fixtures preserve existing field and enum contracts.
+- Scope workspace approval to the selected provider, credential references, relevant identity aliases/authority and registration. **Existing full-workspace approvals require one fresh review and approval.** Unrelated provider and organization changes then preserve approval; changed security inputs still fail closed.
+- Reject provider-add YAML updates that exceed the workspace load limit. Provider add/setup share captured-revision checks so detected concurrent edits leave the current configuration intact.
+- Add an implementation-backed architecture audit, prioritized hardening backlog and explicit migration decisions. Domain, negotiated protocol and onboarding proposals remain unstabilized.
+
 ## 0.1.0-alpha.2
 
 Evaluation prerelease built from [`aad5839`](https://github.com/NIPE-Solutions/permesh/commit/aad58397e139ed755fcf983da8e9f045e7e5a556) in [attested run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910); see [release notes](docs/releases/0.1.0-alpha.2.md). Published alpha.1 assets remain unchanged.

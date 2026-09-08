@@ -1,6 +1,6 @@
 # ADR 0010: Approved external workspace invocations and named credentials
 
-Status: Accepted
+Status: Accepted; approval scope superseded by [ADR 0017](0017-provider-scoped-workspace-approval.md)
 
 ## Context
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 //! Offline validation for draft external discovery exchanges. Does not execute programs.
 mod framing;
+mod mapping;
+pub mod records;
 mod session;
 mod wire;
 pub use session::{

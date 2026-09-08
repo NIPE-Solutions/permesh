@@ -1,0 +1,2 @@
+{"protocol":2,"id":"handshake","event":"handshake","provider":"fixture","capabilities":[],"draft":true}
+{"protocol":2,"id":"check","event":"health","status":"ok","limitations":["visibility_limited"]}

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
+use crate::records::{Capability, Record};
 use crate::{PROTOCOL_VERSION, ProtocolError};
-use permesh_core::{Account, Grant, Group, Identity, Membership, Resource};
-use permesh_provider_sdk::Capability;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -46,28 +45,6 @@ pub(crate) enum Event {
     Cancelled,
 }
 #[derive(Serialize, Deserialize)]
-#[serde(tag = "kind", content = "data", rename_all = "snake_case")]
-pub(crate) enum Record {
-    Identity(Identity),
-    Account(Account),
-    Resource(Resource),
-    Group(Group),
-    Membership(Membership),
-    Grant(Grant),
-}
-impl Record {
-    pub fn capability(&self) -> Capability {
-        match self {
-            Self::Identity(_) => Capability::Identities,
-            Self::Account(_) => Capability::Accounts,
-            Self::Resource(_) => Capability::Resources,
-            Self::Group(_) => Capability::Groups,
-            Self::Membership(_) => Capability::Memberships,
-            Self::Grant(_) => Capability::Grants,
-        }
-    }
-}
-#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum HealthStatus {
     Ok,
@@ -108,8 +85,8 @@ impl Envelope {
     pub fn parse(value: Value, version: u32) -> Result<Self, ProtocolError> {
         let envelope: Self =
             serde_json::from_value(value.clone()).map_err(|_| ProtocolError::Schema)?;
-        // Domain deserializers tolerate extensions. The wire does not: a lossless
-        // structural round trip rejects unknown fields at every nesting level.
+        // Flattened event envelopes need a lossless structural round trip to
+        // reject unknown fields at every nesting level, including SDK specs.
         // Duplicate keys have already been rejected by the bounded JSON decoder.
         if serde_json::to_value(&envelope).map_err(|_| ProtocolError::Schema)? != value {
             return Err(ProtocolError::Schema);
