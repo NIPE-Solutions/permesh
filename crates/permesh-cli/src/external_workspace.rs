@@ -139,8 +139,8 @@ impl WorkspaceAccess {
         });
         // Omit the default to preserve the existing control-output contract.
         // A negotiated context must be visible before the user approves it.
-        if external.discovery_protocol == permesh_config::DiscoveryProtocol::NegotiatedV5 {
-            result["discovery_protocol"] = serde_json::json!("negotiated_v5");
+        if external.discovery_protocol == permesh_config::DiscoveryProtocol::NegotiatedV1 {
+            result["discovery_protocol"] = serde_json::json!("negotiated_v1");
         }
         Outcome::new("external_review", result)
     }

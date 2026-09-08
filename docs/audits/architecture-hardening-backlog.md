@@ -80,7 +80,7 @@ that estimate. Oversized expansion fails explicitly rather than truncating.
 The domain migration now implements independent principal dimensions, resource
 containment and access-evidence semantics with access JSON schema 2. Legacy
 wire remains unchanged. PR 26 passed cross-platform CI, dependency checks and five
-native candidate targets before merge. Opt-in wire 5 now carries the new dimensions
+native candidate targets before merge. Opt-in negotiated protocol 1 now carries the new dimensions
 for configured discovery and health; official emitter rollout and final contract
 stability review remain P0.
 See [migration details](../migrations/domain-schema-2.md). Each new slice requires complete verification before merge; none of these

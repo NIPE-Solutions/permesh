@@ -6,8 +6,8 @@ not a transaction across provider APIs or proof of every effective permission.
 
 This guide distinguishes the new internal model from the legacy wire contract.
 ADRs 0018–0020 are implemented in core, but their new fields cannot be emitted
-in drafts 1 or 2. Opt-in [wire 5](../provider-protocol/negotiated-v5.md) carries the new dimensions.
-Official native packages retain their compatible pins until their wire-5 emitters
+in drafts 1 or 2. Opt-in [negotiated protocol 1](../provider-protocol/negotiated-v1.md) carries the new dimensions.
+Official native packages retain their compatible pins until their protocol-1 emitters
 and provider semantics have been qualified; changing host support does not upgrade
 a provider automatically. See the
 [migration guide](../migrations/domain-schema-2.md).

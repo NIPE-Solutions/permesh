@@ -186,7 +186,7 @@ Guided GitHub `provider_add` returns `{id,provider,version,sha256,file,configure
 ## Negotiated discovery review
 
 `external_review` remains control schema 1. When an instance explicitly selects
-wire 5, its result additionally contains `discovery_protocol: "negotiated_v5"`,
+negotiated protocol 1, its result additionally contains `discovery_protocol: "negotiated_v1"`,
 and human review displays the same selection. Legacy results omit this optional
 field, preserving their prior shape. This is a workspace contract choice; it does
 not change access schema 2 or setup/browser-auth output schemas.

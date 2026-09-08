@@ -10,13 +10,13 @@ const MAX_PARAMETER_DEPTH: usize = 16;
 const MAX_CREDENTIALS: usize = 16;
 
 /// Explicit discovery/health wire family. Default serialization remains byte-compatible
-/// with existing workspace approval contexts; selecting v5 requires fresh approval.
+/// with existing workspace approval contexts; selecting negotiated v1 requires fresh approval.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DiscoveryProtocol {
     #[default]
     Legacy,
-    NegotiatedV5,
+    NegotiatedV1,
 }
 impl DiscoveryProtocol {
     fn is_legacy(&self) -> bool {

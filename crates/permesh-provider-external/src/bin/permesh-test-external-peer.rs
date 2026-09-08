@@ -46,7 +46,7 @@ fn main() {
     let mut lines = io::stdin().lock().lines();
     let request: serde_json::Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
     let instance = request["instance"].as_str().unwrap();
-    if request["protocol"] == 5 {
+    if request["protocol_version"] == 1 {
         negotiated_peer(instance, request["operation"].as_str().unwrap(), &mut lines);
         return;
     }
@@ -488,7 +488,7 @@ fn negotiated_peer(
     } else {
         "fixture"
     };
-    let version = if instance == "downgrade" { 2 } else { 5 };
+    let version = if instance == "downgrade" { 0 } else { 1 };
     let capabilities = if instance == "wrong-caps" {
         json!([])
     } else {
@@ -510,21 +510,28 @@ fn negotiated_peer(
     } else {
         json!(["discover", "check"])
     };
-    emit(
-        json!({"protocol":version,"id":"handshake","event":"handshake","provider":provider,"capabilities":capabilities,"operations":operations,"draft":true}),
-    );
+    let mut handshake = json!({"protocol_version":version,"id":"handshake","event":"handshake","provider":provider,"capabilities":capabilities,"operations":operations,"draft":true});
+    if instance == "legacy-family" {
+        handshake
+            .as_object_mut()
+            .unwrap()
+            .remove("protocol_version");
+        handshake["protocol"] = json!(1);
+    }
+    emit(handshake);
     let Some(Ok(line)) = lines.next() else {
         return;
     };
     if matches!(
         instance,
-        "wrong-provider" | "wrong-caps" | "downgrade" | "wrong-operation"
+        "wrong-provider" | "wrong-caps" | "downgrade" | "wrong-operation" | "legacy-family"
     ) {
         fs::write(marker("delivered"), "operation received").unwrap();
         return;
     }
     let request: serde_json::Value = serde_json::from_str(&line).unwrap();
-    assert_eq!(request["protocol"], 5);
+    assert_eq!(request["protocol_version"], 1);
+    assert!(request.get("protocol").is_none());
     assert_eq!(request["method"], operation);
     assert_eq!(request["id"], operation);
     assert_eq!(request["credentials"]["token"], "synthetic-fixture-token");
@@ -551,7 +558,7 @@ fn negotiated_peer(
                 serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
             assert_eq!(
                 request,
-                json!({"protocol":5,"id":"cancel","method":"cancel"})
+                json!({"protocol_version":1,"id":"cancel","method":"cancel"})
             );
             fs::write(marker("cancelled"), "yes").unwrap();
             return;
@@ -568,11 +575,11 @@ fn negotiated_peer(
         "echo" | "echo-escaped" | "echo-key" => {
             let secret = request["credentials"]["token"].as_str().unwrap();
             let value = if mode == "echo-key" {
-                json!({"protocol":5,"id":operation,"event":"error","code":"authentication",secret:"value"})
+                json!({"protocol_version":1,"id":operation,"event":"error","code":"authentication",secret:"value"})
             } else if operation == "discover" {
-                json!({"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":instance,"id":"reflected"},"name":secret,"kind":null,"parent":null}})
+                json!({"protocol_version":1,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":instance,"id":"reflected"},"name":secret,"kind":null,"parent":null}})
             } else {
-                json!({"protocol":5,"id":operation,"event":"error","code":"authentication","provider_code":secret})
+                json!({"protocol_version":1,"id":operation,"event":"error","code":"authentication","provider_code":secret})
             };
             if mode == "echo-escaped" {
                 let encoded: String = secret
@@ -586,7 +593,7 @@ fn negotiated_peer(
             }
             if operation == "discover" && mode != "echo-key" {
                 emit(
-                    json!({"protocol":5,"id":"discover","event":"complete","count":1,"complete":true,"limitations":[]}),
+                    json!({"protocol_version":1,"id":"discover","event":"complete","count":1,"complete":true,"limitations":[]}),
                 );
                 assert!(lines.next().is_none());
             }
@@ -594,7 +601,7 @@ fn negotiated_peer(
         }
         "checkfail" => {
             emit(
-                json!({"protocol":5,"id":operation,"event":"error","code":"authentication","provider_code":"token.invalid"}),
+                json!({"protocol_version":1,"id":operation,"event":"error","code":"authentication","provider_code":"token.invalid"}),
             );
             return;
         }
@@ -607,7 +614,7 @@ fn negotiated_peer(
     };
     if operation == "check" {
         emit(
-            json!({"protocol":5,"id":"check","event":"health","status":"ok","limitations":limitations}),
+            json!({"protocol_version":1,"id":"check","event":"health","status":"ok","limitations":limitations}),
         );
     } else {
         let account = json!({"provider":instance,"id":"service"});
@@ -643,11 +650,13 @@ fn negotiated_peer(
             ),
         ];
         for (kind, data) in &records {
-            emit(json!({"protocol":5,"id":"discover","event":"record","kind":kind,"data":data}));
+            emit(
+                json!({"protocol_version":1,"id":"discover","event":"record","kind":kind,"data":data}),
+            );
         }
         if mode == "error-after-record" {
             emit(
-                json!({"protocol":5,"id":"discover","event":"error","code":"authentication","provider_code":"token.invalid"}),
+                json!({"protocol_version":1,"id":"discover","event":"error","code":"authentication","provider_code":"token.invalid"}),
             );
             return;
         }
@@ -655,7 +664,7 @@ fn negotiated_peer(
             return;
         }
         emit(
-            json!({"protocol":5,"id":"discover","event":"complete","count":records.len(),"complete":mode!="partial","limitations":limitations}),
+            json!({"protocol_version":1,"id":"discover","event":"complete","count":records.len(),"complete":mode!="partial","limitations":limitations}),
         );
     }
     if mode == "extra" {

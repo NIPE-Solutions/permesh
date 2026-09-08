@@ -16,7 +16,7 @@ origin with redirects disabled.
 Approved external discovery participates in ordinary access queries; approved
 health checks run for doctor/status. Native code runs as your user and is not
 sandboxed. Credentials go over stdin only after strict identity/capability handshake matching (and required-operation validation
-for explicitly selected wire 5);
+for explicitly selected negotiated protocol 1);
 cleared environment, discarded stderr and response-echo rejection do not prevent
 malicious code from retaining or exfiltrating them. See the
 [external trust workflow](external-providers.md).

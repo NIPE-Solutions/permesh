@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! Developer-only offline wire-5 validator. Does not execute or trust providers.
+//! Developer-only offline protocol-1 validator. Does not execute or trust providers.
 use permesh_provider_protocol::{
     MAX_FRAME_BYTES, ProtocolError,
     negotiated::{DiscoveryDecoder, HealthDecoder, PROTOCOL_VERSION},

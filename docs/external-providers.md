@@ -105,8 +105,8 @@ path and does not require valid configuration contents. Standalone `inspect`,
 `trust`, `list`, `remove` and direct `discover` do not. Direct discovery uses draft
 1 and transmits no workspace parameters or credentials. Workspace operations
 default to draft 2 and never downgrade to draft 1. Providers implementing
-[negotiated wire 5](provider-protocol/negotiated-v5.md) can explicitly select
-`external.discovery_protocol: negotiated_v5` for workspace discovery and health.
+[negotiated negotiated protocol 1](provider-protocol/negotiated-v1.md) can explicitly select
+`external.discovery_protocol: negotiated_v1` for workspace discovery and health.
 This change requires fresh workspace approval and appears in review output.
 There is no automatic probe or fallback; setup/browser-auth and standalone
 discovery retain their existing contracts.

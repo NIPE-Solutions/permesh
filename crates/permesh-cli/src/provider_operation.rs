@@ -54,7 +54,7 @@ pub async fn run(
                     )
                     .await
                 }
-                DiscoveryProtocol::NegotiatedV5 => {
+                DiscoveryProtocol::NegotiatedV1 => {
                     host::discover_negotiated(
                         &executable,
                         &registration.id,
@@ -85,7 +85,7 @@ pub async fn run(
                     )
                     .await
                 }
-                DiscoveryProtocol::NegotiatedV5 => {
+                DiscoveryProtocol::NegotiatedV1 => {
                     host::check_negotiated(
                         &executable,
                         &registration.id,

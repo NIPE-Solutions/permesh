@@ -7,7 +7,7 @@ use serde_json::Value;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Envelope {
-    pub protocol: u32,
+    pub protocol_version: u32,
     pub id: String,
     #[serde(flatten)]
     pub event: Event,
@@ -88,7 +88,7 @@ impl Envelope {
         if serde_json::to_value(&envelope).map_err(|_| ProtocolError::Schema)? != value {
             return Err(ProtocolError::Schema);
         }
-        if envelope.protocol != PROTOCOL_VERSION {
+        if envelope.protocol_version != PROTOCOL_VERSION {
             return Err(ProtocolError::Version);
         }
         if let Event::Error {

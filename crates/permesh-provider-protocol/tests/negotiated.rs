@@ -20,14 +20,14 @@ fn frame(v: Value) -> Vec<u8> {
     b
 }
 fn handshake() -> Value {
-    json!({"protocol":5,"id":"handshake","event":"handshake","provider":"example","capabilities":["accounts","identities","resources","groups","memberships","grants"],"operations":["discover","check"],"draft":true})
+    json!({"protocol_version":1,"id":"handshake","event":"handshake","provider":"example","capabilities":["accounts","identities","resources","groups","memberships","grants"],"operations":["discover","check"],"draft":true})
 }
 fn decoder() -> DiscoveryDecoder {
     DiscoveryDecoder::new("example", "work", Some(CAPS)).unwrap()
 }
 fn complete(count: usize) -> Vec<u8> {
     frame(
-        json!({"protocol":5,"id":"discover","event":"complete","count":count,"complete":true,"limitations":[]}),
+        json!({"protocol_version":1,"id":"discover","event":"complete","count":count,"complete":true,"limitations":[]}),
     )
 }
 #[test]
@@ -37,14 +37,14 @@ fn request_pins_wire_and_operation() {
             &negotiated::handshake_request("work", Operation::Discover).unwrap()
         )
         .unwrap(),
-        json!({"protocol":5,"id":"handshake","method":"handshake","instance":"work","operation":"discover"})
+        json!({"protocol_version":1,"id":"handshake","method":"handshake","instance":"work","operation":"discover"})
     );
     assert!(negotiated::handshake_request("bad/name", Operation::Check).is_err());
 }
 #[test]
 fn literal_rich_fixture_maps_every_dimension() {
     let mut d = decoder();
-    for line in include_str!("fixtures/negotiated-v5.ndjson").split_inclusive('\n') {
+    for line in include_str!("fixtures/negotiated-v1.ndjson").split_inclusive('\n') {
         d.push_frame(line.as_bytes()).unwrap();
     }
     let snapshot = d.finish().unwrap();
@@ -92,7 +92,7 @@ fn handshake_requires_operation_and_exact_known_capabilities() {
         ("capabilities", json!(["accounts"])),
         ("capabilities", json!(["other"])),
         ("draft", json!(false)),
-        ("protocol", json!(4)),
+        ("protocol_version", json!(2)),
         ("provider", json!("other")),
     ] {
         let mut d = decoder();
@@ -109,7 +109,7 @@ fn handshake_requires_operation_and_exact_known_capabilities() {
 #[test]
 fn strict_framing_fields_and_order_poison_the_decoder() {
     for bytes in [
-        b"{\"protocol\":5,\"protocol\":5}\n".to_vec(),
+        b"{\"protocol_version\":1,\"protocol_version\":1}\n".to_vec(),
         b"{}".to_vec(),
         b"{}\n{}\n".to_vec(),
         frame({
@@ -137,7 +137,7 @@ fn health_is_negotiated_and_redacted() {
     assert!(d.push_frame(&frame(h)).is_err());
     let mut d = HealthDecoder::new("example", "work", Some(CAPS)).unwrap();
     d.push_frame(&frame(handshake())).unwrap();
-    assert_eq!(d.push_frame(&frame(json!({"protocol":5,"id":"check","event":"health","status":"ok","limitations":["rate_limited"]}))).unwrap(),Progress::Complete);
+    assert_eq!(d.push_frame(&frame(json!({"protocol_version":1,"id":"check","event":"health","status":"ok","limitations":["rate_limited"]}))).unwrap(),Progress::Complete);
     assert_eq!(d.finish().unwrap().limitations.len(), 1);
     for code in [
         json!("api.rate_limit"),
@@ -147,7 +147,7 @@ fn health_is_negotiated_and_redacted() {
     ] {
         let mut d = decoder();
         d.push_frame(&frame(handshake())).unwrap();
-        let err=d.push_frame(&frame(json!({"protocol":5,"id":"discover","event":"error","code":"internal","provider_code":code}))).unwrap_err();
+        let err=d.push_frame(&frame(json!({"protocol_version":1,"id":"discover","event":"error","code":"internal","provider_code":code}))).unwrap_err();
         assert!(!err.to_string().contains("api.rate_limit"));
         assert!(!err.to_string().contains("SECRET"));
         assert!(d.finish().is_err());
@@ -155,7 +155,7 @@ fn health_is_negotiated_and_redacted() {
 }
 #[test]
 fn missing_dimensions_and_unknown_nested_fields_reject() {
-    let fixture: Vec<Value> = include_str!("fixtures/negotiated-v5.ndjson")
+    let fixture: Vec<Value> = include_str!("fixtures/negotiated-v1.ndjson")
         .lines()
         .map(|l| serde_json::from_str(l).unwrap())
         .collect();
@@ -185,7 +185,7 @@ fn whole_graph_references_and_cycles_validate_only_at_finish() {
     for parent in ["missing", "root"] {
         let mut d = decoder();
         d.push_frame(&frame(handshake())).unwrap();
-        d.push_frame(&frame(json!({"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"work","id":"root"},"name":"Root","kind":"example.folder","parent":{"provider":"work","id":parent}}}))).unwrap();
+        d.push_frame(&frame(json!({"protocol_version":1,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"work","id":"root"},"name":"Root","kind":"example.folder","parent":{"provider":"work","id":parent}}}))).unwrap();
         d.push_frame(&complete(1)).unwrap();
         assert_eq!(d.finish().unwrap_err(), ProtocolError::Snapshot);
     }
@@ -197,7 +197,7 @@ fn whole_graph_references_and_cycles_validate_only_at_finish() {
 
 #[test]
 fn literal_record_dtos_round_trip_without_domain_serialization() {
-    for value in include_str!("fixtures/negotiated-v5.ndjson")
+    for value in include_str!("fixtures/negotiated-v1.ndjson")
         .lines()
         .skip(1)
         .take(7)
@@ -219,7 +219,8 @@ fn provider_code_is_optional_restricted_and_never_reflected() {
     ] {
         let mut d = decoder();
         d.push_frame(&frame(handshake())).unwrap();
-        let mut event = json!({"protocol":5,"id":"discover","event":"error","code":"internal"});
+        let mut event =
+            json!({"protocol_version":1,"id":"discover","event":"error","code":"internal"});
         if let Some(code) = code {
             event["provider_code"] = code;
         }
@@ -241,7 +242,7 @@ fn provider_code_is_optional_restricted_and_never_reflected() {
     ] {
         let mut d = decoder();
         d.push_frame(&frame(handshake())).unwrap();
-        assert_eq!(d.push_frame(&frame(json!({"protocol":5,"id":"discover","event":"error","code":"internal","provider_code":code}))),Err(ProtocolError::Schema));
+        assert_eq!(d.push_frame(&frame(json!({"protocol_version":1,"id":"discover","event":"error","code":"internal","provider_code":code}))),Err(ProtocolError::Schema));
     }
 }
 
@@ -252,10 +253,10 @@ fn optional_operations_never_authorize_records_or_health() {
     h["capabilities"] = json!([]);
     h["operations"] = json!(["discover", "resources"]);
     d.push_frame(&frame(h)).unwrap();
-    assert_eq!(d.push_frame(&frame(json!({"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"work","id":"root"},"name":"Root","kind":null,"parent":null}}))),Err(ProtocolError::Capability));
+    assert_eq!(d.push_frame(&frame(json!({"protocol_version":1,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"work","id":"root"},"name":"Root","kind":null,"parent":null}}))),Err(ProtocolError::Capability));
     for event in [
-        json!({"protocol":5,"id":"discover","event":"health","status":"ok","limitations":[]}),
-        json!({"protocol":5,"id":"check","event":"complete","count":0,"complete":true,"limitations":[]}),
+        json!({"protocol_version":1,"id":"discover","event":"health","status":"ok","limitations":[]}),
+        json!({"protocol_version":1,"id":"check","event":"complete","count":0,"complete":true,"limitations":[]}),
     ] {
         let mut d = decoder();
         d.push_frame(&frame(handshake())).unwrap();
@@ -267,15 +268,15 @@ fn optional_operations_never_authorize_records_or_health() {
 fn partial_requires_curated_limitations_and_error_discards_prior_records() {
     let mut d = decoder();
     d.push_frame(&frame(handshake())).unwrap();
-    d.push_frame(&frame(json!({"protocol":5,"id":"discover","event":"complete","count":0,"complete":false,"limitations":["visibility_limited"]}))).unwrap();
+    d.push_frame(&frame(json!({"protocol_version":1,"id":"discover","event":"complete","count":0,"complete":false,"limitations":["visibility_limited"]}))).unwrap();
     let snapshot = d.finish().unwrap();
     assert!(!snapshot.complete);
     assert_eq!(snapshot.limitations.len(), 1);
     let mut d = decoder();
     d.push_frame(&frame(handshake())).unwrap();
-    assert_eq!(d.push_frame(&frame(json!({"protocol":5,"id":"discover","event":"complete","count":0,"complete":false,"limitations":[]}))),Err(ProtocolError::Schema));
+    assert_eq!(d.push_frame(&frame(json!({"protocol_version":1,"id":"discover","event":"complete","count":0,"complete":false,"limitations":[]}))),Err(ProtocolError::Schema));
     let mut d = decoder();
-    for line in include_str!("fixtures/negotiated-v5.ndjson")
+    for line in include_str!("fixtures/negotiated-v1.ndjson")
         .split_inclusive('\n')
         .take(3)
     {
@@ -283,7 +284,7 @@ fn partial_requires_curated_limitations_and_error_discards_prior_records() {
     }
     assert_eq!(
         d.push_frame(&frame(
-            json!({"protocol":5,"id":"discover","event":"error","code":"authentication"})
+            json!({"protocol_version":1,"id":"discover","event":"error","code":"authentication"})
         )),
         Err(ProtocolError::ProviderFailed)
     );
@@ -300,7 +301,7 @@ fn new_enums_reject_legacy_ambiguity_and_unknown_values() {
         (7, "evidence_kind", "direct"),
     ] {
         let mut record: Value = serde_json::from_str(
-            include_str!("fixtures/negotiated-v5.ndjson")
+            include_str!("fixtures/negotiated-v1.ndjson")
                 .lines()
                 .nth(index)
                 .unwrap(),
@@ -341,4 +342,26 @@ fn operation_names_have_bounded_ascii_syntax_and_frame_limits_apply() {
         Err(ProtocolError::FrameLimit)
     );
     assert_eq!(d.finish().unwrap_err(), ProtocolError::FrameLimit);
+}
+
+#[test]
+fn negotiated_version_one_is_distinct_from_legacy_protocol_one() {
+    assert_eq!(negotiated::PROTOCOL_VERSION, 1);
+    for event in [
+        json!({"protocol":1,"id":"handshake","event":"handshake","provider":"example","capabilities":["accounts","identities","resources","groups","memberships","grants"],"operations":["discover","check"],"draft":true}),
+        json!({"protocol":1,"protocol_version":1,"id":"handshake","event":"handshake","provider":"example","capabilities":["accounts","identities","resources","groups","memberships","grants"],"operations":["discover","check"],"draft":true}),
+    ] {
+        let mut d = decoder();
+        assert_eq!(d.push_frame(&frame(event)), Err(ProtocolError::Schema));
+        assert_eq!(d.finish().unwrap_err(), ProtocolError::Schema);
+    }
+    let mut d = decoder();
+    assert_eq!(d.push_frame(&frame(handshake())), Ok(Progress::Handshake));
+    assert_eq!(d.push_frame(&frame(json!({"protocol":1,"id":"discover","event":"complete","count":0,"complete":true,"limitations":[]}))), Err(ProtocolError::Schema));
+    let mut legacy =
+        permesh_provider_protocol::DiscoveryDecoder::new("example", "work", Some(CAPS)).unwrap();
+    assert_eq!(
+        legacy.push_frame(&frame(handshake())),
+        Err(ProtocolError::Schema)
+    );
 }

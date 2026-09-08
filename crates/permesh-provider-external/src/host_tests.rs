@@ -636,6 +636,7 @@ async fn negotiated_handshake_rejection_withholds_credentials_for_both_operation
         "wrong-caps",
         "downgrade",
         "wrong-operation",
+        "legacy-family",
     ] {
         for check in [false, true] {
             let (directory, peer) = isolated_peer();
@@ -832,7 +833,7 @@ async fn negotiated_wrong_operation_writes_only_handshake_to_stdin() {
         let response = format!(
             "{}\n",
             serde_json::json!({
-                "protocol":5,"id":"handshake","event":"handshake","provider":"fixture",
+                "protocol_version":1,"id":"handshake","event":"handshake","provider":"fixture",
                 "capabilities":[],"operations":[wrong_operation],"draft":true,
             })
         );
@@ -850,7 +851,7 @@ async fn negotiated_wrong_operation_writes_only_handshake_to_stdin() {
                     handshake: handshake.clone(),
                     invocation: Some(&invocation),
                     method: "discover",
-                    version: negotiated::PROTOCOL_VERSION,
+                    contract: Contract::Negotiated,
                 },
                 deadline,
             )
@@ -866,7 +867,7 @@ async fn negotiated_wrong_operation_writes_only_handshake_to_stdin() {
                     handshake: handshake.clone(),
                     invocation: Some(&invocation),
                     method: "check",
-                    version: negotiated::PROTOCOL_VERSION,
+                    contract: Contract::Negotiated,
                 },
                 deadline,
             )

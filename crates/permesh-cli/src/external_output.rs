@@ -15,10 +15,10 @@ pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<
                 safe(field(result, "instance"))
             )?;
             registration(out, &result["registration"])?;
-            if result["discovery_protocol"] == "negotiated_v5" {
+            if result["discovery_protocol"] == "negotiated_v1" {
                 writeln!(
                     out,
-                    "\nDiscovery protocol\n  negotiated_v5 (wire 5; health and discovery)\n"
+                    "\nDiscovery protocol\n  negotiated_v1 (negotiated protocol 1; health and discovery)\n"
                 )?;
             }
             writeln!(

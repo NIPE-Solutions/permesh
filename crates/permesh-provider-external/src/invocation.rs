@@ -16,6 +16,26 @@ const MAX_CREDENTIALS: usize = 16;
 const MAX_CREDENTIAL: usize = 16 * 1024;
 const MAX_CREDENTIAL_BYTES: usize = 64 * 1024;
 
+/// Keep the negotiated family distinct from legacy operation-specific drafts.
+#[derive(Clone, Copy)]
+pub(crate) enum Contract {
+    Legacy(u32),
+    Negotiated,
+}
+impl Serialize for Contract {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(1))?;
+        match self {
+            Self::Legacy(version) => map.serialize_entry("protocol", version)?,
+            Self::Negotiated => map.serialize_entry(
+                "protocol_version",
+                &permesh_provider_protocol::negotiated::PROTOCOL_VERSION,
+            )?,
+        }
+        map.end()
+    }
+}
+
 pub struct Invocation {
     configuration: BTreeMap<String, Value>,
     credentials: BTreeMap<String, Secret>,
@@ -56,28 +76,20 @@ impl Invocation {
             credentials,
         })
     }
-    #[cfg(test)]
     pub(crate) fn request(
         &self,
         method: &'static str,
+        contract: Contract,
     ) -> Result<Zeroizing<Vec<u8>>, ExternalError> {
-        self.request_versioned(method, 2)
-    }
-    pub(crate) fn request_versioned(
-        &self,
-        method: &'static str,
-        protocol: u32,
-    ) -> Result<Zeroizing<Vec<u8>>, ExternalError> {
-        if !matches!(
-            protocol,
-            2 | permesh_provider_protocol::negotiated::PROTOCOL_VERSION
-        ) || !matches!(method, "check" | "discover")
+        if !matches!(contract, Contract::Legacy(2) | Contract::Negotiated)
+            || !matches!(method, "check" | "discover")
         {
             return Err(ExternalError::Input);
         }
         #[derive(Serialize)]
         struct Request<'a> {
-            protocol: u32,
+            #[serde(flatten)]
+            contract: Contract,
             id: &'static str,
             method: &'static str,
             configuration: &'a BTreeMap<String, Value>,
@@ -95,7 +107,7 @@ impl Invocation {
         serde_json::to_writer(
             &mut writer,
             &Request {
-                protocol,
+                contract,
                 id: method,
                 method,
                 configuration: &self.configuration,
@@ -189,7 +201,7 @@ mod tests {
     fn accepts_named_bounded_credentials_without_debug_disclosure() {
         let invocation = invocation("SENTINEL-private");
         assert_eq!(format!("{invocation:?}"), "Invocation([REDACTED])");
-        let request = invocation.request("discover").unwrap();
+        let request = invocation.request("discover", Contract::Legacy(2)).unwrap();
         assert_eq!(request.as_slice(), b"{\"protocol\":2,\"id\":\"discover\",\"method\":\"discover\",\"configuration\":{},\"credentials\":{\"token\":\"SENTINEL-private\"}}\n");
         let request: Value = serde_json::from_slice(&request).unwrap();
         assert_eq!(request["credentials"]["token"], "SENTINEL-private");
@@ -203,11 +215,12 @@ mod tests {
         )
         .unwrap();
         for method in ["check", "discover"] {
-            let bytes = invocation.request_versioned(method, 5).unwrap();
+            let bytes = invocation.request(method, Contract::Negotiated).unwrap();
             assert!(bytes.ends_with(b"\n"));
             let request: Value = serde_json::from_slice(&bytes).unwrap();
             assert_eq!(request["configuration"]["region"], "test");
-            assert_eq!(request["protocol"], 5);
+            assert_eq!(request["protocol_version"], 1);
+            assert!(request.get("protocol").is_none());
             assert_eq!(request["method"], method);
             assert_eq!(request["id"], method);
             assert_eq!(request["credentials"]["token"], "SENTINEL-private");
@@ -216,15 +229,15 @@ mod tests {
     #[test]
     fn configured_requests_reject_unsupported_versions_and_methods() {
         let invocation = invocation("SENTINEL-private");
-        for version in [0, 1, 3, 4, 6, u32::MAX] {
+        for version in [0, 1, 3, 4, 5, 6, u32::MAX] {
             assert!(matches!(
-                invocation.request_versioned("discover", version),
+                invocation.request("discover", Contract::Legacy(version)),
                 Err(ExternalError::Input)
             ));
         }
         for method in ["", "handshake", "cancel", "describe", "unknown"] {
             assert!(matches!(
-                invocation.request_versioned(method, 5),
+                invocation.request(method, Contract::Negotiated),
                 Err(ExternalError::Input)
             ));
         }
@@ -295,7 +308,9 @@ mod tests {
             BTreeMap::new(),
         )
         .unwrap();
-        let request: Value = serde_json::from_slice(&invocation.request("check").unwrap()).unwrap();
+        let request: Value =
+            serde_json::from_slice(&invocation.request("check", Contract::Legacy(2)).unwrap())
+                .unwrap();
         assert_eq!(
             request["configuration"]["endpoint.url[primary]"],
             "https://example.invalid"

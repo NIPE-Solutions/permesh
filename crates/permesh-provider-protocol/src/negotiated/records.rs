@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-//! Independent wire5 DTOs. Use the decoder and EOF validation to obtain domain records.
+//! Independent negotiated v1 DTOs. Use the decoder and EOF validation to obtain domain records.
 use serde::{Deserialize, Serialize};
 
-/// Closed wire5 record capability set, independent of SDK growth.
+/// Closed negotiated v1 record capability set, independent of SDK growth.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Capability {

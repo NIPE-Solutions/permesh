@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! Explicit wire5-to-domain conversion. No serde round trips cross this boundary.
+//! Explicit negotiated v1-to-domain conversion. No serde round trips cross this boundary.
 //! The session validates the assembled domain snapshot before returning it.
 use super::records::*;
 

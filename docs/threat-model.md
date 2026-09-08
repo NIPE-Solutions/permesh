@@ -35,7 +35,7 @@ exercise execution and local permission boundaries.
 A malicious workspace cannot silently switch a trusted provider to a different
 discovery contract: the explicit selector is covered by provider-scoped approval.
 Legacy serialization omits the default, preserving existing approval inputs.
-Wire 5 requires the selected operation in a bounded advertised operation set
+Negotiated protocol 1 requires the selected operation in a bounded advertised operation set
 before invocation delivery. Unknown optional operation names cannot grant
 execution or alter the exact trusted record-capability set. A failed handshake
 does not trigger fallback to another protocol or another process.

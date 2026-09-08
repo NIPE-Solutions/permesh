@@ -10,12 +10,12 @@ import provider
 
 
 def handshake(operation="discover"):
-    return {"protocol": 5, "id": "handshake", "method": "handshake", "instance": "example",
+    return {"protocol_version": 1, "id": "handshake", "method": "handshake", "instance": "example",
             "operation": operation}
 
 
 def invocation(operation="discover"):
-    return {"protocol": 5, "id": operation, "method": operation, "configuration": {}, "credentials": {}}
+    return {"protocol_version": 1, "id": operation, "method": operation, "configuration": {}, "credentials": {}}
 
 
 def frames(*values):
@@ -33,8 +33,9 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(output[0]["operations"], ["check", "discover"])
         self.assertEqual(output[0]["capabilities"], provider.CAPABILITIES)
-        self.assertTrue(all(frame["protocol"] == 5 for frame in output))
-        self.assertEqual(output[-1], {"protocol": 5, "id": "discover", "event": "complete",
+        self.assertTrue(all(frame["protocol_version"] == 1 for frame in output))
+        self.assertTrue(all("protocol" not in frame for frame in output))
+        self.assertEqual(output[-1], {"protocol_version": 1, "id": "discover", "event": "complete",
                                     "count": 7, "complete": True, "limitations": []})
         records = [frame["data"] for frame in output[1:-1]]
         for entity in records[:2]:
@@ -50,19 +51,24 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(output[-1]["event"], "health")
         self.assertEqual(output[-1]["status"], "ok")
         self.assertEqual(output[-1]["limitations"], [])
-        status, output = self.run_peer(frames(handshake(), {"protocol": 5, "id": "cancel", "method": "cancel"}))
+        status, output = self.run_peer(frames(handshake(), {"protocol_version": 1, "id": "cancel", "method": "cancel"}))
         self.assertEqual(status, 0)
         self.assertEqual(output[-1]["event"], "cancelled")
 
     def test_rejects_bad_requests_without_echo(self):
-        invalid_handshakes = [None, [], {}, {**handshake(), "protocol": True},
-                              {**handshake(), "protocol": 2}, {**handshake(), "operation": []}, {**handshake(), "operation": {}},
+        invalid_handshakes = [None, [], {}, {**handshake(), "protocol": 1},
+                              {"protocol": 1, "id": "handshake", "method": "handshake",
+                               "instance": "example", "operation": "discover"}, {**handshake(), "protocol_version": True},
+                              {**handshake(), "protocol_version": 2}, {**handshake(), "operation": []}, {**handshake(), "operation": {}},
                               {**handshake(), "operation": "setup"}, {**handshake(), "extra": "private"},
                               {**handshake(), "instance": "../private"}]
         for request in invalid_handshakes:
             with self.subTest(request=request):
                 self.assertEqual(self.run_peer(frames(request)), (2, []))
-        bad_invocations = [invocation("check"), {**invocation(), "credentials": {"token": ""}},
+        bad_invocations = [invocation("check"),
+                           {"protocol": 1, "id": "discover", "method": "discover",
+                            "configuration": {}, "credentials": {}},
+                           {**invocation(), "protocol": 1}, {**invocation(), "credentials": {"token": ""}},
                            {**invocation(), "credentials": {"token": "x" * 16385}},
                            {**invocation(), "configuration": []}, {**invocation(), "configuration": {"number": float("inf")}},
                            {**invocation(), "credentials": []}, {**invocation(), "credentials": {"9bad": "private"}}, {**invocation(), "extra": "private"}]
@@ -71,7 +77,7 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(status, 2)
             self.assertEqual(len(output), 1)
         for data in [b"{}", b"x" * (provider.MAX_FRAME + 1), b"\xff\n",
-                     b'{"protocol":5,"protocol":5}\n', b'{"protocol":NaN}\n']:
+                     b'{"protocol_version":1,"protocol_version":1}\n', b'{"protocol_version":NaN}\n']:
             self.assertEqual(self.run_peer(data), (2, []))
 
     def test_credentials_are_never_reflected(self):

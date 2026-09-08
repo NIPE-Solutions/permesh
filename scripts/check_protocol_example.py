@@ -38,9 +38,9 @@ def check_negotiated():
                    cwd=root, check=True, timeout=30)
     for operation in ('discover', 'check'):
         requests = b''.join(json.dumps(value).encode() + b'\n' for value in (
-            {'protocol': 5, 'id': 'handshake', 'method': 'handshake',
+            {'protocol_version': 1, 'id': 'handshake', 'method': 'handshake',
              'instance': 'example-main', 'operation': operation},
-            {'protocol': 5, 'id': operation, 'method': operation,
+            {'protocol_version': 1, 'id': operation, 'method': operation,
              'configuration': {}, 'credentials': {'token': 'SYNTHETIC_PRIVATE_INPUT'}},
         ))
         peer = subprocess.run([sys.executable, str(root / 'examples/negotiated-provider/provider.py')],
@@ -53,7 +53,7 @@ def check_negotiated():
         if result.returncode != 0 or result.stderr:
             raise RuntimeError('Rust validator rejected negotiated Python exchange')
         summary = json.loads(result.stdout)
-        if summary['protocol_version'] != 5 or not summary['valid'] or summary['operation'] != operation:
+        if summary['protocol_version'] != 1 or not summary['valid'] or summary['operation'] != operation:
             raise RuntimeError('Unexpected negotiated summary')
         if operation == 'discover' and summary['counts'] != {
                 'identities': 1, 'accounts': 1, 'resources': 2, 'groups': 1, 'memberships': 1, 'grants': 1}:

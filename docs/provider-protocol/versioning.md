@@ -44,15 +44,15 @@ domain field needs an explicit mapping decision; it must not appear in an old
 wire draft merely because a domain struct gains a serde field. Existing
 providers do not need to change their bytes or configuration for this extraction.
 
-## Negotiated wire 5
+## Negotiated negotiated protocol 1
 
 Protocol versions describe wire compatibility. Capabilities describe supported
-records and operations. Wire 5 now carries
+records and operations. Negotiated protocol 1 now carries
 health and discovery with separate operation negotiation. Adding a compatible
 optional operation does not by itself increment that version. It is opt-in and
 not declared stable.
 
-| Change | Existing drafts 1–4 | Wire 5 rule |
+| Change | Existing drafts 1–4 | Negotiated protocol 1 rule |
 | --- | --- | --- |
 | Internal domain field or enum | No wire change; explicit mapper decision | No wire change |
 | Unknown envelope/record field | Reject, including additive fields | Reject unless a named bounded extension field explicitly permits it |
@@ -68,11 +68,11 @@ drafts guarantee neither acceptance of new fields nor unknown capabilities;
 senders must emit exactly the selected draft. Security validation fixes may
 intentionally reject previously accepted invalid input and must be documented.
 
-Wire 5 is explicitly pinned and negotiates operation support separately from
+Negotiated protocol 1 is explicitly pinned and negotiates operation support separately from
 record capabilities. Only this version is currently supported in the new family;
 there is no automatic downgrade or probe. Selecting the new contract in provider
 configuration requires fresh approval. Unknown operation declarations are bounded
-optional information, not executable requests. See the [wire 5 specification](negotiated-v5.md)
+optional information, not executable requests. See the [negotiated protocol 1 specification](negotiated-v1.md)
 and [ADR 0023](../adr/0023-negotiated-discovery-contract.md).
 
 See [ADR 0016](../adr/0016-wire-contracts.md) and the

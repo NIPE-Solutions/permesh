@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Standalone synthetic wire5 peer. No network, environment or credential use."""
+"""Standalone synthetic negotiated wire-1 peer. No network, environment or credential use."""
 import json
 import math
 import re
@@ -25,7 +25,7 @@ def reject_constant(_value):
 
 
 def emit(out, request_id, event, **data):
-    frame = json.dumps({"protocol": 5, "id": request_id, "event": event, **data},
+    frame = json.dumps({"protocol_version": 1, "id": request_id, "event": event, **data},
                        separators=(",", ":"), ensure_ascii=True).encode() + b"\n"
     if len(frame) > MAX_FRAME:
         raise ValueError("response too large")
@@ -41,7 +41,7 @@ def read_request(source):
         raise ValueError("invalid framing")
     value = json.loads(frame.decode("utf-8"), object_pairs_hook=unique_object,
                        parse_constant=reject_constant)
-    if not isinstance(value, dict) or type(value.get("protocol")) is not int or value["protocol"] != 5:
+    if not isinstance(value, dict) or type(value.get("protocol_version")) is not int or value["protocol_version"] != 1:
         raise ValueError("invalid envelope")
     return value
 
@@ -57,7 +57,7 @@ def bounded_json(value, depth=0):
 
 
 def valid_invocation(request, operation):
-    if (set(request) != {"protocol", "id", "method", "configuration", "credentials"}
+    if (set(request) != {"protocol_version", "id", "method", "configuration", "credentials"}
             or request["id"] != operation or request["method"] != operation):
         return False
     configuration, credentials = request["configuration"], request["credentials"]
@@ -103,7 +103,7 @@ def discover(out, instance):
 def serve(source, out):
     try:
         handshake = read_request(source)
-        if (handshake is None or set(handshake) != {"protocol", "id", "method", "instance", "operation"}
+        if (handshake is None or set(handshake) != {"protocol_version", "id", "method", "instance", "operation"}
                 or handshake["id"] != "handshake" or handshake["method"] != "handshake"
                 or not isinstance(handshake["instance"], str)
                 or not IDENTIFIER.fullmatch(handshake["instance"])
@@ -112,7 +112,7 @@ def serve(source, out):
         emit(out, "handshake", "handshake", provider="synthetic-example", capabilities=CAPABILITIES,
              operations=["check", "discover"], draft=True)
         request = read_request(source)
-        if request == {"protocol": 5, "id": "cancel", "method": "cancel"}:
+        if request == {"protocol_version": 1, "id": "cancel", "method": "cancel"}:
             emit(out, "cancel", "cancelled")
             return 0
         if request is None or not valid_invocation(request, handshake["operation"]):

@@ -233,7 +233,7 @@ impl DiscoveryDecoder {
     }
 }
 
-/// Incremental wire5 health exchange. The caller must observe EOF
+/// Incremental negotiated v1 health exchange. The caller must observe EOF
 /// before calling `finish`; any additional frame permanently rejects the result.
 pub struct HealthDecoder {
     session: Session,

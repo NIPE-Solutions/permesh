@@ -81,17 +81,17 @@ fn discovery_protocol_is_explicit_and_legacy_serialization_is_unchanged() {
     );
     let negotiated = load(&source().replace(
         "provider: fixture",
-        "provider: fixture\n      discovery_protocol: negotiated_v5",
+        "provider: fixture\n      discovery_protocol: negotiated_v1",
     ))
     .unwrap();
     assert_eq!(
         serde_json::to_value(&negotiated).unwrap()["providers"][0]["external"]["discovery_protocol"],
-        "negotiated_v5"
+        "negotiated_v1"
     );
     assert!(
         to_yaml(&negotiated)
             .unwrap()
-            .contains("discovery_protocol: negotiated_v5")
+            .contains("discovery_protocol: negotiated_v1")
     );
     for unsupported in ["auto", "5", "negotiated_v6", "legacy_v2"] {
         assert!(

@@ -1,8 +1,14 @@
-# Negotiated discovery wire 5
+# Negotiated discovery protocol 1
+
+The negotiated family starts at `protocol_version: 1`. The distinct field
+separates it from experimental legacy `protocol: 1`–`protocol: 4` envelopes;
+the same numeric value cannot silently select another family. Future compatible
+operations and capabilities do not increment the version. Only incompatible
+wire changes require a version change.
 
 This prerelease contract supports configured native discovery and health. It is
 independent of workspace schema 1 and CLI access-output schema 2. Drafts 1–4
-retain their historical fields, enums and behavior. Wire 5 is not yet stable.
+retain their historical fields, enums and behavior. Negotiated protocol 1 is not yet stable.
 
 ## Select it explicitly
 
@@ -18,7 +24,7 @@ providers:
     external:
       provider: internal
       sha256: REVIEWED_EXECUTABLE_SHA256
-      discovery_protocol: negotiated_v5
+      discovery_protocol: negotiated_v1
       configuration: {}
       credentials:
         token: env://PERMESH_INTERNAL_TOKEN
@@ -42,13 +48,13 @@ contract. Currently published official providers retain their existing defaults.
 Each process serves one operation. The host sends a single LF-terminated frame:
 
 ```json
-{"protocol":5,"id":"handshake","method":"handshake","instance":"internal-main","operation":"discover"}
+{"protocol_version":1,"id":"handshake","method":"handshake","instance":"internal-main","operation":"discover"}
 ```
 
 The provider replies:
 
 ```json
-{"protocol":5,"id":"handshake","event":"handshake","provider":"internal","capabilities":["accounts","resources","grants"],"operations":["check","discover"],"draft":true}
+{"protocol_version":1,"id":"handshake","event":"handshake","provider":"internal","capabilities":["accounts","resources","grants"],"operations":["check","discover"],"draft":true}
 ```
 
 The selected wire version, provider ID and record capabilities must match the
@@ -63,13 +69,13 @@ with a letter, and contains only letters, digits, `_` and `-`; matching is
 case-sensitive. Operations are identifiers, not terminal text. Unknown advertised
 operations are optional information and do not permit invocation. The host only
 selects `check` or `discover`. Adding a compatible operation to this declaration
-does not increment the wire version. The host currently supports only version 5
+does not increment the wire version. The host currently supports only version 1
 in this family and never downgrades after failure.
 
 After successful validation, the invocation retains the existing private shape:
 
 ```json
-{"protocol":5,"id":"discover","method":"discover","configuration":{},"credentials":{"token":"synthetic-example-only"}}
+{"protocol_version":1,"id":"discover","method":"discover","configuration":{},"credentials":{"token":"synthetic-example-only"}}
 ```
 
 Only this instance's configured credential slots are sent. Credentials never
@@ -81,7 +87,7 @@ who runs it; process isolation is not a sandbox.
 ## Records and evidence
 
 Record frames use `event: record`, a `kind`, and a `data` object, with
-`protocol: 5` and `id: discover`. DTOs live under
+`protocol_version: 1` and `id: discover`. DTOs live under
 `permesh_provider_protocol::negotiated::records`; they are independent of core
 Rust types. Deserialization alone does not validate a graph.
 
@@ -111,7 +117,7 @@ Discovery terminates with the exact record count, scope completeness and bounded
 known limitation codes:
 
 ```json
-{"protocol":5,"id":"discover","event":"complete","count":0,"complete":false,"limitations":["visibility_limited"]}
+{"protocol_version":1,"id":"discover","event":"complete","count":0,"complete":false,"limitations":["visibility_limited"]}
 ```
 
 Partial completion requires a limitation. A health response uses `id: check`,

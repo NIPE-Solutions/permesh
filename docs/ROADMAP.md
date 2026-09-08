@@ -34,7 +34,7 @@ scoped approvals and guided GitHub setup are implemented. Core now separates
 principal dimensions, validates resource containment and distinguishes access
 evidence; access reports use JSON schema 2.
 
-Opt-in wire-5 discovery and health now carry these dimensions. Next are qualified
+Opt-in protocol-1 discovery and health now carry these dimensions. Next are qualified
 official emitters, explicit enterprise networking and target-aware provider pins. A
 whole-contract review remains required before SDK or protocol stability. The
 source changes do not qualify or replace published artifacts.
@@ -75,7 +75,7 @@ planned for this milestone.
 
 ## Negotiated discovery rollout
 
-Wire 5 supports explicit workspace discovery/health selection and the richer
+Negotiated protocol 1 supports explicit workspace discovery/health selection and the richer
 principal/resource/evidence model. It does not automatically update official
 provider artifacts. Next, qualify native emitters and compatible SDK pins, then
 review setup/auth operation migration and conformance tooling. Keep the protocol

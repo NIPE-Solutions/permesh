@@ -61,27 +61,27 @@ use std::io::{BufRead, Write};
 fn main() {
     let mut lines = std::io::stdin().lock().lines();
     let request = lines.next().unwrap().unwrap();
-    assert!(request.contains("\"protocol\":5"));
+    assert!(request.contains("\"protocol_version\":1"));
     let check = request.contains("\"operation\":\"check\"");
     assert!(check || request.contains("\"operation\":\"discover\""));
-    println!("{}", r#"{"protocol":5,"id":"handshake","event":"handshake","provider":"fixture","capabilities":["accounts","identities","resources","grants"],"operations":["check","discover"],"draft":true}"#);
+    println!("{}", r#"{"protocol_version":1,"id":"handshake","event":"handshake","provider":"fixture","capabilities":["accounts","identities","resources","grants"],"operations":["check","discover"],"draft":true}"#);
     std::io::stdout().flush().unwrap();
     let request = lines.next().unwrap().unwrap();
-    assert!(request.contains("\"protocol\":5"));
+    assert!(request.contains("\"protocol_version\":1"));
     assert!(request.contains("\"configuration\":{}"));
     assert!(request.contains("\"credentials\":{}"));
     if check {
         assert!(request.contains("\"method\":\"check\""));
-        println!("{}", r#"{"protocol":5,"id":"check","event":"health","status":"ok","limitations":[]}"#);
+        println!("{}", r#"{"protocol_version":1,"id":"check","event":"health","status":"ok","limitations":[]}"#);
     } else {
         assert!(request.contains("\"method\":\"discover\""));
         for record in [
-            r#"{"protocol":5,"id":"discover","event":"record","kind":"identity","data":{"id":"robot@example.com","kind":"service","affiliation":"external","status":"inactive","verified_emails":["robot@example.com"]}}"#,
-            r#"{"protocol":5,"id":"discover","event":"record","kind":"account","data":{"key":{"provider":"instance","id":"robot"},"login":"robot","kind":"service","affiliation":"external","status":"inactive","verified_emails":["robot@example.com"]}}"#,
-            r#"{"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"instance","id":"org"},"name":"Organization","kind":"fixture.organization","parent":null}}"#,
-            r#"{"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"instance","id":"repo"},"name":"Repository","kind":"fixture.repository","parent":{"provider":"instance","id":"org"}}}"#,
-            r#"{"protocol":5,"id":"discover","event":"record","kind":"grant","data":{"id":"policy","subject":{"kind":"account","key":{"provider":"instance","id":"robot"}},"resource":{"provider":"instance","id":"repo"},"role":"Reader","privilege":"standard","certainty":"derived","evidence_kind":"policy_attachment","provenance":{"method":"synthetic fixture","observed_at":"2026-01-01T00:00:00Z"}}}"#,
-            r#"{"protocol":5,"id":"discover","event":"complete","count":5,"complete":true,"limitations":[]}"#,
+            r#"{"protocol_version":1,"id":"discover","event":"record","kind":"identity","data":{"id":"robot@example.com","kind":"service","affiliation":"external","status":"inactive","verified_emails":["robot@example.com"]}}"#,
+            r#"{"protocol_version":1,"id":"discover","event":"record","kind":"account","data":{"key":{"provider":"instance","id":"robot"},"login":"robot","kind":"service","affiliation":"external","status":"inactive","verified_emails":["robot@example.com"]}}"#,
+            r#"{"protocol_version":1,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"instance","id":"org"},"name":"Organization","kind":"fixture.organization","parent":null}}"#,
+            r#"{"protocol_version":1,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"instance","id":"repo"},"name":"Repository","kind":"fixture.repository","parent":{"provider":"instance","id":"org"}}}"#,
+            r#"{"protocol_version":1,"id":"discover","event":"record","kind":"grant","data":{"id":"policy","subject":{"kind":"account","key":{"provider":"instance","id":"robot"}},"resource":{"provider":"instance","id":"repo"},"role":"Reader","privilege":"standard","certainty":"derived","evidence_kind":"policy_attachment","provenance":{"method":"synthetic fixture","observed_at":"2026-01-01T00:00:00Z"}}}"#,
+            r#"{"protocol_version":1,"id":"discover","event":"complete","count":5,"complete":true,"limitations":[]}"#,
         ] { println!("{record}"); }
     }
     std::io::stdout().flush().unwrap();
@@ -135,13 +135,13 @@ fn approved_negotiated_workspace_preserves_rich_schema_two_and_schema_one_health
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().canonicalize().unwrap();
     let mut config = fixture(&root);
-    config["providers"][0]["external"]["discovery_protocol"] = json!("negotiated_v5");
+    config["providers"][0]["external"]["discovery_protocol"] = json!("negotiated_v1");
     write_config(&root, &config);
     let review = approve(&root);
-    assert_eq!(review["result"]["discovery_protocol"], "negotiated_v5");
+    assert_eq!(review["result"]["discovery_protocol"], "negotiated_v1");
     let human = run(&root, &["provider", "external", "review", "instance"]);
     assert!(human.status.success(), "{human:?}");
-    assert!(String::from_utf8_lossy(&human.stdout).contains("negotiated_v5"));
+    assert!(String::from_utf8_lossy(&human.stdout).contains("negotiated_v1"));
     let report = success(&root, &["user", "robot@example.com", "--json"]);
     assert_eq!(report["schema_version"], 2);
     assert_eq!(report["complete"], true);
@@ -178,7 +178,7 @@ fn changing_protocol_invalidates_approval_before_credentials_are_resolved() {
     let human = run(&root, &["provider", "external", "review", "instance"]);
     assert!(human.status.success());
     assert!(!String::from_utf8_lossy(&human.stdout).contains("Discovery protocol"));
-    config["providers"][0]["external"]["discovery_protocol"] = json!("negotiated_v5");
+    config["providers"][0]["external"]["discovery_protocol"] = json!("negotiated_v1");
     write_config(&root, &config);
     let review = success(
         &root,

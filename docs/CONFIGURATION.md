@@ -88,8 +88,8 @@ references, pins the registered digest, and leaves workspace approval explicit.
 
 ## External discovery contract
 
-External instances may set `external.discovery_protocol: negotiated_v5` when their
-trusted executable implements [wire 5](provider-protocol/negotiated-v5.md). Omission
+External instances may set `external.discovery_protocol: negotiated_v1` when their
+trusted executable implements [negotiated protocol 1](provider-protocol/negotiated-v1.md). Omission
 or `legacy` retains draft-2 configured discovery/health and serializes without the
 new field. Other values are rejected. Selection affects only discovery and health;
 setup/browser-auth descriptions keep their existing contracts.
