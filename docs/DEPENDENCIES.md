@@ -69,3 +69,11 @@ reaping, not confirmation that every descendant has exited.
 Earlier no-download dependency notes describe the pre-distribution milestone.
 Runtime downloads now occur only through explicit install/update commands; there
 is still no telemetry, scheduled updater or remote configuration service.
+
+The selected DEFLATE backend adds `zlib-rs` 0.6.7, licensed under
+[Zlib](https://github.com/trifectatechfoundation/zlib-rs/blob/main/LICENSE),
+copyright Trifecta Tech Foundation. Its source notice must be preserved and
+modified source must be marked. `deny.toml` permits Zlib only for this exact
+reviewed package version; future versions require another review. This keeps the
+rest of the license policy unchanged. The remaining new ZIP dependencies
+(crc32fast, flate2 and typed-path) use MIT OR Apache-2.0.
