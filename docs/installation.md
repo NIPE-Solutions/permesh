@@ -47,6 +47,52 @@ Run `./permesh --version` (Windows: `.\permesh.exe --version`) from that directo
 
 Try the [offline demo](getting-started.md#evaluate-offline), then configure providers explicitly. Installation itself does not fetch provider data or store credentials.
 
+## Alpha.2 candidate and release provenance
+
+Alpha.2 is currently a release candidate. Do not infer publication or successful
+attestation from this guide. Its eventual release page must identify the exact
+reviewed source commit, successful same-run workflow and downloadable bundle.
+Alpha.1 assets are historical and are not retroactively attested.
+
+For an alpha.2 archive, inventory or checksum obtained from a qualified candidate
+run or future published release, first verify the file with a current GitHub CLI:
+
+```sh
+gh attestation verify DOWNLOADED_FILE \
+  --repo NIPE-Solutions/permesh \
+  --cert-identity https://github.com/NIPE-Solutions/permesh/.github/workflows/attested-candidates.yml@refs/heads/main \
+  --source-ref refs/heads/main \
+  --source-digest REVIEWED_40_CHARACTER_COMMIT_SHA \
+  --signer-digest REVIEWED_40_CHARACTER_COMMIT_SHA \
+  --predicate-type https://slsa.dev/provenance/v1 \
+  --deny-self-hosted-runners
+```
+
+Use the full reviewed source SHA recorded for that exact artifact set. Repeat
+with `--bundle attestation-bundle.json` to verify the distributed bundle. The
+bundle is mandatory for alpha.2 publication but is not itself a trust root;
+Sigstore trust-data retrieval can still require network access. Stop on a nonzero
+exit, unexpected identity or mismatched digest. A matching checksum alone is
+insufficient. Continue with checksum verification and extraction only after
+provenance verification succeeds.
+
+To independently inspect a complete set, put exactly the five archives, five
+inventories and ten checksum files in `candidate-files/`; keep the bundle outside
+that directory. From a checkout of the recorded revision, run:
+
+```sh
+python3 scripts/verify_candidates.py candidate-files \
+  --version 0.1.0-alpha.2 --lockfile Cargo.lock \
+  --source-sha REVIEWED_40_CHARACTER_COMMIT_SHA \
+  --bundle attestation-bundle.json
+```
+
+The helper checks all 20 subjects, archive contents and inventory bindings before
+accepting signatures. For native Actions download directories, use the layout
+and `--artifact-run-sha` option in [artifact attestations](artifact-attestations.md).
+These checks establish signed build provenance, not Apple notarization, Windows
+Authenticode, reproducible builds or safe source behavior.
+
 ## Upgrade or uninstall
 
 To upgrade, download and verify the desired release and replace the executable while it is not running. There is no CLI self-update or background update check. `provider update` manages separate provider packages and does not update the CLI.

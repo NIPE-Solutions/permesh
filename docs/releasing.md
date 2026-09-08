@@ -12,6 +12,39 @@ Packaging includes the exact project MIT `LICENSE` and complete source-supplied 
 
 Private vulnerability reporting was enabled and verified via the repository API on 2026-09-08. The reporting route is linked in [SECURITY.md](../SECURITY.md).
 
+## Additional alpha.2 publication gates
+
+Alpha.2 must satisfy every alpha gate above **and** all of the following. These
+are requirements, not claims that a candidate or release has already passed.
+
+1. Merge the reviewed release source into `main`, record its full commit SHA,
+   and dispatch the manual attested-candidate workflow with that exact SHA. A
+   successful PR candidate run, a different merge revision, or a later rebuild
+   cannot substitute for this run.
+2. Require all five native jobs and the downstream attestation verification job
+   from that same run to succeed. Independently verify the complete 20-file set:
+   five archives, five dependency inventories, and their ten checksum files.
+   Check archive allowlists, binary/version/target bindings and reviewed lockfile
+   digests, then verify each signed subject against the repository, exact signing
+   workflow identity, source and signer SHA, `refs/heads/main`, SLSA v1 predicate
+   and GitHub-hosted-runner restriction in the [verification procedure](artifact-attestations.md).
+3. Download the successfully verified same-run `attestation-bundle.json`. Publish
+   that exact bundle alongside all 20 original candidate files in the draft
+   alpha.2 prerelease. Record the full source SHA, workflow run URL, artifact
+   names, sizes and SHA-256 hashes. Do not rebuild, recompress or alter a subject
+   after verification; keep the immutable alpha.1 assets unchanged.
+4. Download the staged release assets independently, compare all 20 subjects and
+   the bundle with the qualified originals, and rerun verification. Publish only
+   after those checks pass. After publication, verify all 20 files using the
+   public repository attestation lookup as well as the distributed bundle; record
+   both results and their commands on the release page. A lookup, subject or
+   bundle failure blocks a claim that the public release is fully verified.
+
+The 20 subjects receive signed build provenance. Their executables still have no
+Apple Developer ID/notarization or Windows Authenticode signatures. Provenance
+is therefore mandatory for alpha.2 publication; platform signing, standards SBOM
+adoption and the live/desktop acceptance gates remain separate unfinished work.
+
 ## Stable release gates
 
 1. Run locked build, fmt, clippy, unit/integration/doc tests, and the Python example tests on the reviewed revision. Require Ubuntu, macOS, and Windows CI, plus the declared Rust minimum check.
@@ -92,8 +125,8 @@ resolution, tooling fork, or generator install was added to CI. Reevaluate a
 maintained generator release with a clean reviewed lockfile before completing the
 standards SBOM gate. Also account for the documented
 [target-feature overapproximation](https://github.com/CycloneDX/cyclonedx-rust-cargo/issues/871)
-when describing Cargo-derived inventories. Signing, notarization and provenance
-attestations remain separate open distribution decisions.
+when describing Cargo-derived inventories. Platform signing and notarization remain
+open; alpha.2 provenance verification is required by the publication gates above.
 
 ## Automated Unix terminal acceptance
 
@@ -117,8 +150,8 @@ python3 scripts/check_terminal.py target/debug/permesh
 These checks supply runner-specific terminal evidence only after the corresponding
 native job succeeds. They do not qualify Windows terminal behavior, interactive
 desktop credential stores, or manual accessibility/terminal-emulator acceptance.
-They create no SBOM, signatures, notarization, or provenance attestations; those
-distribution decisions remain open.
+These PTY checks do not generate SBOMs or signatures. The separate attested
+workflow supplies provenance; platform signing and notarization remain open.
 
 ## Earlier tool evaluation (2026-09-08)
 
@@ -128,7 +161,7 @@ distribution decisions remain open.
 
 CI installs [cargo-deny](https://embarkstudios.github.io/cargo-deny/) and [cargo-audit](https://github.com/rustsec/rustsec/tree/main/cargo-audit) from exact reviewed versions using `cargo install --locked`. The action revisions were resolved from the upstream GitHub tag API on 2026-09-08: checkout v4 `11d5960a326750d5838078e36cf38b85af677262`, setup-python v5 `a26af69be951a213d495a4c3e4e4022e16d87065`. Renovation of these pins needs review; a SHA is immutable identity, not a security audit. Hosted runner images and stable Rust intentionally track maintained versions; the minimum-version job detects baseline drift.
 
-## Unsigned native candidates
+## Native candidate builds without platform signing
 
 [Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check and Unix terminal acceptance where supported, and packages only that binary, `LICENSE` (MIT license text), `THIRD-PARTY-NOTICES.txt`, and static `INSTALL.txt`. The archive, dependency-inventory JSON, and their adjacent SHA-256 checksums enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
 
@@ -156,7 +189,7 @@ python3 scripts/smoke_candidate.py target/aarch64-apple-darwin/release/permesh
 python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1.0-alpha.2 --output candidate-output
 ```
 
-Use `python` and `permesh.exe` on Windows. `candidate-output` must not already exist, and its parent path must be free of symlinks (use a canonical path if your temporary directory is aliased). The smoke helper uses an automatically removed synthetic workspace; it performs no live-provider or credential-store validation. Candidates include local invocation and uninstall instructions. All candidates remain unsigned and unnotarized. Candidate jobs alone do not authorize promotion: complete the alpha publication checks above. Stable native credential-store and live-provider qualification remains open.
+Use `python` and `permesh.exe` on Windows. `candidate-output` must not already exist, and its parent path must be free of symlinks (use a canonical path if your temporary directory is aliased). The smoke helper uses an automatically removed synthetic workspace; it performs no live-provider or credential-store validation. Candidates include local invocation and uninstall instructions. Candidate executables remain without platform code signatures or notarization. Standalone candidate jobs create no provenance attestations; the downstream job in the separate attested workflow signs and verifies its same-run subjects. Candidate jobs alone do not authorize promotion: complete the alpha publication checks above. Stable native credential-store and live-provider qualification remains open.
 
 Keep cargo-dist deferred while releases use manual promotion of these bounded, reviewed artifacts. Reevaluate it when adding installers or package-manager distribution; do not grow this helper into a release framework.
 
