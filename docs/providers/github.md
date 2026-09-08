@@ -1,5 +1,9 @@
 # GitHub provider
 
+Existing bundled GitHub instances remain supported. To switch one to an already
+trusted external binary without credential access or execution, use the
+[explicit migration command](../github-migration.md).
+
 The official adapter supports GitHub.com organizations. It sends only GET requests to `https://api.github.com`, using REST API version `2026-03-10`. Enterprise/custom endpoints are not configurable. Inspection never changes permissions or invitations.
 
 ## Credentials and health

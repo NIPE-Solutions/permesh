@@ -16,7 +16,7 @@
 }
 ```
 
-`command` is one of `init`, `provider_add`, `provider_setup`, `provider_setup_describe`, `provider_list`, `provider_capabilities`, `provider_status`, `auth_login`, `auth_logout`, `auth_status`, `doctor`, `user`, `admins`, `orphaned`, `version`. Times use UTC RFC3339. They delimit the command collection window, not a cross-provider transaction.
+Common `command` values include `init`, `provider_add`, `provider_migrate`, `provider_setup`, `provider_setup_describe`, `provider_list`, `provider_capabilities`, `provider_status`, `auth_login`, `auth_logout`, `auth_status`, `doctor`, `user`, `admins`, `orphaned`, `version`. Times use UTC RFC3339. They delimit the command collection window, not a cross-provider transaction.
 
 `providers` is sorted by instance ID. Each entry has `id`, `kind`, `state` (`connected`, `partial`, `failed`), curated `message`, and `limitations` array. `complete` describes completion within supported adapter scope. Even true does not certify exhaustive effective authorization. Failures never appear as empty successful provider snapshots.
 
@@ -149,3 +149,19 @@ otherwise it contains `release` and the absolute local `executable` path.
 `changed` describes installation, never workspace adoption. No compatible release
 produces the ordinary versioned error envelope. Check-only update availability is
 informational and does not return audit-findings exit 1.
+
+## Provider migration
+
+`provider_migrate` returns `{id, provider, sha256, file, changed, trust_changed,
+approval_records_changed, execution_approvals_require_review, credentials_resolved,
+message, next}`. `id` is the preserved workspace instance, `provider` is `github`,
+`sha256` is the reviewed trusted digest, and `file` is the canonical workspace
+path. Successful conversion sets `changed: true`, `trust_changed: false`,
+`approval_records_changed: false`, `execution_approvals_require_review: true` and
+`credentials_resolved: false`. No credential references or values are included.
+
+This describes an explicit configuration conversion, not authentication or access
+discovery. Approval records remain stored, but their old whole-workspace
+fingerprints no longer approve the changed configuration. Repeated conversion of
+an already external instance returns input error 2 without rewriting it. See
+[migration behavior and exit codes](github-migration.md).

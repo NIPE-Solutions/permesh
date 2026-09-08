@@ -28,9 +28,19 @@ def check():
         answers = root / 'answers.yaml'
         config = workspace / 'permesh.yaml'
 
-        def run(*args, code=0, cwd=workspace):
+        def run(*args, code=0, cwd=workspace, small_stack=False):
+            def constrain_stack():
+                import resource
+                # Exercise the real CLI with less headroom than the Windows
+                # main stack; nested async supervisor polling must remain bounded.
+                _, hard = resource.getrlimit(resource.RLIMIT_STACK)
+                limit = 768 * 1024
+                if hard != resource.RLIM_INFINITY:
+                    limit = min(limit, hard)
+                resource.setrlimit(resource.RLIMIT_STACK, (limit, hard))
             result = subprocess.run([str(binary), *args, '--json'], cwd=cwd, env=env,
-                                    capture_output=True, timeout=80)
+                                    capture_output=True, timeout=80,
+                                    preexec_fn=constrain_stack if small_stack and os.name != 'nt' else None)
             assert result.returncode == code, (args, result.returncode, result.stdout, result.stderr)
             assert not result.stderr and b'\x1b' not in result.stdout
             assert b'SENTINEL_PRIVATE' not in result.stdout
@@ -55,9 +65,10 @@ def check():
         before = config.read_bytes()
         for values in ({}, {'token': 'SENTINEL_PRIVATE'}, {'token': 'env://TOKEN', 'client_id': 'inactive'},
                        {'token': 'env://TOKEN', 'unknown': True}, {'token': 'keychain://other/token'},
-                       {'token': 'env://TOKEN', 'port': 65536}, {'token': 'env://TOKEN', 'enabled': 'true'}):
+                       {'token': 'env://TOKEN', 'port': 65536}, {'token': 'env://TOKEN', 'enabled': 'true'},
+                       {'unknown': 'SENTINEL_PRIVATE' + 'x' * 32768}):
             answers.write_text(json.dumps({'version': 1, 'answers': values}))
-            run('provider', 'setup', 'fixture', '--id', 'internal-main', '--answers', str(answers), code=2)
+            run('provider', 'setup', 'fixture', '--id', 'internal-main', '--answers', str(answers), code=2, small_stack=True)
             assert config.read_bytes() == before
         answers.write_text('version: 1\nanswers:\n  token: env://PERMESH_SETUP_TOKEN\n  regions: [eu, us]\n  metadata: {owner: synthetic}\n')
         run('provider', 'setup', 'fixture', '--id', 'internal-main', '--answers', str(answers), '--authoritative')

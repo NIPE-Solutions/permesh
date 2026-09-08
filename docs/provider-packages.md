@@ -110,3 +110,11 @@ No background update checks exist. Access queries, doctor, authentication and
 setup never contact the catalog. Installation sends no access data or credentials
 to GitHub; see [privacy](privacy.md). Local same-user malicious processes remain
 outside the filesystem race protections, as with existing trust storage.
+
+## Existing bundled GitHub instances
+
+After explicitly trusting the external GitHub executable, migrate one existing
+instance with `permesh provider migrate INSTANCE --sha256 DIGEST`. The digest may
+refer to a retained older trusted registration. The command preserves IDs, aliases
+and token references and requires fresh workspace approval before execution.
+See the [migration guide](github-migration.md) for exact behavior and limits.
