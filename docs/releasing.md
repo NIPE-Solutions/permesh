@@ -38,6 +38,63 @@ At that revision, Windows Credential Manager and Linux Secret Service integratio
 
 An [initial live smoke test](getting-started.md#live-validation) passed on macOS Apple Silicon on 2026-09-08 using an uncommitted development build. This supplies early integration evidence for connectivity and observed access, but does not qualify a release revision or complete the broader credentialed exercise in gate 3. Public demo documentation contains no live identities, resource identifiers, access counts, credentials, or raw reports.
 
+## Candidate dependency inventory
+
+Each new native candidate includes an adjacent
+`permesh-VERSION-TARGET.dependencies.json` and its own `.sha256` file. This is
+Permesh inventory format version 1, not a CycloneDX/SPDX SBOM or an attestation.
+The archive contents remain the same four files. Existing published alpha assets
+are not retroactively changed.
+
+The inventory records the executable SHA-256, Cargo.lock SHA-256, target, version,
+and normal/build dependency edges from the same locked, target-filtered Cargo
+metadata used for dependency notices. Dev-only dependencies are excluded. Each
+package has a name, version, source category (`local` or `crates.io`), and, for
+registry packages, the crate checksum from Cargo.lock. Output is deterministic
+for identical inputs; metadata paths, authors, descriptions, arbitrary package
+metadata, environment values and registry URLs are excluded. Unknown registries
+and Git sources require a separate review and currently fail packaging. The
+packager rejects a changed lockfile, missing registry checksums, a mismatched
+candidate version, linked inputs, and existing output directories.
+
+This is a Cargo dependency-resolution inventory with default features. Build
+edges are explicitly labeled, but proc macros and Cargo feature unification can
+make the graph broader than the machine code retained by the linker. It does not
+inventory system libraries, external provider executables or their dependencies,
+or establish vulnerability freedom, reproducible Rust builds or publisher
+identity. Complete dependency license texts still ship separately in the archive.
+
+### Standards generator evaluation (2026-09-08)
+
+[cargo-cyclonedx 0.5.9](https://docs.rs/crate/cargo-cyclonedx/0.5.9) is Apache-2.0,
+released 2026-03-19, with Rust 1.85 minimum according to its
+[changelog](https://github.com/CycloneDX/cyclonedx-rust-cargo/blob/main/cargo-cyclonedx/CHANGELOG.md).
+[cargo-sbom 0.10.0](https://docs.rs/crate/cargo-sbom/0.10.0) is MIT, released
+2025-06-17; its package manifest declares no Rust minimum. Neither is adopted.
+
+Auditing the registry-supplied tool lockfiles with cargo-audit 0.22.2 and fresh
+RustSec database revision `bf25f6575a93a35f30796c65c0ed91bee7fa19fd` found:
+
+- cargo-cyclonedx: time 0.3.36
+  ([RUSTSEC-2026-0009](https://rustsec.org/advisories/RUSTSEC-2026-0009.html)),
+  anyhow 1.0.80
+  ([RUSTSEC-2026-0190](https://rustsec.org/advisories/RUSTSEC-2026-0190.html)),
+  rand 0.8.5
+  ([RUSTSEC-2026-0097](https://rustsec.org/advisories/RUSTSEC-2026-0097.html)),
+  and yanked xml-rs 0.8.19.
+- cargo-sbom: anyhow 1.0.98 (RUSTSEC-2026-0190). Default audit exit status was
+  zero because this is an informational unsoundness warning; the JSON warning
+  records were reviewed as well as the exit status.
+
+These findings concern the generators' own locked dependencies, not Permesh's
+production dependency graph. No advisory exceptions, floating tool dependency
+resolution, tooling fork, or generator install was added to CI. Reevaluate a
+maintained generator release with a clean reviewed lockfile before completing the
+standards SBOM gate. Also account for the documented
+[target-feature overapproximation](https://github.com/CycloneDX/cyclonedx-rust-cargo/issues/871)
+when describing Cargo-derived inventories. Signing, notarization and provenance
+attestations remain separate open distribution decisions.
+
 ## Earlier tool evaluation (2026-09-08)
 
 [cargo-dist](https://axodotdev.github.io/cargo-dist/book/) 0.32.0 is the candidate for future cross-platform archives, installers, and release orchestration. Defer adopting its generated workflow until repository identity, target support, signing strategy, and the gates above are settled. Generating an installer now would imply a distribution promise the project has not validated. Review generated workflows and pin their actions; do not execute downloaded installer scripts in CI.
@@ -48,7 +105,7 @@ CI installs [cargo-deny](https://embarkstudios.github.io/cargo-deny/) and [cargo
 
 ## Unsigned native candidates
 
-[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (MIT license text), `THIRD-PARTY-NOTICES.txt`, and static `INSTALL.txt`. Only the archive and adjacent SHA-256 checksum enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
+[Native candidates](../.github/workflows/candidates.yml) runs on pull requests or manual `workflow_dispatch`; it has no tag, publication, registry, or GitHub Release step. Repository permissions are `contents: read`, checkout does not persist credentials, and artifacts expire after seven days. Each job verifies that the Rust host matches its target, runs locked native workspace tests, builds the optimized binary, runs the offline demo smoke check, and packages only that binary, `LICENSE` (MIT license text), `THIRD-PARTY-NOTICES.txt`, and static `INSTALL.txt`. The archive, dependency-inventory JSON, and their adjacent SHA-256 checksums enter the uploaded artifact. No workspace, credentials, configuration, access report, or runner log is uploaded by this workflow.
 
 | Candidate target | Native GitHub runner | Archive |
 | --- | --- | --- |

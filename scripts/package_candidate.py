@@ -12,6 +12,7 @@ import tarfile
 import zipfile
 
 import dependency_notices
+import dependency_inventory
 
 TARGETS = (
     'aarch64-apple-darwin', 'x86_64-apple-darwin',
@@ -44,7 +45,7 @@ def regular_bytes(root, relative):
     path = root
     for part in relative.parts:
         path = path / part
-        if path.is_symlink():
+        if path.is_symlink() or path.is_junction():
             raise ValueError('candidate input must not contain symlinks')
     if not stat.S_ISREG(path.stat().st_mode):
         raise ValueError('candidate input must be a regular file')
@@ -58,6 +59,7 @@ def package(root, target, version, output):
     executable = 'permesh.exe' if 'windows' in target else 'permesh'
     entries = [(executable, regular_bytes(root, Path('target') / target / 'release' / executable), 0o755)]
     entries += [(name, regular_bytes(root, Path(name)), 0o644) for name in ('LICENSE',)]
+    lock_bytes = regular_bytes(root, Path('Cargo.lock'))
     metadata = json.loads(subprocess.run(
         ['cargo', '+stable', 'metadata', '--locked', '--format-version', '1',
          '--filter-platform', target, '--manifest-path', str(root / 'Cargo.toml')],
@@ -65,8 +67,11 @@ def package(root, target, version, output):
     ).stdout)
     entries.append(('THIRD-PARTY-NOTICES.txt', dependency_notices.bundle(root, metadata), 0o644))
     entries.append(('INSTALL.txt', INSTALL, 0o644))
+    inventory = dependency_inventory.bundle(metadata, lock_bytes, target, version, entries[0][1])
+    if regular_bytes(root, Path('Cargo.lock')) != lock_bytes:
+        raise ValueError('lockfile changed during candidate preparation')
     output = Path(output).absolute()
-    if any(parent.is_symlink() for parent in (output, *output.parents)):
+    if any(parent.is_symlink() or parent.is_junction() for parent in (output, *output.parents)):
         raise ValueError('candidate output must not contain symlinks')
     # Require a new directory: never merge with a workspace or previous output.
     output.mkdir()
@@ -87,9 +92,13 @@ def package(root, target, version, output):
                         info = tarfile.TarInfo(name)
                         info.size, info.mode, info.mtime = len(data), mode, 0
                         stream.addfile(info, io.BytesIO(data))
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    with archive.with_name(archive.name + '.sha256').open('x', encoding='ascii', newline='\n') as checksum:
-        checksum.write(f'{digest}  {archive.name}\n')
+    inventory_path = output / f'permesh-{version}-{target}.dependencies.json'
+    with inventory_path.open('xb') as inventory_file:
+        inventory_file.write(inventory)
+    for artifact in (archive, inventory_path):
+        digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        with artifact.with_name(artifact.name + '.sha256').open('x', encoding='ascii', newline='\n') as checksum:
+            checksum.write(f'{digest}  {artifact.name}\n')
     return archive
 
 
