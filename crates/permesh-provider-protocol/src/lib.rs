@@ -3,7 +3,9 @@
 mod framing;
 mod session;
 mod wire;
-pub use session::{DiscoveryDecoder, HealthDecoder, Progress, SetupDecoder, validate_discovery};
+pub use session::{
+    BrowserAuthDecoder, DiscoveryDecoder, HealthDecoder, Progress, SetupDecoder, validate_discovery,
+};
 pub use wire::{handshake_request, handshake_request_versioned};
 
 pub const PROTOCOL_VERSION: u32 = 1;

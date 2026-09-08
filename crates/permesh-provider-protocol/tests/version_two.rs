@@ -49,7 +49,7 @@ fn discovery_and_requests_pin_supported_versions() {
             DiscoveryDecoder::new_versioned("fixture", "main", None, version),
             Err(ProtocolError::Version)
         ));
-        if version != 3 {
+        if !matches!(version, 3 | 4) {
             assert_eq!(
                 handshake_request_versioned("main", version),
                 Err(ProtocolError::Version)

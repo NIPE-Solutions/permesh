@@ -11,6 +11,12 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest.workspace = true
+url = "2"
+bytes = "1"
+getrandom = "0.4"
+sha2 = { version = "0.11", default-features = false }
+base64 = "0.22"
 permesh-core.workspace = true
 permesh-config.workspace = true
 permesh-secrets.workspace = true
@@ -26,7 +32,7 @@ serde.workspace = true
 serde_json.workspace = true
 time.workspace = true
 rpassword.workspace = true
-zeroize = "1"
+zeroize = { version = "1", features = ["serde"] }
 
 tempfile.workspace = true
 

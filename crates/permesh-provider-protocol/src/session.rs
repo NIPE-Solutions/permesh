@@ -347,3 +347,47 @@ impl SetupDecoder {
         self.spec.ok_or(ProtocolError::Incomplete)
     }
 }
+
+/// Incremental draft4 browser-auth-description exchange. Only validated declarative
+/// specs are accepted; callers must observe EOF before obtaining the result.
+pub struct BrowserAuthDecoder {
+    session: Session,
+    spec: Option<permesh_provider_sdk::browser_auth::BrowserAuthSpec>,
+}
+impl BrowserAuthDecoder {
+    pub fn new(
+        provider: &str,
+        instance: &str,
+        capabilities: Option<&[Capability]>,
+    ) -> Result<Self, ProtocolError> {
+        Ok(Self {
+            session: Session::new(provider, instance, capabilities, 4)?,
+            spec: None,
+        })
+    }
+    pub fn push_frame(&mut self, frame: &[u8]) -> Result<Progress, ProtocolError> {
+        let result = (|| {
+            let value = self.session.frame(frame)?;
+            let Some(event) = self.session.accept(value, "describe_auth")? else {
+                return Ok(Progress::Handshake);
+            };
+            match event {
+                Event::Auth { spec } => {
+                    spec.validate().map_err(|_| ProtocolError::Schema)?;
+                    self.spec = Some(spec);
+                    self.session.completed = true;
+                    Ok(Progress::Complete)
+                }
+                Event::Error { .. } => Err(ProtocolError::ProviderFailed),
+                _ => Err(ProtocolError::Sequence),
+            }
+        })();
+        self.session.remember(result)
+    }
+    pub fn finish(
+        self,
+    ) -> Result<permesh_provider_sdk::browser_auth::BrowserAuthSpec, ProtocolError> {
+        self.session.finish()?;
+        self.spec.ok_or(ProtocolError::Incomplete)
+    }
+}

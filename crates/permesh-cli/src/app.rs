@@ -75,6 +75,15 @@ pub async fn run(
         .map_err(|_| AppError::input("Cannot locate workspace configuration"))?;
     let config = permesh_config::Config::load(&path)?;
     match &cli.command {
+        Command::Auth {
+            command:
+                crate::args::AuthCommand::Login {
+                    id,
+                    browser: true,
+                    no_open,
+                    ..
+                },
+        } => crate::browser_login::run(&config, &path, id, *no_open, blocking, cancellation).await,
         Command::Auth { command } => auth::run(&config, command, cli.json, blocking).await,
         Command::Provider {
             command: ProviderCommand::List,

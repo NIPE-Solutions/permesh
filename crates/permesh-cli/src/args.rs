@@ -128,6 +128,14 @@ pub enum AuthCommand {
         token_stdin: bool,
         #[arg(long, help = "Named external credential slot")]
         credential: Option<String>,
+        #[arg(long, conflicts_with_all = ["token_stdin", "credential"], help = "Authorize in a browser using the provider's declared OAuth flow")]
+        browser: bool,
+        #[arg(
+            long,
+            requires = "browser",
+            help = "Print the authorization URL instead of opening a browser"
+        )]
+        no_open: bool,
     },
     /// Check whether credentials can be resolved, without contacting providers.
     Status { id: Option<String> },

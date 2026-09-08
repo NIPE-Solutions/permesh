@@ -1466,9 +1466,12 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 name = "permesh-cli"
 version = "0.1.0-alpha.1"
 dependencies = [
+ "base64 0.22.1",
+ "bytes",
  "clap",
  "clap_complete",
  "etcetera",
+ "getrandom 0.4.3",
  "permesh-config",
  "permesh-core",
  "permesh-provider-demo",
@@ -1476,12 +1479,15 @@ dependencies = [
  "permesh-provider-google",
  "permesh-provider-sdk",
  "permesh-secrets",
+ "reqwest",
  "rpassword",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "time",
  "tokio",
+ "url",
  "zeroize",
 ]
 
@@ -1573,6 +1579,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
+ "url",
 ]
 
 [[package]]
@@ -3063,6 +3070,9 @@ name = "zeroize"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "zerotrie"

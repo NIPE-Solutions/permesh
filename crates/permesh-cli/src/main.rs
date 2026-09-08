@@ -4,6 +4,8 @@ mod app;
 mod args;
 mod auth;
 mod blocking;
+mod browser_flow;
+mod browser_login;
 mod cancellation;
 mod collection;
 mod completion;
@@ -82,7 +84,7 @@ async fn main() -> ExitCode {
             biased;
             signal=tokio::signal::ctrl_c()=>{
                 cancellation.cancel();
-                let drains = matches!(cli.command, args::Command::Doctor | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Provider { command: args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) });
+                let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Provider { command: args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) });
                 if drains {
                     let result = operation.await;
                     if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json); }

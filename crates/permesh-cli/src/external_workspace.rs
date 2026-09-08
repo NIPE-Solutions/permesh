@@ -154,6 +154,18 @@ impl WorkspaceAccess {
             serde_json::json!({"workspace":path,"instance":id,"message":"Workspace execution approval revoked."}),
         )
     }
+    fn authorize(
+        &self,
+        config: &Config,
+        path: &Path,
+        id: &str,
+    ) -> Result<(PathBuf, Registration), AppError> {
+        let (executable, registration, fingerprint) = self.reviewed(config, path, id)?;
+        self.approvals()?
+            .verify(&workspace_path(path)?, id, &fingerprint)
+            .map_err(|_| approval_required())?;
+        Ok((executable, registration))
+    }
     fn prepare(
         &self,
         config: &Config,
@@ -170,11 +182,7 @@ impl WorkspaceAccess {
         {
             return Err(approval_required());
         }
-        let (executable, registration, fingerprint) = self.reviewed(config, path, &provider.id)?;
-        let path = workspace_path(path)?;
-        self.approvals()?
-            .verify(&path, &provider.id, &fingerprint)
-            .map_err(|_| approval_required())?;
+        let (executable, registration) = self.authorize(config, path, &provider.id)?;
         // This is deliberately the first credential-resolution point. Invalid,
         // cloned, revoked, or edited workspaces cannot touch env/keychain values.
         let external = external_config(actual)?;
@@ -225,6 +233,17 @@ pub(crate) fn prepare(
     }
     .prepare(config, path, provider)
 }
+/// Verify binary and the complete workspace approval without resolving credentials.
+pub(crate) fn authorize(
+    config: &Config,
+    path: &Path,
+    id: &str,
+) -> Result<(PathBuf, Registration), AppError> {
+    WorkspaceAccess {
+        root: storage_root()?,
+    }
+    .authorize(config, path, id)
+}
 pub(crate) fn metadata(provider: &ProviderConfig) -> Result<Metadata, AppError> {
     let (_, registration) = WorkspaceAccess {
         root: storage_root()?,
@@ -260,6 +279,30 @@ mod tests {
             "version":1,"organization":{"name":"test"},"providers":[{"id":"instance","type":"external","external":{"provider":"fixture","sha256":sha256,"configuration":{"endpoint":"example"},"credentials":{"token":"env://PERMESH_APPROVAL_TEST_UNAVAILABLE_CREDENTIAL_193756"}}}]
         }))?;
         Ok((temporary, WorkspaceAccess { root }, config, path))
+    }
+    #[test]
+    fn browser_authorization_requires_approval_but_never_resolves_credentials() -> TestResult {
+        let (_temporary, access, config, path) = setup(&[])?;
+        assert!(access.authorize(&config, &path, "instance").is_err());
+        let review = access
+            .review(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        let fingerprint = review.report.result["fingerprint"]
+            .as_str()
+            .ok_or("fingerprint")?;
+        access
+            .approve(&config, &path, "instance", fingerprint, true)
+            .map_err(|e| e.message)?;
+        access
+            .authorize(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        // The existing environment reference is deliberately unavailable.
+        assert!(
+            access
+                .prepare(&config, &path, &config.providers[0])
+                .is_err()
+        );
+        Ok(())
     }
     #[test]
     fn missing_approval_blocks_before_credential_resolution_and_review_is_reference_only()

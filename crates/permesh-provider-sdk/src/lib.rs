@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! Read-only adapter boundary. Providers never print or correlate identities.
+pub mod browser_auth;
 pub mod setup;
 use permesh_core::Snapshot;
 use serde::{Deserialize, Serialize};

@@ -123,3 +123,10 @@ store new credentials. Plaintext values in credential fields are rejected after
 the provider's field schema is known. Other settings must also be nonsecret;
 provider labels cannot safely classify an arbitrary pasted value. Use the explicit
 `auth login` workflow separately when a keychain credential needs storing.
+
+External providers may declare [browser authentication](browser-auth.md).
+`auth login INSTANCE --browser` requires prior workspace approval and writes only
+the declared, same-instance refresh-token keychain entry after successful PKCE
+login. It does not print or persist the returned access token. `--no-open` prints
+only the authorization URL for manual browser opening. Existing token-stdin and
+hidden-prompt login remain available separately.

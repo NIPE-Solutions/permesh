@@ -18,7 +18,7 @@ fn draft_three_never_enables_discovery() {
         Err(ProtocolError::Version)
     ));
     assert!(matches!(
-        handshake_request_versioned("fixture-main", 4),
+        handshake_request_versioned("fixture-main", 5),
         Err(ProtocolError::Version)
     ));
 }
