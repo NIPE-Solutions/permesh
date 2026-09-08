@@ -182,14 +182,18 @@ pub async fn run(
                     &config.identity.aliases,
                     &authorities,
                 )?;
-                outcome.report.result = serde_json::to_value(result)
-                    .map_err(|_| AppError::new(5, "Cannot serialize orphaned account review"))?;
+                outcome.report.result = serde_json::to_value(crate::schema1::OrphanedAccess::from(
+                    &result,
+                ))
+                .map_err(|_| AppError::new(5, "Cannot serialize orphaned account review"))?;
                 return Ok(outcome);
             }
             if matches!(cli.command, Command::Admins) {
                 let result = permesh_core::query_admins(&snapshots, &config.identity.aliases)?;
-                outcome.report.result = serde_json::to_value(result)
-                    .map_err(|_| AppError::new(5, "Cannot serialize privileged-access result"))?;
+                outcome.report.result = serde_json::to_value(crate::schema1::AdminAccess::from(
+                    &result,
+                ))
+                .map_err(|_| AppError::new(5, "Cannot serialize privileged-access result"))?;
                 return Ok(outcome);
             }
             let Command::User { identity } = &cli.command else {
@@ -197,8 +201,9 @@ pub async fn run(
             };
             match permesh_core::query_user(&snapshots, &config.identity.aliases, identity) {
                 Ok(result) => {
-                    outcome.report.result = serde_json::to_value(result)
-                        .map_err(|_| AppError::new(5, "Cannot serialize query result"))?;
+                    outcome.report.result =
+                        serde_json::to_value(crate::schema1::UserAccess::from(&result))
+                            .map_err(|_| AppError::new(5, "Cannot serialize query result"))?;
                 }
                 Err(permesh_core::DomainError::NotFound) if !outcome.report.complete => {
                     outcome.report.result = serde_json::json!({"identity":null,"accounts":[],"access":[],"message":"No match in available results; unavailable providers may contain this identity."});

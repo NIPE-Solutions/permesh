@@ -9,8 +9,8 @@ use permesh_config::{
     find_workspace, to_yaml,
 };
 use std::{
-    fs::OpenOptions,
-    io::{self, BufRead, IsTerminal, Write},
+    fs::{File, OpenOptions},
+    io::{self, BufRead, IsTerminal, Read, Write},
     path::{Path, PathBuf},
 };
 pub fn path(cli: &Cli) -> Result<PathBuf, AppError> {
@@ -76,6 +76,7 @@ pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outc
         },
     };
     let yaml = to_yaml(&config)?;
+    Config::from_bytes(yaml.as_bytes())?;
     let path = cli
         .config
         .clone()
@@ -106,16 +107,8 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         ));
     }
     let path = path(cli)?;
-    if std::fs::symlink_metadata(&path)
-        .map_err(|_| AppError::input("Cannot inspect configuration file"))?
-        .file_type()
-        .is_symlink()
-    {
-        return Err(AppError::input(
-            "Provider add refuses to replace a symlink. Edit its target explicitly.",
-        ));
-    }
-    let mut config = Config::load(&path)?;
+    let original = source(&path)?;
+    let mut config = Config::from_bytes(&original)?;
     let kind = match args.provider_type.as_str() {
         "google" => ProviderKind::Google,
         "external" => ProviderKind::External,
@@ -183,6 +176,46 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         });
     }
     let yaml = to_yaml(&config)?;
+    Config::from_bytes(yaml.as_bytes())?;
+    replace(&path, &original, yaml.as_bytes())?;
+    Outcome::new(
+        "provider_add",
+        serde_json::json!({"message":"Added provider. Configuration formatting was normalized; review the Git diff.","next":if kind == ProviderKind::External {format!("permesh provider external review {id}")}else{format!("permesh auth login {id}")}}),
+    )
+}
+
+pub(crate) fn source(path: &Path) -> Result<Vec<u8>, AppError> {
+    let metadata = std::fs::symlink_metadata(path)
+        .map_err(|_| AppError::input("Cannot inspect workspace configuration"))?;
+    if !metadata.is_file() {
+        return Err(AppError::input(
+            "Workspace update requires a regular configuration file; symlink replacement is not supported",
+        ));
+    }
+    let file =
+        File::open(path).map_err(|_| AppError::input("Cannot read workspace configuration"))?;
+    if !file
+        .metadata()
+        .map_err(|_| AppError::input("Cannot inspect workspace configuration"))?
+        .is_file()
+    {
+        return Err(AppError::input(
+            "Workspace update requires a regular configuration file",
+        ));
+    }
+    let mut bytes = Vec::new();
+    file.take(permesh_config::MAX_CONFIG_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| AppError::input("Cannot read workspace configuration"))?;
+    if bytes.len() > permesh_config::MAX_CONFIG_BYTES {
+        return Err(AppError::input("Workspace configuration exceeds 1 MiB"));
+    }
+    Ok(bytes)
+}
+/// Refuse an update when the captured workspace bytes changed before publishing.
+/// This is an optimistic check, not atomic compare-and-swap: another same-user
+/// writer can still change the file between the final read and rename.
+pub(crate) fn replace(path: &Path, original: &[u8], bytes: &[u8]) -> Result<(), AppError> {
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -190,16 +223,18 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
     let mut temporary = tempfile::NamedTempFile::new_in(parent)
         .map_err(|_| AppError::input("Cannot create temporary configuration file"))?;
     temporary
-        .write_all(yaml.as_bytes())
+        .write_all(bytes)
         .and_then(|()| temporary.as_file().sync_all())
         .map_err(|_| AppError::new(5, "Cannot write configuration"))?;
+    if source(path)? != original {
+        return Err(AppError::input(
+            "Workspace changed during this operation; no configuration was replaced. Run the command again using the current configuration.",
+        ));
+    }
     temporary
-        .persist(&path)
+        .persist(path)
         .map_err(|_| AppError::new(5, "Cannot replace configuration"))?;
-    Outcome::new(
-        "provider_add",
-        serde_json::json!({"message":"Added provider. Configuration formatting was normalized; review the Git diff.","next":if kind == ProviderKind::External {format!("permesh provider external review {id}")}else{format!("permesh auth login {id}")}}),
-    )
+    Ok(())
 }
 
 fn pairs(values: &[String]) -> Result<std::collections::BTreeMap<String, String>, AppError> {
@@ -215,4 +250,42 @@ fn pairs(values: &[String]) -> Result<std::collections::BTreeMap<String, String>
         }
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod write_tests {
+    use super::*;
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+    const ORIGINAL: &[u8] = b"version: 1\norganization: {name: Original}\nproviders: []\n";
+    const CHANGED: &[u8] = b"version: 1\norganization: {name: Edited}\nproviders: []\n";
+    const REPLACEMENT: &[u8] = b"version: 1\norganization: {name: Replacement}\nproviders: []\n";
+
+    #[test]
+    fn changed_workspace_revision_is_preserved_before_replacement() -> TestResult {
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("permesh.yaml");
+        std::fs::write(&path, ORIGINAL)?;
+        let original = source(&path).map_err(|e| e.message)?;
+        // Deterministic edit between capture and publish; no scheduling race.
+        std::fs::write(&path, CHANGED)?;
+        let error = replace(&path, &original, REPLACEMENT)
+            .err()
+            .ok_or("stale update replaced workspace")?;
+        assert_eq!(error.code, 2);
+        assert!(error.message.contains("changed"));
+        assert_eq!(std::fs::read(&path)?, CHANGED);
+        assert_eq!(std::fs::read_dir(temporary.path())?.count(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn unchanged_workspace_revision_can_be_replaced() -> TestResult {
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("permesh.yaml");
+        std::fs::write(&path, ORIGINAL)?;
+        let original = source(&path).map_err(|e| e.message)?;
+        replace(&path, &original, REPLACEMENT).map_err(|e| e.message)?;
+        assert_eq!(std::fs::read(&path)?, REPLACEMENT);
+        Ok(())
+    }
 }

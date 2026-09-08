@@ -71,8 +71,10 @@ Adding configuration does not approve execution or read credentials.
 
 Run `provider external review ID`, then `provider external approve ID
 --fingerprint FINGERPRINT --accept-risk` to approve the reviewed canonical config
-path, instance, full normalized configuration and native registration. Cloned
-paths and changes anywhere in the normalized configuration require fresh review.
+path, selected provider configuration, its identity aliases/authority and native
+registration. Cloned paths or changes to this context require fresh review.
+Unrelated provider and organization edits do not. Previous whole-workspace
+approvals require one fresh review; see [ADR 0017](adr/0017-provider-scoped-workspace-approval.md).
 `provider external revoke ID` removes that workspace permission. See the
 [complete workflow](external-providers.md).
 

@@ -1,0 +1,2 @@
+{"protocol":3,"id":"handshake","event":"handshake","provider":"fixture","capabilities":[],"draft":true}
+{"protocol":3,"id":"describe","event":"setup","spec":{"schema_version":1,"title":"Fixture setup","description":"Configure the fixture","steps":[{"id":"connection","title":"Connection","description":"Connection options","fields":[{"key":"tenant","label":"Tenant","help":"Directory name","required":true,"default":"acme","input":{"type":"text","min_length":1,"max_length":128}}]}]}}

@@ -1,0 +1,12 @@
+{
+  "accounts": [
+    {"account":{"key":{"provider":"app","id":"1"},"login":"login","kind":"unknown","verified_emails":[]},"identity":{"state":"resolved","identity":{"id":"person","kind":"unknown","status":"unknown","verified_emails":[]}}},
+    {"account":{"key":{"provider":"app","id":"1"},"login":"login","kind":"unknown","verified_emails":[]},"identity":{"state":"unmapped"}},
+    {"account":{"key":{"provider":"app","id":"1"},"login":"login","kind":"unknown","verified_emails":[]},"identity":{"state":"ambiguous","candidates":["one-conflicting-id"]}}
+  ],
+  "access": [],
+  "unknown_access": [],
+  "unresolved_grants": [
+    {"grant":{"id":"g","subject":{"kind":"group","key":{"provider":"app","id":"group"}},"resource":{"provider":"app","id":"resource"},"role":"Custom role","privilege":"unknown","certainty":"unknown","provenance":{"method":"fixture","observed_at":"2026-01-01T00:00:00Z"}},"resource":{"key":{"provider":"app","id":"resource"},"name":"Resource"},"group":null}
+  ]
+}

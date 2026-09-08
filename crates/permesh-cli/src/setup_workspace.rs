@@ -3,49 +3,17 @@ use crate::{args::Cli, error::AppError, report::Outcome};
 use permesh_config::{Config, ExternalConfig, IdentitySource, ProviderConfig, ProviderKind};
 use permesh_provider_external::trust::Registration;
 use permesh_provider_sdk::setup::ResolvedSetup;
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 pub struct Draft {
     path: PathBuf,
     original: Vec<u8>,
     config: Config,
 }
-fn source(path: &Path) -> Result<Vec<u8>, AppError> {
-    let metadata = std::fs::symlink_metadata(path)
-        .map_err(|_| AppError::input("Cannot inspect workspace configuration"))?;
-    if !metadata.is_file() {
-        return Err(AppError::input(
-            "Setup requires a regular configuration file; symlink replacement is not supported",
-        ));
-    }
-    let file =
-        File::open(path).map_err(|_| AppError::input("Cannot read workspace configuration"))?;
-    if !file
-        .metadata()
-        .map_err(|_| AppError::input("Cannot inspect workspace configuration"))?
-        .is_file()
-    {
-        return Err(AppError::input(
-            "Setup requires a regular configuration file",
-        ));
-    }
-    let mut bytes = Vec::new();
-    file.take(permesh_config::MAX_CONFIG_BYTES as u64 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| AppError::input("Cannot read workspace configuration"))?;
-    if bytes.len() > permesh_config::MAX_CONFIG_BYTES {
-        return Err(AppError::input("Workspace configuration exceeds 1 MiB"));
-    }
-    Ok(bytes)
-}
 impl Draft {
     pub fn load(cli: &Cli, id: &str) -> Result<Self, AppError> {
         let path = crate::workspace::path(cli)?;
-        let original = source(&path)?;
+        let original = crate::workspace::source(&path)?;
         let path = path
             .canonicalize()
             .map_err(|_| AppError::input("Cannot locate workspace configuration"))?;
@@ -89,24 +57,7 @@ impl Draft {
         }
         let yaml = permesh_config::to_yaml(&self.config)?;
         Config::from_bytes(yaml.as_bytes())?;
-        let parent = self
-            .path
-            .parent()
-            .ok_or_else(|| AppError::input("Cannot locate workspace directory"))?;
-        let mut temporary = tempfile::NamedTempFile::new_in(parent)
-            .map_err(|_| AppError::input("Cannot prepare workspace update"))?;
-        temporary
-            .write_all(yaml.as_bytes())
-            .and_then(|()| temporary.as_file().sync_all())
-            .map_err(|_| AppError::new(5, "Cannot write workspace update"))?;
-        if source(&self.path)? != self.original {
-            return Err(AppError::input(
-                "Workspace changed during setup; no configuration was replaced. Run setup again using the current configuration.",
-            ));
-        }
-        temporary
-            .persist(&self.path)
-            .map_err(|_| AppError::new(5, "Cannot replace workspace configuration"))?;
+        crate::workspace::replace(&self.path, &self.original, yaml.as_bytes())?;
         Outcome::new(
             "provider_setup",
             serde_json::json!({"id":id,"provider":registration.id,"sha256":registration.sha256,"file":self.path,"message":"Created provider instance. Review the configuration diff and execution approval before querying; credentials were not resolved or stored.","next":format!("permesh provider external review {id}")}),

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! Protected local approvals bind a complete reviewed configuration to one
+//! Protected local approvals bind a caller-supplied reviewed context to one
 //! canonical workspace file and registered provider. They contain no settings or
 //! credential references, only a versioned fingerprint of those reviewed inputs.
 use crate::{
@@ -89,8 +89,8 @@ fn digest(bytes: &[u8]) -> String {
         .map(|byte| format!("{byte:02x}"))
         .collect()
 }
-/// The caller supplies the complete normalized config, including aliases,
-/// authority, settings, and credential references, before resolving any secret.
+/// The caller supplies a versioned security context before resolving any secret.
+/// Workspace callers include the selected provider and relevant identity context.
 pub fn fingerprint(
     workspace: &Path,
     instance: &str,

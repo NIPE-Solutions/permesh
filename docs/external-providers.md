@@ -75,13 +75,15 @@ See [configuration](CONFIGURATION.md) and [named credentials](secrets.md).
 
 Review displays the parameters, credential references, source-authority settings
 and approval fingerprint without resolving secrets or executing the provider.
-The approval binds the canonical configuration-file path, instance ID, the full
-normalized workspace configuration, and the registration's ID, digest and
-capabilities. A clone at another path has no approval. Editing a setting, credential
-reference, alias, identity authority or another provider invalidates the approval;
+The approval binds the canonical configuration-file path, instance ID, selected
+provider configuration, its identity aliases/authority, and the registration's
+ID, digest and capabilities. A clone at another path has no approval. Editing a setting, credential
+reference, relevant alias or selected identity authority invalidates the approval;
 review and approve again. Formatting-only changes that leave the normalized
 configuration unchanged do not change the fingerprint. Credential rotation behind
-an unchanged reference does not itself change the approval.
+an unchanged reference does not itself change the approval. Unrelated provider
+and organization edits preserve approval. Previous whole-workspace approvals
+require one new review under [ADR 0017](adr/0017-provider-scoped-workspace-approval.md).
 
 Queries verify approval and the managed binary before resolving credentials or
 launching that external instance. An unapproved or changed instance fails closed;
@@ -142,7 +144,7 @@ or credentials. Approved draft-2 operations receive only that instance's
 `configuration` values and resolved named credentials through the dedicated stdin
 pipe, after the provider ID, version and capability set pass handshake validation.
 Credentials are not placed in child environment variables or command arguments.
-The full workspace configuration used to bind approval is not sent to the child.
+Surrounding workspace identity mappings and trust metadata are not sent to the child.
 Interpreted-provider registration remains unsupported. OS libraries and the local
 operating system remain trusted dependencies.
 

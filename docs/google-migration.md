@@ -47,9 +47,8 @@ Migration does not turn access tokens into refresh tokens or introduce any new
 OAuth authorization. Configure refresh-token authentication separately through
 the external provider's documented setup when required.
 
-Review the Git diff. YAML formatting/comments are normalized. All external
-execution approvals for this workspace require a new review, because approvals
-bind the full configuration. Existing approval records are not removed or
+Review the Git diff. YAML formatting/comments are normalized. The migrated instance requires a new execution approval because its provider
+context changed. Unrelated instances retain their scoped approvals. Existing approval records are not removed or
 silently renewed. Approve the new fingerprints explicitly before querying.
 
 The command refuses missing/wrong registrations, missing identity capability,

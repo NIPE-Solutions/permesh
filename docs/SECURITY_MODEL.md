@@ -12,8 +12,8 @@ External native binaries require explicit user-local registration of reviewed
 bytes, digest, provider ID and capabilities. Standalone draft-1 discovery is an
 explicit command and receives no credentials. Draft-2 workspace health and access
 queries additionally require protected local approval of the canonical config
-path, instance, full normalized configuration and registration. Configuration,
-alias, authority, reference or registration changes invalidate approval; a clone
+path, instance, selected provider configuration and registration. Relevant
+alias, authority, settings, reference or registration changes invalidate approval; a clone
 at another path cannot inherit it. Approval is checked before resolving external
 credentials or launching the managed copy. The handshake must match version, ID
 and capabilities before the operation and named credentials are sent on stdin.

@@ -1,0 +1,123 @@
+{
+  "access": [
+    {
+      "account": {
+        "id": "100",
+        "provider": "demo"
+      },
+      "grant": {
+        "certainty": "observed",
+        "id": "grant-1",
+        "privilege": "standard",
+        "provenance": {
+          "method": "synthetic demo fixture",
+          "observed_at": "2026-01-01T00:00:00Z"
+        },
+        "resource": {
+          "id": "repo-20",
+          "provider": "demo"
+        },
+        "role": "Write",
+        "subject": {
+          "key": {
+            "id": "team-10",
+            "provider": "demo"
+          },
+          "kind": "group"
+        }
+      },
+      "groups": [
+        {
+          "key": {
+            "id": "team-10",
+            "provider": "demo"
+          },
+          "name": "team/backend"
+        }
+      ],
+      "memberships": [
+        {
+          "group": {
+            "id": "team-10",
+            "provider": "demo"
+          },
+          "member": {
+            "key": {
+              "id": "100",
+              "provider": "demo"
+            },
+            "kind": "account"
+          },
+          "provenance": {
+            "method": "synthetic demo fixture",
+            "observed_at": "2026-01-01T00:00:00Z"
+          }
+        }
+      ],
+      "resource": {
+        "key": {
+          "id": "repo-20",
+          "provider": "demo"
+        },
+        "name": "acme/payments-api"
+      }
+    },
+    {
+      "account": {
+        "id": "100",
+        "provider": "demo"
+      },
+      "grant": {
+        "certainty": "observed",
+        "id": "grant-2",
+        "privilege": "standard",
+        "provenance": {
+          "method": "synthetic demo fixture",
+          "observed_at": "2026-01-01T00:00:00Z"
+        },
+        "resource": {
+          "id": "repo-21",
+          "provider": "demo"
+        },
+        "role": "Read",
+        "subject": {
+          "key": {
+            "id": "100",
+            "provider": "demo"
+          },
+          "kind": "account"
+        }
+      },
+      "groups": [],
+      "memberships": [],
+      "resource": {
+        "key": {
+          "id": "repo-21",
+          "provider": "demo"
+        },
+        "name": "acme/infrastructure"
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "key": {
+        "id": "100",
+        "provider": "demo"
+      },
+      "kind": "human",
+      "login": "alice-dev",
+      "verified_emails": [
+        "alice@example.com"
+      ]
+    }
+  ],
+  "identity": {
+    "id": "alice@example.com",
+    "kind": "human",
+    "status": "active",
+    "verified_emails": [
+      "alice@example.com"
+    ]
+  }
+}
