@@ -28,7 +28,14 @@ fn scripts_are_deterministic_and_ignore_workspace_and_config_arguments() {
         assert!(clean.stderr.is_empty());
         assert!(!clean.stdout.contains(&0x1b));
         let script = String::from_utf8(clean.stdout.clone()).unwrap();
-        for name in ["permesh", "orphaned", "admins", "provider", "customer-id"] {
+        for name in [
+            "permesh",
+            "orphaned",
+            "admins",
+            "provider",
+            "migrate",
+            "customer-id",
+        ] {
             assert!(script.contains(name), "{shell} missing {name}");
         }
         let path = dir.path().join("permesh.yaml");

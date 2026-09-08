@@ -13,6 +13,11 @@ pub async fn run(
 ) -> Result<Outcome, AppError> {
     match &cli.command {
         Command::Provider {
+            command: ProviderCommand::Migrate(args),
+        } => {
+            return crate::provider_migration::run(cli, args, blocking, cancellation).await;
+        }
+        Command::Provider {
             command: ProviderCommand::Install(args),
         } => {
             return crate::distribution::run(

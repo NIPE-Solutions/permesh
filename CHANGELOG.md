@@ -4,6 +4,8 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
+- Add explicit `provider migrate INSTANCE --sha256 DIGEST` for legacy GitHub configurations, preserving IDs, aliases and token references without provider execution or credential access. Existing external workspace approvals require renewed review after the configuration changes; bundled GitHub remains available.
+
 - Standardize the main repository on MIT with one license file and consistent package metadata and SPDX identifiers. Earlier revisions and third-party dependencies retain their existing terms.
 
 - Add declarative external-provider setup: validated SDK schema 1, draft-3 description exchanges, CLI-owned conditional prompts and strict YAML answers. Setup requires an already trusted binary, writes settings and credential references only, and leaves workspace approval explicit.

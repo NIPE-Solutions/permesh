@@ -123,7 +123,7 @@ contains access metadata; keep it somewhere appropriate for your organization.
 
 - [Getting started](docs/getting-started.md)
 - [Configuration](docs/CONFIGURATION.md) and [credentials](docs/secrets.md)
-- [GitHub provider](docs/providers/github.md)
+- [GitHub provider](docs/providers/github.md) and [explicit legacy migration](docs/github-migration.md)
 - [Identity resolution](docs/identity-resolution.md), [privileged access](docs/admins.md), and [orphaned accounts](docs/orphaned.md)
 - [JSON schema and exit codes](docs/output-schema.md)
 - [Troubleshooting](docs/troubleshooting.md)

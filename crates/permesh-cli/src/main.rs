@@ -15,6 +15,7 @@ mod external_output;
 mod external_workspace;
 mod orphaned_output;
 mod output;
+mod provider_migration;
 mod provider_operation;
 mod report;
 mod setup;
