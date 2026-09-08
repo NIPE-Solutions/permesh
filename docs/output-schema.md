@@ -182,3 +182,11 @@ Setup and browser-authentication specifications deliberately reuse their separat
 versioned SDK boundary schemas; changing them requires an explicit compatibility
 decision. Complete baseline fixtures cover control reports as well as queries.
 Guided GitHub `provider_add` returns `{id,provider,version,sha256,file,configured,approved,credentials_resolved,configuration,credential_references,message,next}` after setup. `credentials_resolved` is always false: authentication is separate. Declining binary trust returns `{id,configured:false,approved:false,credentials_resolved:false,message,next}` without creating an instance. Both successful completion and explicit decline exit 0; inspect `configured` and `approved` when automating. Prompts never decorate JSON output.
+
+## Negotiated discovery review
+
+`external_review` remains control schema 1. When an instance explicitly selects
+wire 5, its result additionally contains `discovery_protocol: "negotiated_v5"`,
+and human review displays the same selection. Legacy results omit this optional
+field, preserving their prior shape. This is a workspace contract choice; it does
+not change access schema 2 or setup/browser-auth output schemas.

@@ -4,6 +4,8 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add explicit `external.discovery_protocol: negotiated_v5` for native workspace discovery and health. Required-operation negotiation precedes credential delivery; independent wire DTOs preserve principal dimensions, resource containment and access evidence. Legacy drafts/defaults remain unchanged. Switching contracts requires fresh workspace approval; see [wire 5](docs/provider-protocol/negotiated-v5.md).
+
 - **Access JSON schema 2:** user, admins, orphaned and standalone external discovery now expose independent principal kind, affiliation and lifecycle, resource kind/parent, access evidence kind and path certainty. Control JSON and legacy provider wire formats stay unchanged; see [migration guidance](docs/migrations/domain-schema-2.md).
 - Model suspension separately from inactivity, including in the bundled Google adapter. Orphan review prioritizes inactive/suspended identities even for service, bot and external principals. Resource containment is validated and never invents access inheritance.
 

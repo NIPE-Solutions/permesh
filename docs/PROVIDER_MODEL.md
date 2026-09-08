@@ -10,7 +10,8 @@ GitHub scope: organization members/owners, organization repositories, teams and 
 
 External provider protocol is specified in [provider-protocol.md](provider-protocol.md). Pure versioned discovery/health validation is implemented in `permesh-provider-protocol`.
 `permesh-provider-external` runs only managed native copies: draft 1 for standalone
-discovery and draft 2 for approved workspace operations. Approval binds the selected provider context
+discovery and draft 2 by default for approved workspace operations. Explicit
+`negotiated_v5` instances use operation-negotiated wire 5 for discovery and health. Approval binds the selected provider context
 and registration before secret resolution; credentials are sent
 only after an exact handshake. External identities require explicitly approved
 source selection and registered identity capability. No empty official AWS/Cloudflare crates are created. Google supplies only directory accounts and identities; it does not invent access grants. See [Google scope](providers/google.md).
@@ -23,10 +24,12 @@ read-capability set or approve configured workspace execution.
 ## Domain and wire evolution
 
 Core records now separate kind, affiliation and lifecycle, validate resource
-containment and retain explicit evidence kinds. Native wire drafts cannot yet
+containment and retain explicit evidence kinds. Legacy native wire drafts cannot
 express every new field. The host maps legacy omissions to unknown rather than
 inferring semantics from names; official packages keep their compatible pinned
-SDK until a negotiated contract can transmit the new dimensions. Providers must
+SDK until their wire-5 emitter has been implemented and qualified. The opt-in
+[negotiated contract](provider-protocol/negotiated-v5.md) can transmit these
+dimensions; host support alone does not upgrade a provider. Providers must
 not silently discard suspension, affiliation or policy-attachment evidence when
 upgrading. See [normalization](provider-development/normalization.md) and
 [migration](migrations/domain-schema-2.md).

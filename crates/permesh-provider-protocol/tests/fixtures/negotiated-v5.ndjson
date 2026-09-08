@@ -1,0 +1,9 @@
+{"protocol":5,"id":"handshake","event":"handshake","provider":"example","capabilities":["accounts","identities","resources","groups","memberships","grants"],"operations":["discover","check"],"draft":true}
+{"protocol":5,"id":"discover","event":"record","kind":"identity","data":{"id":"identity","kind":"service","affiliation":"internal","status":"active","verified_emails":[]}}
+{"protocol":5,"id":"discover","event":"record","kind":"account","data":{"key":{"provider":"work","id":"account"},"login":"service","kind":"service","affiliation":"external","status":"suspended","verified_emails":[]}}
+{"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"work","id":"root"},"name":"Root","kind":null,"parent":null}}
+{"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":"work","id":"sub"},"name":"Sub","kind":"example.folder","parent":{"provider":"work","id":"root"}}}
+{"protocol":5,"id":"discover","event":"record","kind":"group","data":{"key":{"provider":"work","id":"group"},"name":"Group"}}
+{"protocol":5,"id":"discover","event":"record","kind":"membership","data":{"member":{"kind":"account","key":{"provider":"work","id":"account"}},"group":{"provider":"work","id":"group"},"provenance":{"method":"api","observed_at":"2026-01-01T00:00:00Z"}}}
+{"protocol":5,"id":"discover","event":"record","kind":"grant","data":{"id":"grant","subject":{"kind":"group","key":{"provider":"work","id":"group"}},"resource":{"provider":"work","id":"sub"},"role":"Read","privilege":"standard","certainty":"derived","evidence_kind":"policy_attachment","provenance":{"method":"api","observed_at":"2026-01-01T00:00:00Z"}}}
+{"protocol":5,"id":"discover","event":"complete","count":7,"complete":true,"limitations":[]}

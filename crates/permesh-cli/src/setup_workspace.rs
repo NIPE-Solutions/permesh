@@ -57,6 +57,7 @@ impl Draft {
             customer_id: None,
             auth: None,
             external: Some(ExternalConfig {
+                discovery_protocol: permesh_config::DiscoveryProtocol::Legacy,
                 provider: registration.id.clone(),
                 sha256: registration.sha256.clone(),
                 configuration: values.configuration,

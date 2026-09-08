@@ -7,15 +7,16 @@ Shared YAML stores references, never credential values. Environment references a
 Workspace configuration cannot select executable paths, shell commands,
 executable secret resolution, YAML includes or remote configuration. An external
 instance names a locally registered native provider and pinned digest; it cannot
-execute or resolve its credentials until this canonical workspace path and full
-normalized configuration have matching local approval. Review endpoint settings,
-credential references, aliases and identity authority before approving. A clone
-or edited configuration requires a fresh review. Built-in GitHub uses its fixed
-HTTPS origin with redirects disabled.
+execute or resolve its credentials until this canonical workspace path and selected provider security context have matching
+local approval. Review endpoint settings,
+credential references, aliases and identity authority before approving. A clone or change to the approved provider context requires a fresh review;
+unrelated provider edits preserve approval. Official GitHub uses its fixed HTTPS
+origin with redirects disabled.
 
 Approved external discovery participates in ordinary access queries; approved
 health checks run for doctor/status. Native code runs as your user and is not
-sandboxed. Credentials go over stdin only after strict draft-2 handshake matching;
+sandboxed. Credentials go over stdin only after strict identity/capability handshake matching (and required-operation validation
+for explicitly selected wire 5);
 cleared environment, discarded stderr and response-echo rejection do not prevent
 malicious code from retaining or exfiltrating them. See the
 [external trust workflow](external-providers.md).

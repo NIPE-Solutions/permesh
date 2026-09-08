@@ -29,3 +29,19 @@ changed registration capabilities, revoked approvals, and escaped credential
 echoes. Failed approval must not resolve external secrets or start a process.
 The Python example remains an offline draft-1 fixture; native cross-platform tests
 exercise execution and local permission boundaries.
+
+## Discovery contract changes
+
+A malicious workspace cannot silently switch a trusted provider to a different
+discovery contract: the explicit selector is covered by provider-scoped approval.
+Legacy serialization omits the default, preserving existing approval inputs.
+Wire 5 requires the selected operation in a bounded advertised operation set
+before invocation delivery. Unknown optional operation names cannot grant
+execution or alter the exact trusted record-capability set. A failed handshake
+does not trigger fallback to another protocol or another process.
+
+New record DTOs are mapped explicitly and checked as a complete graph before
+returning data. Missing lifecycle/evidence dimensions, cycles, cross-instance
+parents, unknown fields and unnegotiated records fail closed. Structured diagnostic
+codes are validated but not displayed: syntactic restrictions alone cannot prove
+that provider-controlled text is not a secret.

@@ -93,6 +93,7 @@ pub(super) fn convert(provider: &mut ProviderConfig, sha256: &str) -> Result<Leg
         .token;
     provider.kind = ProviderKind::External;
     provider.external = Some(ExternalConfig {
+        discovery_protocol: permesh_config::DiscoveryProtocol::Legacy,
         provider: kind.name().into(),
         sha256: sha256.into(),
         configuration,

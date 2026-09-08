@@ -44,19 +44,21 @@ domain field needs an explicit mapping decision; it must not appear in an old
 wire draft merely because a domain struct gains a serde field. Existing
 providers do not need to change their bytes or configuration for this extraction.
 
-## Future negotiated protocol
+## Negotiated wire 5
 
 Protocol versions describe wire compatibility. Capabilities describe supported
-records and operations. Once a negotiated version is introduced, adding a
-compatible optional operation must not by itself increment that version.
+records and operations. Wire 5 now carries
+health and discovery with separate operation negotiation. Adding a compatible
+optional operation does not by itself increment that version. It is opt-in and
+not declared stable.
 
-| Change | Existing drafts 1–4 | Future negotiated contract rule |
+| Change | Existing drafts 1–4 | Wire 5 rule |
 | --- | --- | --- |
 | Internal domain field or enum | No wire change; explicit mapper decision | No wire change |
 | Unknown envelope/record field | Reject, including additive fields | Reject unless a named bounded extension field explicitly permits it |
 | Unknown enum value | Reject | Reject unless that field defines an explicit unknown-value representation |
-| Unknown capability | Reject; exact registered set required | Define optional versus required capability behavior before accepting it; never grant execution permission implicitly |
-| New operation | Current operation-specific drafts remain pinned | Negotiate operation support separately; unsupported operation returns a structured error |
+| Unknown capability | Reject; exact registered set required | Reject unknown record capabilities; ignore bounded unknown optional operation names without granting execution permission |
+| New operation | Current operation-specific drafts remain pinned | Required operation must appear in the handshake before invocation data is delivered |
 | Renamed/removed field, changed type, enum spelling or requiredness | Incompatible; do not modify a frozen draft | Requires a new incompatible wire version and migration |
 | Documentation, tighter provider implementation, internal optimization | Compatible if previously valid contract data remains valid | Same |
 
@@ -66,13 +68,12 @@ drafts guarantee neither acceptance of new fields nor unknown capabilities;
 senders must emit exactly the selected draft. Security validation fixes may
 intentionally reject previously accepted invalid input and must be documented.
 
-A future proposal should negotiate supported protocol versions and operations
-separately from record capabilities. It should define required versus optional
-features, a deterministic common-version selection, unsupported-operation
-behavior, diagnostics and compatibility fixtures before implementation. New
-domain semantics need their own wire schema and explicit mappings; old drafts
-must keep their historical meaning. No new version, negotiation request or
-downgrade behavior is introduced by the boundary extraction.
+Wire 5 is explicitly pinned and negotiates operation support separately from
+record capabilities. Only this version is currently supported in the new family;
+there is no automatic downgrade or probe. Selecting the new contract in provider
+configuration requires fresh approval. Unknown operation declarations are bounded
+optional information, not executable requests. See the [wire 5 specification](negotiated-v5.md)
+and [ADR 0023](../adr/0023-negotiated-discovery-contract.md).
 
 See [ADR 0016](../adr/0016-wire-contracts.md) and the
 [current protocol](../provider-protocol.md).
@@ -84,5 +85,6 @@ resource containment and explicit evidence categories. This does not add fields
 or enum values to any legacy wire draft. Unexpressed values remain unknown.
 Access CLI JSON uses its own schema 2; this is not a protocol version increment.
 See [migration mappings](../migrations/domain-schema-2.md). Native provider SDK
-updates must wait for representable negotiated records rather than silently
-dropping new semantics into a legacy projection.
+updates must explicitly adopt and qualify the negotiated records rather than
+silently dropping new semantics into a legacy projection. Official provider pins
+and published artifacts are not changed by host support.

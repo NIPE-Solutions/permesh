@@ -56,10 +56,25 @@ impl Invocation {
             credentials,
         })
     }
+    #[cfg(test)]
     pub(crate) fn request(
         &self,
         method: &'static str,
     ) -> Result<Zeroizing<Vec<u8>>, ExternalError> {
+        self.request_versioned(method, 2)
+    }
+    pub(crate) fn request_versioned(
+        &self,
+        method: &'static str,
+        protocol: u32,
+    ) -> Result<Zeroizing<Vec<u8>>, ExternalError> {
+        if !matches!(
+            protocol,
+            2 | permesh_provider_protocol::negotiated::PROTOCOL_VERSION
+        ) || !matches!(method, "check" | "discover")
+        {
+            return Err(ExternalError::Input);
+        }
         #[derive(Serialize)]
         struct Request<'a> {
             protocol: u32,
@@ -80,7 +95,7 @@ impl Invocation {
         serde_json::to_writer(
             &mut writer,
             &Request {
-                protocol: 2,
+                protocol,
                 id: method,
                 method,
                 configuration: &self.configuration,
@@ -175,10 +190,44 @@ mod tests {
         let invocation = invocation("SENTINEL-private");
         assert_eq!(format!("{invocation:?}"), "Invocation([REDACTED])");
         let request = invocation.request("discover").unwrap();
-        assert!(request.ends_with(b"\n"));
+        assert_eq!(request.as_slice(), b"{\"protocol\":2,\"id\":\"discover\",\"method\":\"discover\",\"configuration\":{},\"credentials\":{\"token\":\"SENTINEL-private\"}}\n");
         let request: Value = serde_json::from_slice(&request).unwrap();
         assert_eq!(request["credentials"]["token"], "SENTINEL-private");
         assert_eq!(request["protocol"], 2);
+    }
+    #[test]
+    fn negotiated_request_preserves_configuration_and_private_credentials() {
+        let invocation = Invocation::new(
+            BTreeMap::from([("region".into(), serde_json::json!("test"))]),
+            BTreeMap::from([("token".into(), Secret::new("SENTINEL-private".into()))]),
+        )
+        .unwrap();
+        for method in ["check", "discover"] {
+            let bytes = invocation.request_versioned(method, 5).unwrap();
+            assert!(bytes.ends_with(b"\n"));
+            let request: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(request["configuration"]["region"], "test");
+            assert_eq!(request["protocol"], 5);
+            assert_eq!(request["method"], method);
+            assert_eq!(request["id"], method);
+            assert_eq!(request["credentials"]["token"], "SENTINEL-private");
+        }
+    }
+    #[test]
+    fn configured_requests_reject_unsupported_versions_and_methods() {
+        let invocation = invocation("SENTINEL-private");
+        for version in [0, 1, 3, 4, 6, u32::MAX] {
+            assert!(matches!(
+                invocation.request_versioned("discover", version),
+                Err(ExternalError::Input)
+            ));
+        }
+        for method in ["", "handshake", "cancel", "describe", "unknown"] {
+            assert!(matches!(
+                invocation.request_versioned(method, 5),
+                Err(ExternalError::Input)
+            ));
+        }
     }
     #[test]
     fn input_budgets_and_names_fail_closed() {

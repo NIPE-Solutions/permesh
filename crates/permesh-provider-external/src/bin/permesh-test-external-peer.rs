@@ -29,6 +29,10 @@ fn hang() -> ! {
 }
 fn main() {
     let args: Vec<_> = std::env::args_os().collect();
+    if args.get(1).is_some_and(|arg| arg == "--capture-input") {
+        io::copy(&mut io::stdin().lock(), &mut io::stdout().lock()).unwrap();
+        return;
+    }
     if args.get(1).is_some_and(|arg| arg == "--descendant") {
         let until = Instant::now() + Duration::from_secs(10);
         let mut count = 0;
@@ -42,6 +46,10 @@ fn main() {
     let mut lines = io::stdin().lock().lines();
     let request: serde_json::Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
     let instance = request["instance"].as_str().unwrap();
+    if request["protocol"] == 5 {
+        negotiated_peer(instance, request["operation"].as_str().unwrap(), &mut lines);
+        return;
+    }
     if request["protocol"] == 4 {
         emit(
             serde_json::json!({"protocol":4,"id":"handshake","event":"handshake","provider":"fixture","capabilities":[],"draft":true}),
@@ -463,4 +471,198 @@ fn describe_peer(instance: &str, lines: &mut impl Iterator<Item = io::Result<Str
     if instance == "describe-nonzero" {
         std::process::exit(7);
     }
+}
+
+fn negotiated_peer(
+    instance: &str,
+    operation: &str,
+    lines: &mut impl Iterator<Item = io::Result<String>>,
+) {
+    use serde_json::json;
+    assert!(matches!(operation, "discover" | "check"));
+    if instance == "handshake-hang" {
+        hang();
+    }
+    let provider = if instance == "wrong-provider" {
+        "wrong"
+    } else {
+        "fixture"
+    };
+    let version = if instance == "downgrade" { 2 } else { 5 };
+    let capabilities = if instance == "wrong-caps" {
+        json!([])
+    } else {
+        json!([
+            "accounts",
+            "identities",
+            "resources",
+            "groups",
+            "memberships",
+            "grants"
+        ])
+    };
+    let operations = if instance == "wrong-operation" {
+        json!([if operation == "check" {
+            "discover"
+        } else {
+            "check"
+        }])
+    } else {
+        json!(["discover", "check"])
+    };
+    emit(
+        json!({"protocol":version,"id":"handshake","event":"handshake","provider":provider,"capabilities":capabilities,"operations":operations,"draft":true}),
+    );
+    let Some(Ok(line)) = lines.next() else {
+        return;
+    };
+    if matches!(
+        instance,
+        "wrong-provider" | "wrong-caps" | "downgrade" | "wrong-operation"
+    ) {
+        fs::write(marker("delivered"), "operation received").unwrap();
+        return;
+    }
+    let request: serde_json::Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(request["protocol"], 5);
+    assert_eq!(request["method"], operation);
+    assert_eq!(request["id"], operation);
+    assert_eq!(request["credentials"]["token"], "synthetic-fixture-token");
+    assert_eq!(std::env::args_os().count(), 1);
+    assert!(
+        std::env::vars_os()
+            .all(|(key, _)| cfg!(windows)
+                && key.to_string_lossy().eq_ignore_ascii_case("SystemRoot"))
+    );
+    let mode = request["configuration"]["mode"].as_str().unwrap();
+    match mode {
+        "environment" => {
+            let cwd = std::env::current_dir().unwrap();
+            assert!(fs::read_dir(&cwd).unwrap().next().is_none());
+            fs::write(
+                marker("working-directory"),
+                cwd.to_string_lossy().as_bytes(),
+            )
+            .unwrap();
+        }
+        "cancel" => {
+            fs::write(marker("ready"), "yes").unwrap();
+            let request: serde_json::Value =
+                serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
+            assert_eq!(
+                request,
+                json!({"protocol":5,"id":"cancel","method":"cancel"})
+            );
+            fs::write(marker("cancelled"), "yes").unwrap();
+            return;
+        }
+        "hang" => hang(),
+        "stdout-flood" => {
+            let _ = io::stdout().write_all(&vec![b'x'; 2 * 1024 * 1024]);
+            hang();
+        }
+        "stderr-flood" => {
+            let _ = io::stderr().write_all(&vec![b'x'; 128 * 1024]);
+            hang();
+        }
+        "echo" | "echo-escaped" | "echo-key" => {
+            let secret = request["credentials"]["token"].as_str().unwrap();
+            let value = if mode == "echo-key" {
+                json!({"protocol":5,"id":operation,"event":"error","code":"authentication",secret:"value"})
+            } else if operation == "discover" {
+                json!({"protocol":5,"id":"discover","event":"record","kind":"resource","data":{"key":{"provider":instance,"id":"reflected"},"name":secret,"kind":null,"parent":null}})
+            } else {
+                json!({"protocol":5,"id":operation,"event":"error","code":"authentication","provider_code":secret})
+            };
+            if mode == "echo-escaped" {
+                let encoded: String = secret
+                    .chars()
+                    .map(|c| format!("\\u{:04x}", c as u32))
+                    .collect();
+                println!("{}", value.to_string().replace(secret, &encoded));
+                io::stdout().flush().unwrap();
+            } else {
+                emit(value);
+            }
+            if operation == "discover" && mode != "echo-key" {
+                emit(
+                    json!({"protocol":5,"id":"discover","event":"complete","count":1,"complete":true,"limitations":[]}),
+                );
+                assert!(lines.next().is_none());
+            }
+            return;
+        }
+        "checkfail" => {
+            emit(
+                json!({"protocol":5,"id":operation,"event":"error","code":"authentication","provider_code":"token.invalid"}),
+            );
+            return;
+        }
+        _ => {}
+    }
+    let limitations = if mode == "partial" {
+        json!(["visibility_limited"])
+    } else {
+        json!([])
+    };
+    if operation == "check" {
+        emit(
+            json!({"protocol":5,"id":"check","event":"health","status":"ok","limitations":limitations}),
+        );
+    } else {
+        let account = json!({"provider":instance,"id":"service"});
+        let root = json!({"provider":instance,"id":"root"});
+        let child = json!({"provider":instance,"id":"child"});
+        let group = json!({"provider":instance,"id":"team"});
+        let provenance = json!({"method":"native fixture","observed_at":"2026-01-01T00:00:00Z"});
+        let records = [
+            (
+                "identity",
+                json!({"id":"service@example.com","kind":"service","affiliation":"internal","status":"inactive","verified_emails":["service@example.com"]}),
+            ),
+            (
+                "account",
+                json!({"key":account,"login":"service","kind":"service","affiliation":"external","status":"suspended","verified_emails":["service@example.com"]}),
+            ),
+            (
+                "resource",
+                json!({"key":root,"name":"Root","kind":null,"parent":null}),
+            ),
+            (
+                "resource",
+                json!({"key":child,"name":"Child","kind":"fixture.repository","parent":root}),
+            ),
+            ("group", json!({"key":group,"name":"Team"})),
+            (
+                "membership",
+                json!({"member":{"kind":"account","key":account},"group":group,"provenance":provenance}),
+            ),
+            (
+                "grant",
+                json!({"id":"assignment","subject":{"kind":"group","key":group},"resource":child,"role":"read","privilege":"standard","certainty":"derived","evidence_kind":"policy_attachment","provenance":provenance}),
+            ),
+        ];
+        for (kind, data) in &records {
+            emit(json!({"protocol":5,"id":"discover","event":"record","kind":kind,"data":data}));
+        }
+        if mode == "error-after-record" {
+            emit(
+                json!({"protocol":5,"id":"discover","event":"error","code":"authentication","provider_code":"token.invalid"}),
+            );
+            return;
+        }
+        if mode == "incomplete" {
+            return;
+        }
+        emit(
+            json!({"protocol":5,"id":"discover","event":"complete","count":records.len(),"complete":mode!="partial","limitations":limitations}),
+        );
+    }
+    if mode == "extra" {
+        println!("{{}}");
+    }
+    if mode == "complete-hang" {
+        hang();
+    }
+    assert!(lines.next().is_none());
 }

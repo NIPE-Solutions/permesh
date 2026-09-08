@@ -85,3 +85,17 @@ selection. No identity authority is inferred from registration or record shape.
 [Guided setup](provider-setup.md) adds a registered external instance using typed
 questions or a strict answer file. It writes nonsecret settings and credential
 references, pins the registered digest, and leaves workspace approval explicit.
+
+## External discovery contract
+
+External instances may set `external.discovery_protocol: negotiated_v5` when their
+trusted executable implements [wire 5](provider-protocol/negotiated-v5.md). Omission
+or `legacy` retains draft-2 configured discovery/health and serializes without the
+new field. Other values are rejected. Selection affects only discovery and health;
+setup/browser-auth descriptions keep their existing contracts.
+
+The selector participates in the provider-scoped approval fingerprint. A change
+requires fresh review before any credential resolution or execution. It does not
+change executable trust or grant additional record capabilities. Old CLI versions
+reject the new field rather than silently selecting another protocol. There is no
+automatic workspace rewrite or protocol fallback.

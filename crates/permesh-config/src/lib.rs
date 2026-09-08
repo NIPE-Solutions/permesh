@@ -3,7 +3,7 @@
 mod data;
 mod external;
 pub use data::{load_setup_answers, parse_setup_value};
-pub use external::ExternalConfig;
+pub use external::{DiscoveryProtocol, ExternalConfig};
 use permesh_secrets::SecretRef;
 use serde::{Deserialize, Serialize};
 use std::{

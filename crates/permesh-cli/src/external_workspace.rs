@@ -130,16 +130,19 @@ impl WorkspaceAccess {
             .get(&path, id)
             .map_err(failure)?
             .is_some_and(|record| record.fingerprint == fingerprint);
-        Outcome::new(
-            "external_review",
-            serde_json::json!({
-                "workspace":path, "instance":id, "registration":crate::schema1_control::Registration::from(&registration),
-                "fingerprint":fingerprint, "approved":approved,
-                "configuration":external.configuration, "credential_references":external.credentials,
-                "identity":crate::schema1_control::IdentityConfig::from(&config.identity),
-                "message":"Review binds this provider instance, its credential references, relevant identity aliases and authority, and its registered binary. Unrelated provider and organization edits do not invalidate approval. No credentials were resolved and no code was executed. Approval allows this trusted native code to execute with your user privileges and receive the named credentials; it is not sandboxed."
-            }),
-        )
+        let mut result = serde_json::json!({
+            "workspace":path, "instance":id, "registration":crate::schema1_control::Registration::from(&registration),
+            "fingerprint":fingerprint, "approved":approved,
+            "configuration":external.configuration, "credential_references":external.credentials,
+            "identity":crate::schema1_control::IdentityConfig::from(&config.identity),
+            "message":"Review binds this provider instance, its credential references, relevant identity aliases and authority, and its registered binary. Unrelated provider and organization edits do not invalidate approval. No credentials were resolved and no code was executed. Approval allows this trusted native code to execute with your user privileges and receive the named credentials; it is not sandboxed."
+        });
+        // Omit the default to preserve the existing control-output contract.
+        // A negotiated context must be visible before the user approves it.
+        if external.discovery_protocol == permesh_config::DiscoveryProtocol::NegotiatedV5 {
+            result["discovery_protocol"] = serde_json::json!("negotiated_v5");
+        }
+        Outcome::new("external_review", result)
     }
     pub(crate) fn approve(
         &self,
