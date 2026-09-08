@@ -115,3 +115,11 @@ and [D-Bus session lifecycle](https://dbus.freedesktop.org/doc/dbus-run-session.
 A separate process points at a nonexistent session bus to test redacted service
 unavailability. Desktop prompts and locked-store interactions still require
 manual checks.
+
+[Provider setup](provider-setup.md) accepts references for credential fields,
+validates their instance and slot binding, and writes those references into the
+workspace. It does not resolve environment values, retrieve keychain values or
+store new credentials. Plaintext values in credential fields are rejected after
+the provider's field schema is known. Other settings must also be nonsecret;
+provider labels cannot safely classify an arbitrary pasted value. Use the explicit
+`auth login` workflow separately when a keychain credential needs storing.

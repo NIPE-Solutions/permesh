@@ -1,0 +1,8 @@
+version: 1
+answers:
+  auth_method: token
+  token: env://EXAMPLE_TOKEN
+  tenant: example-tenant
+  regions: [eu-west-1]
+  metadata:
+    environment: example

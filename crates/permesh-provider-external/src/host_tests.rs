@@ -489,3 +489,76 @@ async fn dropping_configured_future_terminates_the_peer() {
     assert!(task.await.unwrap_err().is_cancelled());
     assert_stopped(directory.path()).await;
 }
+
+#[tokio::test]
+async fn setup_description_is_validated_without_delivering_configuration() {
+    let spec = describe(
+        &executable(),
+        "fixture",
+        "normal",
+        &all_capabilities(),
+        std::future::pending(),
+    )
+    .await
+    .unwrap();
+    spec.validate().unwrap();
+    assert_eq!(spec.title, "Fixture setup");
+    assert_eq!(spec.steps.len(), 4);
+    for mode in [
+        "describe-wrong-version",
+        "wrong-provider",
+        "wrong-caps",
+        "describe-error",
+        "describe-malformed",
+        "describe-invalid",
+        "describe-extra",
+        "describe-nonzero",
+    ] {
+        let result = describe_with_deadlines(
+            &executable(),
+            "fixture",
+            mode,
+            &all_capabilities(),
+            std::future::pending(),
+            deadlines(),
+        )
+        .await;
+        assert!(result.is_err(), "{mode}: {result:?}");
+        assert!(!result.unwrap_err().to_string().contains("SENTINEL"));
+    }
+}
+#[tokio::test]
+async fn setup_deadline_includes_terminal_eof_and_cancel_uses_draft_three() {
+    for mode in ["describe-timeout", "describe-no-eof"] {
+        let mut limits = deadlines();
+        limits.operation = Duration::from_millis(300);
+        let result = describe_with_deadlines(
+            &executable(),
+            "fixture",
+            mode,
+            &all_capabilities(),
+            std::future::pending(),
+            limits,
+        )
+        .await;
+        assert!(
+            matches!(result, Err(ExternalError::Timeout)),
+            "{mode}: {result:?}"
+        );
+    }
+    let (dir, peer) = isolated_peer();
+    let result = describe_with_deadlines(
+        &peer,
+        "fixture",
+        "describe-cancel",
+        &all_capabilities(),
+        wait_for_marker(dir.path().join("ready")),
+        deadlines(),
+    )
+    .await;
+    assert!(
+        matches!(result, Err(ExternalError::Cancelled)),
+        "{result:?}"
+    );
+    assert!(dir.path().join("cancelled").exists());
+}

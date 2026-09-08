@@ -24,3 +24,11 @@ checks are not an exfiltration barrier. The project's no-backend guarantee does
 not attest third-party code; review its behavior and requested credential slots
 before granting binary trust and workspace approval.
 See [external-provider security boundaries](external-providers.md).
+
+During [provider setup](provider-setup.md), draft-3 description receives an instance
+ID but no answers, configuration, credential references or values, or workspace
+and answer-file paths. The CLI evaluates answers locally and stores only settings
+and references in the workspace. Setup does not read or write the credential
+store. Answer files must contain nonsecret settings and references; arbitrary
+text fields are not a secret vault. The trusted binary still runs as your user
+and can access resources independently of the host-supplied protocol context.

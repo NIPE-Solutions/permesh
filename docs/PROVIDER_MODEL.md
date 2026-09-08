@@ -14,3 +14,8 @@ discovery and draft 2 for approved workspace operations. Approval binds full
 configuration and registration before secret resolution; credentials are sent
 only after an exact handshake. External identities require explicitly approved
 source selection and registered identity capability. No empty official AWS/Cloudflare crates are created. Google supplies only directory accounts and identities; it does not invent access grants. See [Google scope](providers/google.md).
+
+External [declarative setup](provider-setup.md) uses draft 3 solely to describe
+typed conditional fields. SDK setup schema 1 is evaluated locally by the CLI;
+no answers or credentials are sent in this exchange. Setup does not extend the
+read-capability set or approve configured workspace execution.

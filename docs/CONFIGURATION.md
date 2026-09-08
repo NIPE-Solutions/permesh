@@ -25,7 +25,7 @@ CLI contract: `init [--demo] [--organization NAME]`, `provider add github --id I
 
 Exit codes: 0 successful operation (including a successful identity query with no grants); 1 query has no matching identity/account; 2 invalid arguments/configuration or ambiguous identity; 3 all requested providers failed; 4 useful but incomplete provider results; 5 internal/output failure; 130 cancelled. Warnings about documented provider visibility are exposed separately from failed collection.
 
-Output schema version 1 is distinct from configuration version 1 and external protocol drafts 1 and 2. Errors use `{schema_version: 1, error: {code, message}}`. Query results include identity/account resolution, explicit paths, provider status, and completeness. Exact schema is documented with the executable implementation.
+Output schema version 1 is distinct from configuration version 1 and external protocol drafts 1, 2 and 3. Setup descriptions independently use setup schema 1. Errors use `{schema_version: 1, error: {code, message}}`. Query results include identity/account resolution, explicit paths, provider status, and completeness. Exact schema is documented with the executable implementation.
 
 `admins` is an inspection command: discovered privileged access does not itself cause exit 1. Ambiguous identities are retained per account rather than failing this aggregate report. Provider failure exits remain 3/4. See [admins.md](admins.md).
 
@@ -75,3 +75,7 @@ paths and changes anywhere in the normalized configuration require fresh review.
 External sources may be explicitly authoritative in `identity.sources` only if
 the registered capability set includes `identities`; approval includes the source
 selection. No identity authority is inferred from registration or record shape.
+
+[Guided setup](provider-setup.md) adds a registered external instance using typed
+questions or a strict answer file. It writes nonsecret settings and credential
+references, pins the registered digest, and leaves workspace approval explicit.

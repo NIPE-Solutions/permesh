@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
+mod data;
 mod external;
+pub use data::{load_setup_answers, parse_setup_value};
 pub use external::ExternalConfig;
 use permesh_secrets::SecretRef;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs::File,
-    io::Read,
     path::{Path, PathBuf},
 };
 pub type Result<T> = std::result::Result<T, Error>;
@@ -110,36 +110,15 @@ fn invalid(message: &'static str) -> Error {
 }
 impl Config {
     pub fn load(path: &Path) -> Result<Self> {
-        if !std::fs::metadata(path).map_err(|_| Error::Read)?.is_file() {
-            return Err(Error::Read);
-        }
-        let file = File::open(path).map_err(|_| Error::Read)?;
-        if !file.metadata().map_err(|_| Error::Read)?.is_file() {
-            return Err(Error::Read);
-        }
-        let mut bytes = Vec::new();
-        file.take((MAX_CONFIG_BYTES + 1) as u64)
-            .read_to_end(&mut bytes)
-            .map_err(|_| Error::Read)?;
+        let bytes = data::read_file(path, MAX_CONFIG_BYTES)?;
+        Self::from_bytes(&bytes)
+    }
+    /// Parse a captured workspace revision without reading it a second time.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() > MAX_CONFIG_BYTES {
             return Err(Error::TooLarge);
         }
-        let options = serde_saphyr::options! {
-            with_snippet: false,
-            reject_unsupported_tags: true,
-            merge_keys: serde_saphyr::MergeKeyPolicy::Error,
-            budget: serde_saphyr::budget! { max_documents: 1, max_depth: 16, flow_nesting_limit: 16, max_events: 100_000, max_nodes: 30_000, max_total_scalar_bytes: MAX_CONFIG_BYTES, max_aliases: 0, max_anchors: 0, max_inclusion_depth: 0 },
-        };
-        let config: Self =
-            serde_saphyr::from_slice_with_options(&bytes, options).map_err(|error| match error
-                .location()
-            {
-                Some(location) => Error::ParseAt {
-                    line: location.line(),
-                    column: location.column(),
-                },
-                None => Error::Parse,
-            })?;
+        let config: Self = data::parse(bytes, MAX_CONFIG_BYTES)?;
         config.validate()?;
         Ok(config)
     }

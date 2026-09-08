@@ -15,6 +15,10 @@ mod orphaned_output;
 mod output;
 mod provider_operation;
 mod report;
+mod setup;
+mod setup_output;
+mod setup_prompt;
+mod setup_workspace;
 mod workspace;
 use clap::Parser;
 use error::AppError;
@@ -75,7 +79,7 @@ async fn main() -> ExitCode {
             biased;
             signal=tokio::signal::ctrl_c()=>{
                 cancellation.cancel();
-                let drains = matches!(cli.command, args::Command::Doctor | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Provider { command: args::ProviderCommand::Status { .. } });
+                let drains = matches!(cli.command, args::Command::Doctor | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Provider { command: args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) });
                 if drains {
                     let result = operation.await;
                     if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json); }

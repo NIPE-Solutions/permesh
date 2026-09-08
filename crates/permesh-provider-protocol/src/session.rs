@@ -151,6 +151,9 @@ impl DiscoveryDecoder {
         capabilities: Option<&[Capability]>,
         version: u32,
     ) -> Result<Self, ProtocolError> {
+        if !matches!(version, 1 | 2) {
+            return Err(ProtocolError::Version);
+        }
         Ok(Self {
             session: Session::new(provider, instance, capabilities, version)?,
             snapshot: Snapshot::new(instance),
@@ -301,4 +304,46 @@ pub fn validate_discovery(
         decoder.accept(value)?;
     }
     decoder.finish()
+}
+
+/// Incremental draft3 setup-description exchange. Only validated declarative
+/// specs are accepted; callers must observe EOF before obtaining the result.
+pub struct SetupDecoder {
+    session: Session,
+    spec: Option<permesh_provider_sdk::setup::SetupSpec>,
+}
+impl SetupDecoder {
+    pub fn new(
+        provider: &str,
+        instance: &str,
+        capabilities: Option<&[Capability]>,
+    ) -> Result<Self, ProtocolError> {
+        Ok(Self {
+            session: Session::new(provider, instance, capabilities, 3)?,
+            spec: None,
+        })
+    }
+    pub fn push_frame(&mut self, frame: &[u8]) -> Result<Progress, ProtocolError> {
+        let result = (|| {
+            let value = self.session.frame(frame)?;
+            let Some(event) = self.session.accept(value, "describe")? else {
+                return Ok(Progress::Handshake);
+            };
+            match event {
+                Event::Setup { spec } => {
+                    spec.validate().map_err(|_| ProtocolError::Schema)?;
+                    self.spec = Some(spec);
+                    self.session.completed = true;
+                    Ok(Progress::Complete)
+                }
+                Event::Error { .. } => Err(ProtocolError::ProviderFailed),
+                _ => Err(ProtocolError::Sequence),
+            }
+        })();
+        self.session.remember(result)
+    }
+    pub fn finish(self) -> Result<permesh_provider_sdk::setup::SetupSpec, ProtocolError> {
+        self.session.finish()?;
+        self.spec.ok_or(ProtocolError::Incomplete)
+    }
 }

@@ -1,13 +1,14 @@
-# External provider protocol — drafts 1 and 2
+# External provider protocol — drafts 1, 2 and 3
 
-The pure `permesh-provider-protocol` crate validates discovery and health
+The pure `permesh-provider-protocol` crate validates discovery, health and setup-description
 responses. The separate [native host](external-providers.md) requires local binary
 trust; workspace execution additionally requires a matching local approval.
 These drafts do not promise a stable deployed plugin API.
 
 Draft 1 supports standalone native discovery and the existing offline Python
 reference. Draft 2 adds approved workspace discovery and health checks with named
-configuration and credential delivery. The caller pins the version for the entire
+configuration and credential delivery. Draft 3 is describe-only setup and carries
+no answers, configuration or credentials. The caller pins the version for the entire
 exchange. A draft-2 invocation rejects a draft-1 response without sending the
 operation or credentials; negotiation never downgrades. Workspace YAML cannot
 select an executable path.
@@ -35,7 +36,7 @@ budget, not an exact resident-memory guarantee. No raw frame is logged.
 ## Requests
 
 One process handles a handshake followed by one operation. Request IDs
-are reserved method names: `handshake`, `check`, `discover`, `cancel`. They are
+are reserved method names: `handshake`, `check`, `discover`, `describe`, `cancel`. They are
 unique within that process. The synchronous example additionally permits one
 check before discovery for manual experimentation; the discovery validator
 accepts only the handshake/discovery response sequence.
@@ -69,7 +70,7 @@ or command arguments as host instructions. The host bounds configuration to
 16 KiB and all values together at most 64 KiB. The operation request must fit the
 one-frame limit. Its serialized buffer zeroizes on drop.
 
-`handshake_request_versioned(instance, version)` accepts only versions 1 and 2.
+`handshake_request_versioned(instance, version)` accepts only versions 1, 2 and 3.
 A cancellation request retains the selected version and the three fields
 `protocol`, `id: "cancel"`, `method: "cancel"`.
 
@@ -79,11 +80,11 @@ A cancellation request retains the selected version and the three fields
 {"protocol":1,"id":"handshake","event":"handshake","provider":"synthetic-example","capabilities":["accounts","identities","resources","groups","memberships","grants"],"draft":true}
 ```
 
-Draft 2 uses the same handshake shape with `protocol: 2`. The expected provider
+Drafts 2 and 3 use the same handshake shape with their pinned `protocol` version. The expected provider
 type and instance come from the validator's caller. The response provider must
 match exactly; the host also requires the exact registered capability set,
 regardless of order, before sending an operation or any credentials. `draft` must
-be true for both supported drafts.
+be true for all supported drafts.
 Capabilities must be unique known values from the list above; an empty set is
 valid for an empty discovery. No mutation capability is defined. A record of an
 undeclared kind is rejected. Declared capabilities describe available record
@@ -165,6 +166,36 @@ For draft-1 manual Python peer checks, a successful health response is
 `{"protocol":1,"id":"check","event":"health","status":"ok"}`.
 Cancellation acknowledges `{"protocol":1,"id":"cancel","event":"cancelled"}`.
 Neither is valid inside the discovery transcript validator.
+
+## Setup description (draft 3)
+
+Draft 3 accepts only a description exchange. It never carries workspace settings,
+answers, credential values or file paths. Requests are:
+
+```json
+{"protocol":3,"id":"handshake","method":"handshake","instance":"example-main"}
+{"protocol":3,"id":"describe","method":"describe"}
+```
+
+After an exact version/provider/capability handshake, the provider returns one
+terminal event with exactly `protocol: 3`, `id: "describe"`, `event: "setup"` and
+`spec`. `spec` is the complete [SDK setup schema 1](provider-setup.md#provider-owned-schema-cli-owned-questions),
+including its own independent `schema_version`. See the
+[complete synthetic spec](../examples/setup/spec.json).
+
+Require a valid bounded spec, then EOF and successful process exit. Additional
+frames, discovery records, health events, wrong versions and malformed specs fail
+the exchange. Errors use the existing strict error event with `id: "describe"`.
+Cancellation uses version 3. There is no fallback to another draft and no further
+round of provider-driven questions. Providers supporting setup still implement
+draft 2 for configured queries and health.
+
+`SetupDecoder::new(provider, instance, capabilities)` pins draft 3 and shares
+strict framing, handshake and permanent poisoning after rejected input. Its
+progress is `Handshake` then `Complete`; `finish` returns the validated SDK spec.
+Native `describe` uses the existing supervisor, environment clearing, private
+working directory, deadlines and awaited cancellation cleanup. The CLI evaluates
+answers and writes configuration locally after the process completes.
 
 ## Decoder and host
 

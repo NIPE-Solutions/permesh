@@ -42,6 +42,10 @@ fn main() {
     let mut lines = io::stdin().lock().lines();
     let request: serde_json::Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
     let instance = request["instance"].as_str().unwrap();
+    if request["protocol"] == 3 {
+        describe_peer(instance, &mut lines);
+        return;
+    }
     if request["protocol"] == 2 {
         configured_peer(instance, &mut lines);
         return;
@@ -336,4 +340,106 @@ fn configured_peer(instance: &str, lines: &mut impl Iterator<Item = io::Result<S
         json!({"protocol":2,"id":"discover","event":"complete","count":records.len(),"complete":mode!="partial","limitations":limitations}),
     );
     assert!(lines.next().is_none());
+}
+
+fn setup_spec() -> serde_json::Value {
+    use serde_json::json;
+    json!({"schema_version":1,"title":"Fixture setup","description":"Configure a synthetic permission provider.","steps":[
+        {"id":"authentication","title":"Authentication","description":"Select credential references.","fields":[
+            {"key":"auth_method","label":"Authentication method","help":"Choose token or service credentials.","required":true,"default":"token","input":{"type":"choice","options":[{"value":"token","label":"Token"},{"value":"service","label":"Service credentials"}]}}
+        ]},
+        {"id":"token_auth","title":"Token authentication","description":"Provide a token reference.","when":{"field":"auth_method","equals":"token"},"fields":[
+            {"key":"token","label":"Token reference","help":"Enter an env:// or keychain:// reference, never a token value.","required":true,"input":{"type":"credential"}}
+        ]},
+        {"id":"service_auth","title":"Service authentication","description":"Provide service credential references.","when":{"field":"auth_method","equals":"service"},"fields":[
+            {"key":"client_id","label":"Client ID","help":"Service application identifier.","required":true,"input":{"type":"text","min_length":1,"max_length":128}},
+            {"key":"client_secret","label":"Client secret reference","help":"Enter an env:// or keychain:// reference, never a secret value.","required":true,"input":{"type":"credential"}}
+        ]},
+        {"id":"connection","title":"Connection","description":"Provider connection settings.","fields":[
+            {"key":"tenant","label":"Tenant","help":"Directory tenant name.","required":true,"default":"acme","input":{"type":"text","min_length":1,"max_length":128}},
+            {"key":"port","label":"Port","help":"Connection port.","required":true,"default":443,"input":{"type":"integer","minimum":1,"maximum":65535}},
+            {"key":"enabled","label":"Enabled","help":"Enable this connection.","required":true,"default":true,"input":{"type":"boolean"}},
+            {"key":"regions","label":"Regions","help":"List of region names.","required":false,"default":["eu-central"],"input":{"type":"string_list","min_items":0,"max_items":16}},
+            {"key":"metadata","label":"Metadata","help":"Additional structured settings.","required":false,"default":{},"input":{"type":"json"}}
+        ]}
+    ]})
+}
+fn describe_peer(instance: &str, lines: &mut impl Iterator<Item = io::Result<String>>) {
+    use serde_json::json;
+    assert_eq!(std::env::args_os().count(), 1);
+    assert!(
+        std::env::vars_os()
+            .all(|(key, _)| cfg!(windows)
+                && key.to_string_lossy().eq_ignore_ascii_case("SystemRoot"))
+    );
+    let version = if instance == "describe-wrong-version" {
+        2
+    } else {
+        3
+    };
+    let provider = if instance == "wrong-provider" {
+        "wrong"
+    } else {
+        "fixture"
+    };
+    let capabilities = if instance == "wrong-caps" {
+        json!([])
+    } else {
+        json!([
+            "accounts",
+            "identities",
+            "resources",
+            "groups",
+            "memberships",
+            "grants"
+        ])
+    };
+    emit(
+        json!({"protocol":version,"id":"handshake","event":"handshake","provider":provider,"capabilities":capabilities,"draft":true}),
+    );
+    let Some(Ok(line)) = lines.next() else {
+        return;
+    };
+    let request: serde_json::Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(
+        request,
+        json!({"protocol":3,"id":"describe","method":"describe"})
+    );
+    if instance == "describe-timeout" {
+        hang();
+    }
+    if instance == "describe-cancel" {
+        fs::write(marker("ready"), "yes").unwrap();
+        let request: serde_json::Value =
+            serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
+        assert_eq!(
+            request,
+            json!({"protocol":3,"id":"cancel","method":"cancel"})
+        );
+        fs::write(marker("cancelled"), "yes").unwrap();
+        emit(json!({"protocol":3,"id":"cancel","event":"cancelled"}));
+        return;
+    }
+    if instance == "describe-error" {
+        emit(json!({"protocol":3,"id":"describe","event":"error","code":"unsupported_method"}));
+        return;
+    }
+    let mut spec = setup_spec();
+    if instance == "describe-malformed" {
+        spec["extra"] = json!("SENTINEL");
+    }
+    if instance == "describe-invalid" {
+        spec["steps"][1]["fields"][0]["default"] = json!("SENTINEL");
+    }
+    emit(json!({"protocol":3,"id":"describe","event":"setup","spec":spec}));
+    if instance == "describe-no-eof" {
+        hang();
+    }
+    if instance == "describe-extra" {
+        println!("{{}}");
+    }
+    assert!(lines.next().is_none());
+    if instance == "describe-nonzero" {
+        std::process::exit(7);
+    }
 }

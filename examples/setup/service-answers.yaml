@@ -1,0 +1,10 @@
+version: 1
+answers:
+  auth_method: service
+  client_id: example-client
+  client_secret: keychain://example-main/client_secret
+  tenant: example-tenant
+  port: 8443
+  enabled: true
+  regions: []
+  metadata: null

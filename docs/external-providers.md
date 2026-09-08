@@ -184,5 +184,7 @@ output; no access database is created.
 
 Native authors should use the [provider development guide](provider-development.md).
 The Python example remains a draft-1 offline reference and cannot be registered as
-a native executable. Provider catalogs, downloads, installation wizards, automatic
-updates and interpreter/dependency-bundle trust remain deferred.
+a native executable. [Declarative setup](provider-setup.md) can add an instance
+using provider-owned questions without sending answers or granting workspace
+approval. Provider catalogs, downloads, installation, automatic updates and
+interpreter/dependency-bundle trust remain deferred.

@@ -81,7 +81,9 @@ Google Workspace directory discovery is available as an [identity source](docs/p
 with externally supplied OAuth access tokens; live tenant qualification is pending.
 AWS and Cloudflare are planned. [External native providers](docs/external-providers.md) can be explicitly trusted
 and, after separate workspace approval, used for access queries and health checks
-with reviewed named credential references. Native code is not sandboxed.
+with reviewed named credential references. [Guided setup](docs/provider-setup.md)
+uses provider-declared questions and keeps answers inside the CLI. Native code is
+not sandboxed.
 
 ## Configuration
 

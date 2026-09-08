@@ -53,6 +53,8 @@ jobs:
         run: python scripts/check_external_host.py
       - name: Exercise approved external workspace queries
         run: python scripts/check_external_queries.py
+      - name: Exercise declarative provider setup
+        run: python scripts/check_provider_setup.py
       - name: Validate Python-to-Rust discovery protocol
         run: python scripts/check_protocol_example.py
   msrv:
