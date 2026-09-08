@@ -9,6 +9,10 @@ fn run(dir: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_permesh"))
         .current_dir(dir)
         .env("NO_COLOR", "1")
+        .env(
+            "PERMESH_DATA_DIR",
+            dir.canonicalize().unwrap().join("state"),
+        )
         .env("TOKIO_WORKER_THREADS", "2")
         .env_remove(MISSING_CREDENTIAL)
         .args(args)
@@ -48,29 +52,50 @@ fn plain_init_and_doctor_accept_an_empty_workspace() {
 fn provider_metadata_does_not_resolve_credentials_and_duplicate_add_is_atomic() {
     let dir = tempfile::tempdir().unwrap();
     assert!(run(dir.path(), &["init"]).status.success());
-    let token_ref = format!("env://{MISSING_CREDENTIAL}");
+    let root = dir.path().canonicalize().unwrap();
+    let source = root.join("inert-native");
+    std::fs::write(&source, b"\x7fELFmetadata never executes this fixture").unwrap();
+    let digest = permesh_provider_external::trust::inspect(&source)
+        .unwrap()
+        .sha256;
+    let registry =
+        permesh_provider_external::trust::Registry::new(root.join("state/providers")).unwrap();
+    registry
+        .trust(
+            &source,
+            "fixture",
+            &digest,
+            &[permesh_provider_sdk::Capability::Accounts],
+        )
+        .unwrap();
+    let token_ref = format!("token=env://{MISSING_CREDENTIAL}");
     let args = [
         "provider",
         "add",
-        "github",
+        "external",
         "--id",
-        "github-test",
-        "--organization",
-        "acme",
-        "--token-ref",
+        "external-test",
+        "--provider",
+        "fixture",
+        "--sha256",
+        &digest,
+        "--credential",
         &token_ref,
         "--json",
     ];
     json(&run(dir.path(), &args));
     let path = dir.path().join("permesh.yaml");
     let config = permesh_config::Config::load(&path).unwrap();
-    assert_eq!(config.providers[0].auth.as_ref().unwrap().token, token_ref);
+    assert_eq!(
+        config.providers[0].external.as_ref().unwrap().credentials["token"],
+        format!("env://{MISSING_CREDENTIAL}")
+    );
     json(&run(dir.path(), &["provider", "list", "--json"]));
     let capabilities = json(&run(
         dir.path(),
-        &["provider", "capabilities", "github-test", "--json"],
+        &["provider", "capabilities", "external-test", "--json"],
     ));
-    assert_eq!(capabilities["result"]["metadata"]["kind"], "github");
+    assert_eq!(capabilities["result"]["metadata"]["kind"], "external");
     let before = std::fs::read(&path).unwrap();
     let duplicate = run(dir.path(), &args);
     assert_eq!(duplicate.status.code(), Some(2));

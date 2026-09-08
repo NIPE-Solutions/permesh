@@ -87,7 +87,7 @@ pub enum ProviderCommand {
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {
-    #[arg(value_parser=["github", "google", "external"])]
+    #[arg(value_parser=["github", "google", "external"], help="Provider type; legacy github is rejected with external setup guidance")]
     pub provider_type: String,
     #[arg(long, help = "Stable instance ID; defaults to TYPE-main")]
     pub id: Option<String>,

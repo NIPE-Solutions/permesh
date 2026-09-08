@@ -17,10 +17,15 @@ pub fn kind(provider: &ProviderConfig) -> &'static str {
         ProviderKind::External => "external",
     }
 }
+pub fn legacy_github_message(id: &str) -> String {
+    format!(
+        "Bundled GitHub execution is unavailable. Install and explicitly trust the external GitHub provider, then run permesh provider migrate {id} --sha256 DIGEST and review workspace execution approval"
+    )
+}
 pub fn metadata(provider: &ProviderConfig) -> Result<Metadata, AppError> {
     Ok(match provider.kind {
         ProviderKind::Demo => permesh_provider_demo::provider_metadata(),
-        ProviderKind::Github => permesh_provider_github::provider_metadata(),
+        ProviderKind::Github => return Err(AppError::input(legacy_github_message(&provider.id))),
         ProviderKind::Google => permesh_provider_google::provider_metadata(),
         ProviderKind::External => return crate::external_workspace::metadata(provider),
     })
@@ -34,30 +39,27 @@ pub fn build(provider: &ProviderConfig) -> Result<Arc<dyn Provider>, ProviderErr
         ProviderKind::Demo => Ok(Arc::new(permesh_provider_demo::DemoProvider::new(
             &provider.id,
         ))),
-        ProviderKind::Github | ProviderKind::Google => {
+        ProviderKind::Github => Err(ProviderError::new(
+            "migration_required",
+            legacy_github_message(&provider.id),
+        )),
+        ProviderKind::Google => {
             let reference = provider
                 .auth
                 .as_ref()
                 .ok_or_else(|| ProviderError::new("auth", "Authentication reference missing"))?;
             let reference = SecretRef::parse(&reference.token)
                 .map_err(|_| ProviderError::new("auth", "Invalid secret reference"))?;
-            let secret=SecretResolver.resolve(&reference).map_err(|_|ProviderError::new("auth","Authentication unavailable. Set the configured environment variable or run permesh auth login for this instance."))?;
-            if provider.kind == ProviderKind::Google {
-                let customer = provider.customer_id.clone().ok_or_else(|| {
-                    ProviderError::new("configuration", "Google customer_id missing")
-                })?;
-                Ok(Arc::new(permesh_provider_google::GoogleProvider::new(
-                    provider.id.clone(),
-                    customer,
-                    secret,
-                )?))
-            } else {
-                Ok(Arc::new(permesh_provider_github::GithubProvider::new(
-                    provider.id.clone(),
-                    provider.organizations.clone(),
-                    secret,
-                )?))
-            }
+            let secret = SecretResolver.resolve(&reference).map_err(|_| ProviderError::new("auth", "Authentication unavailable. Set the configured environment variable or run permesh auth login for this instance."))?;
+            let customer = provider
+                .customer_id
+                .clone()
+                .ok_or_else(|| ProviderError::new("configuration", "Google customer_id missing"))?;
+            Ok(Arc::new(permesh_provider_google::GoogleProvider::new(
+                provider.id.clone(),
+                customer,
+                secret,
+            )?))
         }
     }
 }
@@ -189,4 +191,29 @@ pub async fn collect(
     };
     outcome.report.completed_at = now()?;
     Ok((outcome, snapshots))
+}
+
+#[cfg(test)]
+mod legacy_tests {
+    use super::*;
+    #[test]
+    fn legacy_build_rejects_before_even_parsing_a_credential_reference() {
+        let provider = ProviderConfig {
+            id: "legacy".into(),
+            kind: ProviderKind::Github,
+            organizations: vec!["acme".into()],
+            customer_id: None,
+            external: None,
+            auth: Some(permesh_config::AuthConfig {
+                token: "invalid secret reference must never be parsed".into(),
+            }),
+        };
+        match build(&provider) {
+            Err(error) => {
+                assert_eq!(error.code, "migration_required");
+                assert!(error.message.contains("provider migrate legacy"));
+            }
+            Ok(_) => panic!("legacy provider constructed an adapter"),
+        }
+    }
 }

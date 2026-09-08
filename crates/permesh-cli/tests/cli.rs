@@ -137,7 +137,7 @@ fn sigint_cancels_blocked_token_stdin_with_json_error() {
         time::{Duration, Instant},
     };
     let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("permesh.yaml"), "version: 1\norganization: {name: Acme}\nproviders:\n  - id: gh\n    type: github\n    organizations: [acme]\n    auth: {token: keychain://gh/token}\n").unwrap();
+    std::fs::write(d.path().join("permesh.yaml"), "version: 1\norganization: {name: Acme}\nproviders:\n  - id: gh\n    type: external\n    external:\n      provider: github\n      sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'\n      configuration: {organizations: [acme]}\n      credentials: {token: keychain://gh/token}\n").unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_permesh"))
         .current_dir(d.path())
         .env("TOKIO_WORKER_THREADS", "2")
@@ -178,7 +178,7 @@ fn sigint_cancels_blocked_token_stdin_with_json_error() {
 fn rejected_token_input_never_reaches_output() {
     use std::{io::Write, process::Stdio};
     let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("permesh.yaml"), "version: 1\norganization: {name: Acme}\nproviders:\n  - id: gh\n    type: github\n    organizations: [acme]\n    auth: {token: keychain://gh/token}\n").unwrap();
+    std::fs::write(d.path().join("permesh.yaml"), "version: 1\norganization: {name: Acme}\nproviders:\n  - id: gh\n    type: external\n    external:\n      provider: github\n      sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'\n      configuration: {organizations: [acme]}\n      credentials: {token: keychain://gh/token}\n").unwrap();
     for token in [
         vec![b'x'; 16_385],
         b"SENTINEL_SECRET\x00".to_vec(),
