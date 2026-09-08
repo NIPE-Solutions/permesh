@@ -57,7 +57,7 @@ When any authority is absent or partial, every observed account has reason `unas
 
 ## Other results
 
-`provider_list`: `{providers: [{id,type}]}`. `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add`: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
+`provider_list`: `{providers: [{id,type}]}`. `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add` for bundled/manual instances: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
 
 ## Error envelope
 
@@ -166,3 +166,5 @@ discovery. Approval records remain stored, but their old whole-workspace
 fingerprints no longer approve the changed configuration. Repeated conversion of
 an already external instance returns input error 2 without rewriting it. See
 [GitHub migration](github-migration.md) or [Google migration](google-migration.md) for behavior and exit codes.
+
+Guided GitHub `provider_add` returns `{id,provider,version,sha256,file,configured,approved,credentials_resolved,configuration,credential_references,message,next}` after setup. `credentials_resolved` is always false: authentication is separate. Declining binary trust returns `{id,configured:false,approved:false,credentials_resolved:false,message,next}` without creating an instance. Both successful completion and explicit decline exit 0; inspect `configured` and `approved` when automating. Prompts never decorate JSON output.

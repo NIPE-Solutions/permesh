@@ -4,10 +4,12 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Guide official GitHub add through verified download, explicit native-code trust, declarative setup and separate workspace approval. Automation requires an answer file and explicit risk acceptance; authentication stays separate and current-host pins remain unchanged.
+
 - Separate legacy provider discovery records and CLI schema-1 query/snapshot output from internal domain serialization. Frozen protocol and JSON fixtures preserve existing field and enum contracts.
 - Scope workspace approval to the selected provider, credential references, relevant identity aliases/authority and registration. **Existing full-workspace approvals require one fresh review and approval.** Unrelated provider and organization changes then preserve approval; changed security inputs still fail closed.
 - Reject provider-add YAML updates that exceed the workspace load limit. Provider add/setup share captured-revision checks so detected concurrent edits leave the current configuration intact.
-- Add an implementation-backed architecture audit, prioritized hardening backlog and explicit migration decisions. Domain, negotiated protocol and onboarding proposals remain unstabilized.
+- Add an implementation-backed architecture audit, prioritized hardening backlog and explicit migration decisions. Domain and negotiated protocol proposals remain unstabilized.
 
 ## 0.1.0-alpha.2
 

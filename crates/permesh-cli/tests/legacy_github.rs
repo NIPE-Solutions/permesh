@@ -35,7 +35,7 @@ fn legacy_commands_require_migration_before_credentials_or_network() -> TestResu
     Ok(())
 }
 #[test]
-fn add_github_is_inert_and_points_to_external_setup() -> TestResult {
+fn legacy_add_github_flags_are_inert_and_point_to_guided_setup() -> TestResult {
     let temp = tempfile::tempdir()?;
     let result = Command::new(env!("CARGO_BIN_EXE_permesh"))
         .current_dir(temp.path())

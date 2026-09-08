@@ -17,8 +17,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-struct WorkspaceAccess {
-    root: PathBuf,
+pub(crate) struct WorkspaceAccess {
+    pub root: PathBuf,
 }
 fn workspace_path(path: &Path) -> Result<PathBuf, AppError> {
     path.canonicalize()
@@ -72,7 +72,7 @@ impl WorkspaceAccess {
         }
         Ok((registry, registration))
     }
-    fn reviewed(
+    pub(crate) fn reviewed(
         &self,
         config: &Config,
         path: &Path,
@@ -141,7 +141,7 @@ impl WorkspaceAccess {
             }),
         )
     }
-    fn approve(
+    pub(crate) fn approve(
         &self,
         config: &Config,
         path: &Path,
