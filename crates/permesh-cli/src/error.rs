@@ -33,3 +33,9 @@ impl From<permesh_core::DomainError> for AppError {
         Self::new(code, error.to_string())
     }
 }
+
+impl From<permesh_provider_sdk::ProviderError> for AppError {
+    fn from(error: permesh_provider_sdk::ProviderError) -> Self {
+        Self::new(3, error.message)
+    }
+}

@@ -7,25 +7,30 @@ use permesh_config::{Config, ProviderConfig, ProviderKind};
 use permesh_core::Snapshot;
 use permesh_provider_sdk::{Metadata, Provider, ProviderError};
 use permesh_secrets::{SecretRef, SecretResolver};
-use std::{collections::VecDeque, sync::Arc, time::Duration};
+use std::{collections::VecDeque, sync::Arc};
 const MAX_CONCURRENT_PROVIDERS: usize = 4;
-const PROVIDER_TIMEOUT: Duration = Duration::from_secs(120);
 pub fn kind(provider: &ProviderConfig) -> &'static str {
     match provider.kind {
         ProviderKind::Demo => "demo",
         ProviderKind::Github => "github",
         ProviderKind::Google => "google",
+        ProviderKind::External => "external",
     }
 }
-pub fn metadata(provider: &ProviderConfig) -> Metadata {
-    match provider.kind {
+pub fn metadata(provider: &ProviderConfig) -> Result<Metadata, AppError> {
+    Ok(match provider.kind {
         ProviderKind::Demo => permesh_provider_demo::provider_metadata(),
         ProviderKind::Github => permesh_provider_github::provider_metadata(),
         ProviderKind::Google => permesh_provider_google::provider_metadata(),
-    }
+        ProviderKind::External => return crate::external_workspace::metadata(provider),
+    })
 }
 pub fn build(provider: &ProviderConfig) -> Result<Arc<dyn Provider>, ProviderError> {
     match provider.kind {
+        ProviderKind::External => Err(ProviderError::new(
+            "external",
+            "External providers require workspace approval",
+        )),
         ProviderKind::Demo => Ok(Arc::new(permesh_provider_demo::DemoProvider::new(
             &provider.id,
         ))),
@@ -73,6 +78,8 @@ pub fn selected(config: &Config, id: Option<&str>) -> Result<Vec<ProviderConfig>
 pub async fn collect(
     blocking: &crate::blocking::BlockingPool,
     config: &Config,
+    path: &std::path::Path,
+    cancellation: &crate::cancellation::Cancellation,
     providers: Vec<ProviderConfig>,
     discovery: bool,
     command: &str,
@@ -81,36 +88,49 @@ pub async fn collect(
     let mut pending: VecDeque<_> = providers.into();
     let mut tasks = tokio::task::JoinSet::new();
     let mut snapshots = vec![];
+    let config_owned = Arc::new(config.clone());
+    let mut internal_failure = false;
     while !pending.is_empty() || !tasks.is_empty() {
-        while tasks.len() < MAX_CONCURRENT_PROVIDERS {
+        if cancellation.is_cancelled() {
+            pending.clear();
+        }
+        while tasks.len() < MAX_CONCURRENT_PROVIDERS && !cancellation.is_cancelled() {
             let Some(provider) = pending.pop_front() else {
                 break;
             };
             let blocking = blocking.clone();
+            let config = config_owned.clone();
+            let path = path.to_owned();
+            let cancellation = cancellation.clone();
             tasks.spawn(async move {
-                let id=provider.id.clone();let kind=kind(&provider).to_string();
-                let result=tokio::time::timeout(PROVIDER_TIMEOUT,async {
-                    let adapter = blocking.run(move || build(&provider)).await
-                        .map_err(|_| ProviderError::new("native_io", "Cannot resolve provider credentials"))??;
-                    if discovery {
-                        let mut snapshot=adapter.discover().await?;
-                        if snapshot.provider!=id {return Err(ProviderError::new("invalid_snapshot","Provider returned a mismatched instance ID"));}
-                        permesh_provider_sdk::validate_snapshot(&snapshot)?;snapshot.sort();
-                        Ok(("Discovery completed".to_string(),snapshot.limitations.clone(),Some(snapshot)))
-                    }else{let health=adapter.check().await?;Ok((health.message,health.limitations,None))}
-                }).await.unwrap_or_else(|_|Err(ProviderError::new("timeout","Provider exceeded the 120-second deadline. Check connectivity or reduce configured organizations.")));
-                (id,kind,result)
+                let id = provider.id.clone();
+                let kind = kind(&provider).to_string();
+                let result = crate::provider_operation::run(
+                    &blocking,
+                    &config,
+                    &path,
+                    provider,
+                    discovery,
+                    &cancellation,
+                )
+                .await;
+                (id, kind, result)
             });
         }
         let Some(joined) = tasks.join_next().await else {
             break;
         };
-        let (id, kind, result) = joined.map_err(|_| {
-            AppError::new(
-                5,
-                "Provider task failed unexpectedly; no diagnostic payload was retained",
-            )
-        })?;
+        let (id, kind, result) = match joined {
+            Ok(result) => result,
+            Err(_) => {
+                internal_failure = true;
+                cancellation.cancel();
+                continue;
+            }
+        };
+        if result.as_ref().is_err_and(|error| error.code == 5) {
+            internal_failure = true;
+        }
         match result {
             Ok((message, limitations, snapshot)) => {
                 let complete = snapshot.as_ref().is_none_or(|s| s.complete);
@@ -141,6 +161,15 @@ pub async fn collect(
                 limitations: vec![],
             }),
         }
+    }
+    if internal_failure {
+        return Err(AppError::new(
+            5,
+            "Provider task or process cleanup failed; no diagnostic payload was retained",
+        ));
+    }
+    if cancellation.is_cancelled() {
+        return Err(AppError::new(130, "Cancelled"));
     }
     outcome.report.providers.sort_by(|a, b| a.id.cmp(&b.id));
     snapshots.sort_by(|a, b| a.provider.cmp(&b.provider));

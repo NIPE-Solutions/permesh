@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
+mod external;
+pub use external::ExternalConfig;
 use permesh_secrets::SecretRef;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -57,6 +59,8 @@ pub struct ProviderConfig {
     pub customer_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external: Option<ExternalConfig>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -64,6 +68,7 @@ pub enum ProviderKind {
     Demo,
     Github,
     Google,
+    External,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -157,6 +162,7 @@ impl Config {
             if providers.insert(provider.id.as_str(), provider).is_some() {
                 return Err(invalid("duplicate provider id"));
             }
+            external::validate(provider)?;
             let mut orgs = BTreeSet::new();
             for org in &provider.organizations {
                 if !valid_id(org) || org.contains('_') || org.starts_with('-') || org.ends_with('-')
@@ -203,8 +209,8 @@ impl Config {
                         .ok_or_else(|| invalid("provider requires auth.token"))?;
                     let reference = SecretRef::parse(&auth.token)
                         .map_err(|_| invalid("auth.token must be an env or keychain reference"))?;
-                    if let SecretRef::Keychain { service, .. } = reference
-                        && service != provider.id
+                    if let SecretRef::Keychain { service, account } = reference
+                        && (service != provider.id || account != "token")
                     {
                         return Err(invalid("keychain reference must match its provider id"));
                     }
@@ -220,7 +226,10 @@ impl Config {
             if !sources.insert(&source.provider) {
                 return Err(invalid("duplicate identity source"));
             }
-            if !matches!(provider.kind, ProviderKind::Demo | ProviderKind::Google) {
+            if !matches!(
+                provider.kind,
+                ProviderKind::Demo | ProviderKind::Google | ProviderKind::External
+            ) {
                 return Err(invalid(
                     "identity source provider lacks identity-source capability",
                 ));

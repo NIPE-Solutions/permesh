@@ -42,3 +42,9 @@ Scripts require a separate trust design covering interpreter and dependencies.
 Credential transport, ordinary query integration and identity-source authority
 remain separate milestones. Registration and output schemas have their own
 versions; the wire protocol remains draft 1.
+
+## Subsequent extension
+
+[ADR 0010](0010-approved-external-workspace-invocations.md) adds exact local
+workspace approval, draft-2 health/discovery and named credential slots while
+preserving the original standalone draft-1 boundary and built-in token handling.

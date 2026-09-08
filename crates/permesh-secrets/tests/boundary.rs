@@ -7,6 +7,7 @@ fn reference_syntax_is_strict_and_errors_redacted() {
         "env://TOKEN",
         "env://_TOKEN2",
         "keychain://github-main/token",
+        "keychain://internal-main/client_secret",
     ] {
         assert_eq!(SecretRef::parse(valid).unwrap().to_string(), valid);
     }
@@ -18,7 +19,7 @@ fn reference_syntax_is_strict_and_errors_redacted() {
         "env://A/B",
         "env://A?x",
         "keychain://../token",
-        "keychain://gh/password",
+        "keychain://gh/../password",
         "keychain://gh/token/",
         "keychain://gh%2f/token",
         "env://A\n",

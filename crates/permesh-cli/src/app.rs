@@ -6,7 +6,11 @@ use crate::{
     report::Outcome,
     workspace,
 };
-pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<Outcome, AppError> {
+pub async fn run(
+    cli: &Cli,
+    blocking: &crate::blocking::BlockingPool,
+    cancellation: &crate::cancellation::Cancellation,
+) -> Result<Outcome, AppError> {
     if let Command::Init { demo, organization } = &cli.command {
         let owned_cli = cli.clone();
         let demo = *demo;
@@ -27,7 +31,9 @@ pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<
     {
         return workspace::add(cli, args);
     }
-    let config = workspace::load(cli)?;
+    let path = std::fs::canonicalize(workspace::path(cli)?)
+        .map_err(|_| AppError::input("Cannot locate workspace configuration"))?;
+    let config = permesh_config::Config::load(&path)?;
     match &cli.command {
         Command::Auth { command } => auth::run(&config, command, cli.json, blocking).await,
         Command::Provider {
@@ -53,7 +59,7 @@ pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<
                 })?;
             Outcome::new(
                 "provider_capabilities",
-                serde_json::json!({"id":id,"metadata":collection::metadata(provider)}),
+                serde_json::json!({"id":id,"metadata":collection::metadata(provider)?}),
             )
         }
         Command::Doctor
@@ -71,6 +77,8 @@ pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<
             let (mut outcome, _) = collection::collect(
                 blocking,
                 &config,
+                &path,
+                cancellation,
                 collection::selected(&config, id)?,
                 false,
                 if matches!(cli.command, Command::Doctor) {
@@ -80,7 +88,7 @@ pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<
                 },
             )
             .await?;
-            outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":config.identity.sources,"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider add github --organization YOUR_ORG."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"Workspace programs are never run; native providers require explicit provider external commands","local_overrides":"Not loaded"});
+            outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":config.identity.sources,"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider add github --organization YOUR_ORG."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"External execution requires a pinned registered binary and approval of this workspace configuration","local_overrides":"Not loaded"});
             Ok(outcome)
         }
         Command::User { .. } | Command::Admins | Command::Orphaned => {
@@ -106,9 +114,16 @@ pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<
                 Command::Orphaned => "orphaned",
                 _ => "user",
             };
-            let (mut outcome, snapshots) =
-                collection::collect(blocking, &config, config.providers.clone(), true, command)
-                    .await?;
+            let (mut outcome, snapshots) = collection::collect(
+                blocking,
+                &config,
+                &path,
+                cancellation,
+                config.providers.clone(),
+                true,
+                command,
+            )
+            .await?;
             if snapshots.is_empty() {
                 return Ok(outcome);
             }

@@ -3,8 +3,8 @@
 mod framing;
 mod session;
 mod wire;
-pub use session::{DiscoveryDecoder, Progress, validate_discovery};
-pub use wire::handshake_request;
+pub use session::{DiscoveryDecoder, HealthDecoder, Progress, validate_discovery};
+pub use wire::{handshake_request, handshake_request_versioned};
 
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAX_FRAME_BYTES: usize = 1_048_576;

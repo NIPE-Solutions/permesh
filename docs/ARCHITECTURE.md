@@ -2,7 +2,10 @@
 
 Status: accepted implementation design; pre-release.
 
-Use a Rust workspace with `permesh-core` (serializable domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, `permesh-provider-github`, `permesh-provider-google`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded offline wire validation into core snapshots. The `permesh-provider-external` crate owns local native-binary registration and subprocess supervision. Presentation stays in CLI modules.
+Use a Rust workspace with `permesh-core` (serializable domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, `permesh-provider-github`, `permesh-provider-google`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded versioned discovery
+and health validation. The `permesh-provider-external` crate owns protected native
+registrations, workspace approval fingerprints, private invocation credentials
+and subprocess supervision. Presentation stays in CLI modules.
 
 ```mermaid
 flowchart LR
@@ -31,4 +34,10 @@ Alternatives: one crate would weaken adapter boundaries; a crate per every conce
 
 The identity index and bounded graph traversal are shared by user and admins queries. Admins builds identity evidence once and reverse-indexes membership relevance from nonstandard grants before enumerating paths; it does not rescan the graph once per account or discard ambiguous accounts. Known privileged paths, unknown privilege paths, and grants without account paths remain separate in results.
 
-External transcripts follow `bounded NDJSON → strict envelope/capabilities → normalized records → core validation → sorted snapshot`. The offline developer validator returns counts only. Explicit `provider external` commands use incremental validation and supervised native execution. Ordinary workspace queries do not launch external programs.
+External transcripts follow `bounded NDJSON → strict envelope/capabilities → normalized records → core validation → sorted snapshot`. The offline developer validator returns counts only. Standalone `provider external discover` uses draft 1. Workspace external
+operations follow `validated config → registered digest/capabilities → exact local
+approval → credential resolution → supervised draft-2 handshake → private request
+→ validated health/snapshot`. Approval binds the canonical config path, instance,
+full normalized config and registration. Ordinary queries merge only validated
+snapshots using existing partial-result and source-authority rules. Cancellation
+signals running external operations and awaits cleanup rather than dropping them.

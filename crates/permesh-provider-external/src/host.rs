@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //! Supervision for explicitly trusted native providers. This is not a sandbox.
 use crate::ExternalError;
+pub use crate::invocation::Invocation;
 use permesh_core::Snapshot;
 use permesh_provider_protocol::{
-    DiscoveryDecoder, MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES, Progress, handshake_request,
+    DiscoveryDecoder, HealthDecoder, MAX_FRAME_BYTES, MAX_TRANSCRIPT_BYTES, Progress,
+    handshake_request, handshake_request_versioned,
 };
 use permesh_provider_sdk::Capability;
+use permesh_provider_sdk::Health;
 use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
 use std::{future::Future, io, path::Path, process::Stdio, time::Duration};
 use tokio::{
@@ -13,6 +16,7 @@ use tokio::{
     process::{ChildStdin, Command},
     time::{Instant, sleep_until},
 };
+use zeroize::{Zeroize, Zeroizing};
 
 const STDERR_LIMIT: usize = 64 * 1024;
 #[derive(Clone, Copy)]
@@ -93,6 +97,132 @@ async fn discover_with_deadlines(
     let decoder = DiscoveryDecoder::new(provider, instance, Some(capabilities))
         .map_err(|_| ExternalError::Input)?;
     let handshake = handshake_request(instance).map_err(|_| ExternalError::Input)?;
+    supervise(
+        executable,
+        Exchange {
+            decoder,
+            handshake,
+            invocation: None,
+            method: "discover",
+            version: 1,
+        },
+        cancellation,
+        deadlines,
+    )
+    .await
+}
+
+trait Decoder {
+    type Output;
+    fn push(&mut self, frame: &[u8]) -> Result<Progress, permesh_provider_protocol::ProtocolError>;
+    fn finish(self) -> Result<Self::Output, permesh_provider_protocol::ProtocolError>;
+}
+impl Decoder for DiscoveryDecoder {
+    type Output = Snapshot;
+    fn push(&mut self, frame: &[u8]) -> Result<Progress, permesh_provider_protocol::ProtocolError> {
+        self.push_frame(frame)
+    }
+    fn finish(self) -> Result<Snapshot, permesh_provider_protocol::ProtocolError> {
+        self.finish()
+    }
+}
+impl Decoder for HealthDecoder {
+    type Output = Health;
+    fn push(&mut self, frame: &[u8]) -> Result<Progress, permesh_provider_protocol::ProtocolError> {
+        self.push_frame(frame)
+    }
+    fn finish(self) -> Result<Health, permesh_provider_protocol::ProtocolError> {
+        self.finish()
+    }
+}
+struct Exchange<'a, D> {
+    decoder: D,
+    handshake: Vec<u8>,
+    invocation: Option<&'a Invocation>,
+    method: &'static str,
+    version: u32,
+}
+
+/// Discover using draft2; credentials are delivered only after identity/capability validation.
+pub async fn discover_configured(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    invocation: &Invocation,
+    cancellation: impl Future<Output = ()>,
+) -> Result<Snapshot, ExternalError> {
+    configured_discovery(
+        executable,
+        provider,
+        instance,
+        capabilities,
+        invocation,
+        cancellation,
+        Deadlines::default(),
+    )
+    .await
+}
+async fn configured_discovery(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    invocation: &Invocation,
+    cancellation: impl Future<Output = ()>,
+    deadlines: Deadlines,
+) -> Result<Snapshot, ExternalError> {
+    let decoder = DiscoveryDecoder::new_versioned(provider, instance, Some(capabilities), 2)
+        .map_err(|_| ExternalError::Input)?;
+    let handshake = handshake_request_versioned(instance, 2).map_err(|_| ExternalError::Input)?;
+    supervise(
+        executable,
+        Exchange {
+            decoder,
+            handshake,
+            invocation: Some(invocation),
+            method: "discover",
+            version: 2,
+        },
+        cancellation,
+        deadlines,
+    )
+    .await
+}
+/// Perform only the draft2 health operation, without requesting discovery records.
+pub async fn check_configured(
+    executable: &Path,
+    provider: &str,
+    instance: &str,
+    capabilities: &[Capability],
+    invocation: &Invocation,
+    cancellation: impl Future<Output = ()>,
+) -> Result<Health, ExternalError> {
+    let decoder = HealthDecoder::new(provider, instance, Some(capabilities))
+        .map_err(|_| ExternalError::Input)?;
+    let handshake = handshake_request_versioned(instance, 2).map_err(|_| ExternalError::Input)?;
+    supervise(
+        executable,
+        Exchange {
+            decoder,
+            handshake,
+            invocation: Some(invocation),
+            method: "check",
+            version: 2,
+        },
+        cancellation,
+        Deadlines::default(),
+    )
+    .await
+}
+
+async fn supervise<D: Decoder>(
+    executable: &Path,
+    exchange_spec: Exchange<'_, D>,
+    cancellation: impl Future<Output = ()>,
+    deadlines: Deadlines,
+) -> Result<D::Output, ExternalError> {
+    let version = exchange_spec.version;
     if !executable.is_absolute() {
         return Err(ExternalError::Input);
     }
@@ -154,8 +284,7 @@ async fn discover_with_deadlines(
                     &mut stdin,
                     &mut stdout,
                     &mut stdout_total,
-                    decoder,
-                    &handshake,
+                    exchange_spec,
                     started + deadlines.handshake
                 ),
                 discard_stream(
@@ -198,9 +327,11 @@ async fn discover_with_deadlines(
                 async {
                     if let Some(input) = &mut stdin {
                         input
-                            .write_all(
-                                b"{\"protocol\":1,\"id\":\"cancel\",\"method\":\"cancel\"}\n",
-                            )
+                            .write_all(if version == 2 {
+                                b"{\"protocol\":2,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
+                            } else {
+                                b"{\"protocol\":1,\"id\":\"cancel\",\"method\":\"cancel\"}\n"
+                            })
                             .await
                             .map_err(|_| ExternalError::Protocol)?;
                         input.flush().await.map_err(|_| ExternalError::Protocol)?;
@@ -277,15 +408,21 @@ fn terminate(child: &mut dyn ChildWrapper) -> Result<(), ExternalError> {
     }
 }
 
-async fn exchange(
+async fn exchange<D: Decoder>(
     stdin: &mut Option<ChildStdin>,
     mut stdout: impl AsyncRead + Unpin,
     total: &mut usize,
-    mut decoder: DiscoveryDecoder,
-    handshake: &[u8],
+    spec: Exchange<'_, D>,
     handshake_deadline: Instant,
-) -> Result<Snapshot, ExternalError> {
-    let mut frame = Vec::new();
+) -> Result<D::Output, ExternalError> {
+    let Exchange {
+        mut decoder,
+        handshake,
+        invocation,
+        method,
+        ..
+    } = spec;
+    let mut frame = Zeroizing::new(Vec::new());
     let mut chunk = [0u8; 8192];
     let mut negotiated = false;
     tokio::time::timeout_at(
@@ -293,7 +430,7 @@ async fn exchange(
         stdin
             .as_mut()
             .ok_or(ExternalError::Protocol)?
-            .write_all(handshake),
+            .write_all(&handshake),
     )
     .await
     .map_err(|_| ExternalError::Timeout)?
@@ -326,18 +463,25 @@ async fn exchange(
             }
             frame.push(*byte);
             if *byte == b'\n' {
-                match decoder
-                    .push_frame(&frame)
-                    .map_err(|_| ExternalError::Protocol)?
+                if let Some(invocation) = invocation
+                    && invocation.rejects_reflection(&frame)?
                 {
+                    return Err(ExternalError::Protocol);
+                }
+                match decoder.push(&frame).map_err(|_| ExternalError::Protocol)? {
                     Progress::Handshake => {
                         negotiated = true;
+                        let request = match invocation {
+                            Some(invocation) => invocation.request(method)?,
+                            None => Zeroizing::new(
+                                b"{\"protocol\":1,\"id\":\"discover\",\"method\":\"discover\"}\n"
+                                    .to_vec(),
+                            ),
+                        };
                         stdin
                             .as_mut()
                             .ok_or(ExternalError::Protocol)?
-                            .write_all(
-                                b"{\"protocol\":1,\"id\":\"discover\",\"method\":\"discover\"}\n",
-                            )
+                            .write_all(&request)
                             .await
                             .map_err(|_| ExternalError::Protocol)?;
                     }
@@ -346,7 +490,7 @@ async fn exchange(
                     }
                     Progress::Record => {}
                 }
-                frame.clear();
+                frame.zeroize();
             }
         }
     }

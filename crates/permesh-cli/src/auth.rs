@@ -31,6 +31,10 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
             for p in collection::selected(config, id.as_deref())? {
                 let available = if p.kind == ProviderKind::Demo {
                     true
+                } else if let Some(external) = &p.external {
+                    external.credentials.values().all(|value| {
+                        SecretRef::parse(value).is_ok_and(|r| SecretResolver.resolve(&r).is_ok())
+                    })
                 } else {
                     p.auth
                         .as_ref()
@@ -61,8 +65,12 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
             }
             Ok(o)
         }
-        AuthCommand::Login { id, token_stdin } => {
-            let reference = keychain_ref(config, id)?;
+        AuthCommand::Login {
+            id,
+            token_stdin,
+            credential,
+        } => {
+            let reference = keychain_ref(config, id, credential.as_deref())?;
             let value = if *token_stdin {
                 let mut bytes =
                     zeroize::Zeroizing::new(Vec::with_capacity(MAX_TOKEN_BYTES as usize + 1));
@@ -99,8 +107,8 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
                 serde_json::json!({"message":"Stored local keychain credential. Run permesh doctor to verify provider authentication and visibility."}),
             )
         }
-        AuthCommand::Logout { id } => {
-            permesh_secrets::delete(&keychain_ref(config,id)?).map_err(|_|AppError::new(3,"Cannot delete keychain credential. Check that it exists and native storage is available."))?;
+        AuthCommand::Logout { id, credential } => {
+            permesh_secrets::delete(&keychain_ref(config,id,credential.as_deref())?).map_err(|_|AppError::new(3,"Cannot delete keychain credential. Check that it exists and native storage is available."))?;
             Outcome::new(
                 "auth_logout",
                 serde_json::json!({"message":"Deleted local keychain credential. This does not revoke the token at its provider."}),
@@ -108,18 +116,48 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
         }
     }
 }
-fn keychain_ref(config: &Config, id: &str) -> Result<SecretRef, AppError> {
+fn keychain_ref(
+    config: &Config,
+    id: &str,
+    credential: Option<&str>,
+) -> Result<SecretRef, AppError> {
     let provider = config
         .providers
         .iter()
         .find(|p| p.id == id)
         .ok_or_else(|| AppError::input("Unknown provider instance; run permesh provider list"))?;
-    let auth = provider
-        .auth
-        .as_ref()
-        .ok_or_else(|| AppError::input("This provider does not require authentication"))?;
+    let value = if let Some(external) = &provider.external {
+        let name = credential
+            .or_else(|| {
+                if external.credentials.contains_key("token") {
+                    Some("token")
+                } else if external.credentials.len() == 1 {
+                    external.credentials.keys().next().map(String::as_str)
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| {
+                AppError::input("Select a configured credential with --credential NAME")
+            })?;
+        external
+            .credentials
+            .get(name)
+            .ok_or_else(|| AppError::input("Unknown credential slot"))?
+    } else {
+        if credential.is_some() {
+            return Err(AppError::input(
+                "--credential applies to external providers",
+            ));
+        }
+        &provider
+            .auth
+            .as_ref()
+            .ok_or_else(|| AppError::input("This provider does not require authentication"))?
+            .token
+    };
     let reference =
-        SecretRef::parse(&auth.token).map_err(|_| AppError::input("Invalid secret reference"))?;
+        SecretRef::parse(value).map_err(|_| AppError::input("Invalid secret reference"))?;
     if matches!(reference, SecretRef::Env(_)) {
         return Err(AppError::input(
             "This instance uses an environment reference. Set or unset that variable in your shell; auth login/logout only manage keychain references.",

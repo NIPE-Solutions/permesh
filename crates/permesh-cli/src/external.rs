@@ -14,6 +14,18 @@ use std::path::PathBuf;
 
 #[derive(Clone, Subcommand)]
 pub enum ExternalCommand {
+    /// Review this workspace instance and its proposed credential delivery without executing code.
+    Review { instance: String },
+    /// Approve the exact reviewed workspace fingerprint for query execution.
+    Approve {
+        instance: String,
+        #[arg(long)]
+        fingerprint: String,
+        #[arg(long, required = true)]
+        accept_risk: bool,
+    },
+    /// Revoke this workspace instance's local execution approval.
+    Revoke { instance: String },
     /// Read a native executable's digest without executing it.
     Inspect { executable: PathBuf },
     /// Copy reviewed native code into local trust storage (no execution).
@@ -43,7 +55,7 @@ pub enum ExternalCommand {
         instance: String,
     },
 }
-fn storage_root() -> Result<PathBuf, AppError> {
+pub(crate) fn storage_root() -> Result<PathBuf, AppError> {
     if let Some(root) = std::env::var_os("PERMESH_DATA_DIR") {
         let root = PathBuf::from(root);
         if !root.is_absolute() {
@@ -78,7 +90,7 @@ fn capabilities(values: &[String]) -> Result<Vec<Capability>, AppError> {
         })
         .collect()
 }
-fn failure(error: ExternalError) -> AppError {
+pub(crate) fn failure(error: ExternalError) -> AppError {
     let code = match error {
         ExternalError::Input | ExternalError::Trust | ExternalError::Storage => 2,
         ExternalError::Cancelled => 130,
@@ -95,7 +107,51 @@ async fn local<T: Send + 'static>(
         signal=tokio::signal::ctrl_c()=>Err(if signal.is_ok(){AppError::new(130,"Cancelled")}else{AppError::new(5,"Cannot install Ctrl+C handler")}),
     }
 }
-pub async fn run(command: &ExternalCommand, pool: &BlockingPool) -> Result<Outcome, AppError> {
+pub async fn run(
+    command: &ExternalCommand,
+    cli: &crate::args::Cli,
+    pool: &BlockingPool,
+) -> Result<Outcome, AppError> {
+    if matches!(
+        command,
+        ExternalCommand::Review { .. }
+            | ExternalCommand::Approve { .. }
+            | ExternalCommand::Revoke { .. }
+    ) {
+        let cli = cli.clone();
+        let command = command.clone();
+        let operation = pool.run(move || {
+            let path = crate::workspace::path(&cli)?;
+            if let ExternalCommand::Revoke { instance } = command {
+                return crate::external_workspace::revoke(&path, &instance);
+            }
+            let config = permesh_config::Config::load(&path)?;
+            match command {
+                ExternalCommand::Review { instance } => {
+                    crate::external_workspace::review(&config, &path, &instance)
+                }
+                ExternalCommand::Approve {
+                    instance,
+                    fingerprint,
+                    accept_risk,
+                } => crate::external_workspace::approve(
+                    &config,
+                    &path,
+                    &instance,
+                    &fingerprint,
+                    accept_risk,
+                ),
+                _ => Err(AppError::new(
+                    5,
+                    "External workspace command dispatch failed",
+                )),
+            }
+        });
+        return tokio::select! {
+            result = operation => result?,
+            signal = tokio::signal::ctrl_c() => Err(if signal.is_ok() { AppError::new(130, "Cancelled") } else { AppError::new(5, "Cannot install Ctrl+C handler") }),
+        };
+    }
     if let ExternalCommand::Inspect { executable } = command {
         let executable = executable.clone();
         let result = local(pool, move || inspect(&executable)).await?;
@@ -193,7 +249,10 @@ pub async fn run(command: &ExternalCommand, pool: &BlockingPool) -> Result<Outco
             outcome.report.completed_at = now()?;
             Ok(outcome)
         }
-        ExternalCommand::Inspect { .. } => {
+        ExternalCommand::Inspect { .. }
+        | ExternalCommand::Review { .. }
+        | ExternalCommand::Approve { .. }
+        | ExternalCommand::Revoke { .. } => {
             Err(AppError::new(5, "External command dispatch failed"))
         }
     }

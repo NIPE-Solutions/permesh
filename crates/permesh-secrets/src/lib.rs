@@ -6,7 +6,7 @@ use std::{fmt, str::FromStr};
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("invalid secret reference; use env://NAME or keychain://provider-id/token")]
+    #[error("invalid secret reference; use env://NAME or keychain://provider-id/credential-name")]
     InvalidReference,
     #[error("credential environment variable is missing, empty, or not Unicode")]
     EnvironmentUnavailable,
@@ -44,7 +44,7 @@ impl SecretRef {
                         .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
                     && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
             }
-            Self::Keychain { service, account } => valid_id(service) && account == "token",
+            Self::Keychain { service, account } => valid_id(service) && valid_id(account),
         }
     }
 }

@@ -4,13 +4,16 @@ mod app;
 mod args;
 mod auth;
 mod blocking;
+mod cancellation;
 mod collection;
 mod completion;
 mod error;
 mod external;
 mod external_output;
+mod external_workspace;
 mod orphaned_output;
 mod output;
+mod provider_operation;
 mod report;
 mod workspace;
 use clap::Parser;
@@ -63,12 +66,23 @@ async fn main() -> ExitCode {
         command: args::ProviderCommand::External { command },
     } = &cli.command
     {
-        external::run(command, &blocking).await
+        external::run(command, &cli, &blocking).await
     } else {
+        let cancellation = cancellation::Cancellation::new();
+        let operation = app::run(&cli, &blocking, &cancellation);
+        tokio::pin!(operation);
         tokio::select! {
             biased;
-            signal=tokio::signal::ctrl_c()=>match signal {Ok(())=>Err(AppError::new(130,"Cancelled")),Err(_)=>Err(AppError::new(5,"Cannot install Ctrl+C handler"))},
-            result=app::run(&cli, &blocking)=>result,
+            signal=tokio::signal::ctrl_c()=>{
+                cancellation.cancel();
+                let drains = matches!(cli.command, args::Command::Doctor | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Provider { command: args::ProviderCommand::Status { .. } });
+                if drains {
+                    let result = operation.await;
+                    if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json); }
+                }
+                if signal.is_ok() { Err(AppError::new(130,"Cancelled")) } else { Err(AppError::new(5,"Cannot install Ctrl+C handler")) }
+            },
+            result=&mut operation=>result,
         }
     };
     match result {

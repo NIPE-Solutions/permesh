@@ -1,9 +1,10 @@
 # Explicit native external providers
 
-Permesh can supervise one explicitly trusted native provider for discovery.
-This is an expert-facing draft interface. Ordinary `user`, `admins`, `orphaned`
-and `doctor` commands do not execute external programs, and workspace YAML cannot
-select an executable. Nothing is downloaded or installed automatically.
+Permesh runs explicitly trusted native providers for standalone discovery or,
+after a separate local workspace approval, ordinary access queries and health
+checks. This is an expert-facing draft interface. Workspace YAML references a
+registered provider ID and pinned digest; it cannot name an executable, shell
+command or interpreter. Nothing is downloaded or installed automatically.
 
 ## Review and register
 
@@ -40,16 +41,82 @@ never overwrites an existing ID: remove it and explicitly trust the replacement.
 Discovery rechecks the stored digest before launch. Removal affects local files
 only, not the provider service or its access grants.
 
+## Approve a workspace instance
+
+Trusting a binary does not authorize a cloned workspace to run it or supply
+credentials. Add a reference to the registration, review the configuration and
+approve the exact fingerprint shown by the review command:
+
+```bash
+permesh provider add external --id internal-main \
+  --provider my-provider --sha256 REVIEWED_SHA256 \
+  --setting endpoint=https://internal.example.com \
+  --credential token=keychain://internal-main/token
+
+permesh provider external review internal-main
+permesh provider external approve internal-main \
+  --fingerprint REVIEWED_FINGERPRINT --accept-risk
+permesh auth login internal-main --credential token
+
+permesh doctor
+permesh provider status internal-main
+permesh user alice@example.com --json
+permesh admins --json
+permesh orphaned --json
+
+permesh provider external revoke internal-main
+```
+
+Use the reviewed binary digest and the review command's fingerprint in place of
+the uppercase placeholders. `--setting KEY=VALUE` stores a string; edit YAML for
+JSON-compatible objects, arrays, numbers or booleans. `--credential NAME=REF`
+stores a locator, never the credential value. Repeat either flag for more entries.
+See [configuration](CONFIGURATION.md) and [named credentials](secrets.md).
+
+Review displays the parameters, credential references, source-authority settings
+and approval fingerprint without resolving secrets or executing the provider.
+The approval binds the canonical configuration-file path, instance ID, the full
+normalized workspace configuration, and the registration's ID, digest and
+capabilities. A clone at another path has no approval. Editing a setting, credential
+reference, alias, identity authority or another provider invalidates the approval;
+review and approve again. Formatting-only changes that leave the normalized
+configuration unchanged do not change the fingerprint. Credential rotation behind
+an unchanged reference does not itself change the approval.
+
+Queries verify approval and the managed binary before resolving credentials or
+launching that external instance. An unapproved or changed instance fails closed;
+other providers can still produce explicitly incomplete results. `doctor` and
+`provider status` use the health operation rather than enumerating the access
+graph. `user`, `admins` and `orphaned` use normalized discovery records, retaining
+the existing correlation, provenance, ambiguity and partial-result rules.
+
+An external identity source is authoritative only when explicitly selected in
+`identity.sources` and the reviewed registration declares `identities`.
+`orphaned` still requires an authoritative source; a missing or incomplete source
+leaves accounts unassessed. Review source claims carefully: approval is permission
+to use that source, not independent verification of its assertions.
+
+Revocation removes the local workspace permission. It does not revoke provider
+credentials, delete the native registration or undo already observed results.
+`review` and `approve` load the selected configuration; `revoke` uses its canonical
+path and does not require valid configuration contents. Standalone `inspect`,
+`trust`, `list`, `remove` and direct `discover` do not. Direct discovery uses draft
+1 and transmits no workspace parameters or credentials. Workspace operations
+require draft 2 and never downgrade to draft 1.
+
 ## Local storage
 
-Registration is user-local, outside workspace configuration. Permesh uses the
+Registration and workspace approvals are protected user-local state, outside
+shared workspace configuration. Approval records store fingerprints and binding
+metadata, not resolved credentials or access snapshots. Permesh uses the
 platform directories selected through `etcetera`: Application
 Support on macOS, the XDG data directory on Linux and Local AppData on Windows.
 Each registration contains a schema-1 manifest with ID, SHA-256 and capabilities,
 and a managed native executable. Commands show the storage path.
 
 `PERMESH_DATA_DIR` explicitly overrides the base directory; it must be absolute.
-The registry lives in its `providers` subdirectory. Do not share this directory
+The registry lives in its `providers` subdirectory; workspace permissions live in
+the sibling `workspace-approvals` directory. Do not share this directory
 between administrators. Listing an absent registry does not create it. Binary
 inspection is limited to 128 MiB; manifests are limited to 16 KiB. Symlink storage
 and unexpected registration files are rejected. Unix storage uses user ownership,
@@ -70,10 +137,20 @@ attests its behavior nor verifies the truth of its identity assertions.
 
 The host starts the managed binary without command arguments, in a temporary
 working directory and with a cleared environment (Windows may retain system
-runtime configuration). No workspace contents, provider configuration or resolved
-credentials are transmitted. Credential transport and interpreted-provider
-registration remain unsupported. OS libraries and the local operating system
-remain trusted dependencies.
+runtime configuration). Draft-1 direct discovery receives no workspace settings
+or credentials. Approved draft-2 operations receive only that instance's
+`configuration` values and resolved named credentials through the dedicated stdin
+pipe, after the provider ID, version and capability set pass handshake validation.
+Credentials are not placed in child environment variables or command arguments.
+The full workspace configuration used to bind approval is not sent to the child.
+Interpreted-provider registration remains unsupported. OS libraries and the local
+operating system remain trusted dependencies.
+
+The request buffer zeroizes on drop. The host rejects decoded response strings
+and keys that reflect supplied credential values, including JSON-escaped
+spellings, and discards raw stderr. This reduces accidental output leakage;
+it does not prevent trusted code from transforming, persisting or exfiltrating
+credentials. Only supply credentials you intend this binary to receive.
 
 The host validates the handshake before requesting discovery, enforces the
 [wire budgets](provider-protocol.md), drains and discards diagnostic stderr,
@@ -105,7 +182,7 @@ returns the normalized snapshot, preserving provenance and inheritance. See
 [output schema and exit codes](output-schema.md). The snapshot is discarded after
 output; no access database is created.
 
-External discovery does not yet feed ordinary identity correlation or source
-authority. Native authors should use the [provider development guide](provider-development.md).
-The Python example is an offline protocol reference and cannot be registered as
-a native executable.
+Native authors should use the [provider development guide](provider-development.md).
+The Python example remains a draft-1 offline reference and cannot be registered as
+a native executable. Provider catalogs, downloads, installation wizards, automatic
+updates and interpreter/dependency-bundle trust remain deferred.

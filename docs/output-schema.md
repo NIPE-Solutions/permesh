@@ -85,7 +85,11 @@ A broken stdout pipe exits cleanly with 0, following Unix pipeline conventions. 
 
 ## Explicit external commands
 
-External commands bypass workspace loading and retain the schema-1 report envelope:
+Standalone external commands (`inspect`, `trust`, `list`, `remove`, `discover`)
+bypass workspace loading and retain the schema-1 report envelope. Workspace
+`review` and `approve` load the selected configuration; `revoke` uses its canonical
+path. These workspace commands manage local execution permission without discovery
+or credential resolution.
 
 - `external_inspect`: `{inspection: {sha256,size}, message}`; hashes without executing.
 - `external_trust`: `{registration: {schema,id,sha256,capabilities}, storage, message}`.
@@ -102,3 +106,20 @@ partial snapshot, 3 for host/protocol/provider failure and 130 on cancellation.
 Invalid input, missing registration or changed trust state exits 2. Raw child
 stderr and operating-system diagnostics are not included in errors. The explicit
 storage path is local configuration metadata; protect reports appropriately.
+
+Workspace approval commands also use the schema-1 report envelope:
+
+- `external_review`: `{workspace, instance, registration, fingerprint, approved,
+  configuration, credential_references, identity, message}`. `workspace` is the
+  canonical configuration-file path; `identity` contains configured sources and
+  aliases. The fingerprint binds the full normalized configuration, including
+  providers not separately displayed here. Settings and credential locators are
+  visible; resolved credential values are absent.
+- `external_approve`: `{approval: {schema, workspace, instance, fingerprint},
+  message}` with approval schema 1.
+- `external_revoke`: `{workspace, instance, message}`.
+
+Approved workspace external providers feed the existing user/admins/orphaned
+shapes. Health contributes curated status and limitation text to doctor/status;
+it does not return a discovery snapshot. Missing/stale approval is a provider
+failure during collection, preserving the existing all-failed/partial exit rules.

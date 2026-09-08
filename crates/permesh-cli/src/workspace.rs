@@ -22,9 +22,6 @@ pub fn path(cli: &Cli) -> Result<PathBuf, AppError> {
         })?)?)
     }
 }
-pub fn load(cli: &Cli) -> Result<Config, AppError> {
-    Ok(Config::load(&path(cli)?)?)
-}
 pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outcome, AppError> {
     let name = if let Some(name) = organization {
         name.clone()
@@ -56,6 +53,7 @@ pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outc
             customer_id: None,
             organizations: vec![],
             auth: None,
+            external: None,
         }]
     } else {
         vec![]
@@ -116,9 +114,10 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
     let kind = match args.provider_type.as_str() {
         "github" => ProviderKind::Github,
         "google" => ProviderKind::Google,
+        "external" => ProviderKind::External,
         _ => return Err(AppError::input("Unsupported provider type")),
     };
-    if args.authoritative && kind != ProviderKind::Google {
+    if args.authoritative && !matches!(kind, ProviderKind::Google | ProviderKind::External) {
         return Err(AppError::input(
             "Only identity-source providers support --authoritative",
         ));
@@ -127,17 +126,51 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         .id
         .clone()
         .unwrap_or_else(|| format!("{}-main", args.provider_type));
+    let external = if kind == ProviderKind::External {
+        if args.token_ref.is_some() {
+            return Err(AppError::input(
+                "Use --credential NAME=REFERENCE for external credentials",
+            ));
+        }
+        Some(permesh_config::ExternalConfig {
+            provider: args
+                .provider
+                .clone()
+                .ok_or_else(|| AppError::input("External providers require --provider"))?,
+            sha256: args
+                .sha256
+                .clone()
+                .ok_or_else(|| AppError::input("External providers require --sha256"))?,
+            configuration: pairs(&args.setting)?
+                .into_iter()
+                .map(|(key, value)| (key, serde_json::Value::String(value)))
+                .collect(),
+            credentials: pairs(&args.credential)?,
+        })
+    } else {
+        if args.provider.is_some()
+            || args.sha256.is_some()
+            || !args.setting.is_empty()
+            || !args.credential.is_empty()
+        {
+            return Err(AppError::input(
+                "--provider, --sha256, --setting and --credential require type external",
+            ));
+        }
+        None
+    };
     config.providers.push(ProviderConfig {
         id: id.clone(),
         kind,
         customer_id: args.customer_id.clone(),
         organizations: args.organization.clone(),
-        auth: Some(AuthConfig {
+        auth: (kind != ProviderKind::External).then(|| AuthConfig {
             token: args
                 .token_ref
                 .clone()
                 .unwrap_or_else(|| format!("keychain://{id}/token")),
         }),
+        external,
     });
     if args.authoritative {
         config.identity.sources.push(IdentitySource {
@@ -161,6 +194,21 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         .map_err(|_| AppError::new(5, "Cannot replace configuration"))?;
     Outcome::new(
         "provider_add",
-        serde_json::json!({"message":"Added provider. Configuration formatting was normalized; review the Git diff.","next":format!("permesh auth login {id}")}),
+        serde_json::json!({"message":"Added provider. Configuration formatting was normalized; review the Git diff.","next":if kind == ProviderKind::External {format!("permesh provider external review {id}")}else{format!("permesh auth login {id}")}}),
     )
+}
+
+fn pairs(values: &[String]) -> Result<std::collections::BTreeMap<String, String>, AppError> {
+    let mut result = std::collections::BTreeMap::new();
+    for value in values {
+        let (key, value) = value
+            .split_once('=')
+            .ok_or_else(|| AppError::input("Expected NAME=VALUE"))?;
+        if key.is_empty() || result.insert(key.to_owned(), value.to_owned()).is_some() {
+            return Err(AppError::input(
+                "Setting and credential names must be nonempty and unique",
+            ));
+        }
+    }
+    Ok(result)
 }

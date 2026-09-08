@@ -79,27 +79,37 @@ pub enum ProviderCommand {
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {
-    #[arg(value_parser=["github", "google"])]
+    #[arg(value_parser=["github", "google", "external"])]
     pub provider_type: String,
-    #[arg(
-        long,
-        help = "Stable instance ID; defaults to github-main or google-main"
-    )]
+    #[arg(long, help = "Stable instance ID; defaults to TYPE-main")]
     pub id: Option<String>,
     #[arg(long, help = "GitHub organization (repeat for multiple organizations)")]
     pub organization: Vec<String>,
     #[arg(long, help = "Explicit Google Workspace customer ID")]
     pub customer_id: Option<String>,
-    #[arg(
-        long,
-        help = "Use Google directory identities as an authoritative source"
-    )]
+    #[arg(long, help = "Use this provider as an authoritative identity source")]
     pub authoritative: bool,
     #[arg(
         long,
         help = "Secret reference; defaults to the instance's native keychain entry"
     )]
     pub token_ref: Option<String>,
+    #[arg(long, help = "Registered external provider ID")]
+    pub provider: Option<String>,
+    #[arg(long, help = "Pin the registered external executable SHA-256")]
+    pub sha256: Option<String>,
+    #[arg(
+        long,
+        value_name = "KEY=VALUE",
+        help = "External nonsecret string setting; repeat as needed"
+    )]
+    pub setting: Vec<String>,
+    #[arg(
+        long,
+        value_name = "NAME=REFERENCE",
+        help = "External credential reference; repeat as needed"
+    )]
+    pub credential: Vec<String>,
 }
 #[derive(Clone, Subcommand)]
 pub enum AuthCommand {
@@ -108,9 +118,15 @@ pub enum AuthCommand {
         id: String,
         #[arg(long, help = "Read token from stdin; no token arguments are accepted")]
         token_stdin: bool,
+        #[arg(long, help = "Named external credential slot")]
+        credential: Option<String>,
     },
     /// Check whether credentials can be resolved, without contacting providers.
     Status { id: Option<String> },
     /// Delete this instance's local keychain credential; revoke the token separately at its provider.
-    Logout { id: String },
+    Logout {
+        id: String,
+        #[arg(long)]
+        credential: Option<String>,
+    },
 }

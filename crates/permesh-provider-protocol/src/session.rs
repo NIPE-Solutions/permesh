@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 use crate::{
-    MAX_RECORDS, ProtocolError,
+    MAX_RECORDS, PROTOCOL_VERSION, ProtocolError,
     framing::read_json_frame,
-    wire::{Envelope, Event, Record, valid_name},
+    wire::{Envelope, Event, Record, valid_name, validate_version},
 };
 use permesh_core::Snapshot;
-use permesh_provider_sdk::Capability;
+use permesh_provider_sdk::{Capability, Health};
 use std::io::BufRead;
 
-/// A validated event; the snapshot is available only after EOF via `finish`.
+/// A validated event; the final result is available only after EOF via `finish`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Progress {
     Handshake,
@@ -16,26 +16,25 @@ pub enum Progress {
     Complete,
 }
 
-/// Incremental validator for one handshake and discovery exchange.
-/// The caller supplies bounded LF-terminated frames and must observe EOF before
-/// calling `finish`. Any error permanently invalidates this decoder.
-pub struct DiscoveryDecoder {
+// Shared framing, version pinning, handshake negotiation and irreversible errors.
+// Operation-specific decoders never expose their accumulated result before EOF.
+struct Session {
     provider: String,
     expected: Option<Vec<Capability>>,
     capabilities: Option<Vec<Capability>>,
-    snapshot: Snapshot,
+    version: u32,
     total: usize,
-    count: usize,
     completed: bool,
     error: Option<ProtocolError>,
 }
-
-impl DiscoveryDecoder {
-    pub fn new(
+impl Session {
+    fn new(
         provider: &str,
         instance: &str,
         capabilities: Option<&[Capability]>,
+        version: u32,
     ) -> Result<Self, ProtocolError> {
+        validate_version(version)?;
         if !valid_name(provider) || !valid_name(instance) {
             return Err(ProtocolError::Provider);
         }
@@ -46,40 +45,34 @@ impl DiscoveryDecoder {
             provider: provider.to_owned(),
             expected: capabilities.map(<[Capability]>::to_vec),
             capabilities: None,
-            snapshot: Snapshot::new(instance),
+            version,
             total: 0,
-            count: 0,
             completed: false,
             error: None,
         })
     }
-
-    /// Accept exactly one LF-terminated frame, including its delimiter in all
-    /// byte budgets. Additional lines and trailing bytes are rejected.
-    pub fn push_frame(&mut self, frame: &[u8]) -> Result<Progress, ProtocolError> {
+    fn frame(&mut self, frame: &[u8]) -> Result<serde_json::Value, ProtocolError> {
         if let Some(error) = self.error {
             return Err(error);
         }
-        let result = (|| {
-            let mut reader = frame;
-            let value =
-                read_json_frame(&mut reader, &mut self.total)?.ok_or(ProtocolError::Truncated)?;
-            if !reader.is_empty() {
-                return Err(ProtocolError::Sequence);
-            }
-            self.accept(value)
-        })();
-        if let Err(error) = result {
-            self.error = Some(error);
+        let mut reader = frame;
+        let value =
+            read_json_frame(&mut reader, &mut self.total)?.ok_or(ProtocolError::Truncated)?;
+        if !reader.is_empty() {
+            return Err(ProtocolError::Sequence);
         }
-        result
+        Ok(value)
     }
-
-    fn accept(&mut self, value: serde_json::Value) -> Result<Progress, ProtocolError> {
+    // None is a successfully negotiated handshake; Some is an operation event.
+    fn accept(
+        &mut self,
+        value: serde_json::Value,
+        operation: &str,
+    ) -> Result<Option<Event>, ProtocolError> {
         if self.completed {
             return Err(ProtocolError::Sequence);
         }
-        let envelope = Envelope::parse(value)?;
+        let envelope = Envelope::parse(value, self.version)?;
         if self.capabilities.is_none() {
             if envelope.id != "handshake" {
                 return Err(ProtocolError::Sequence);
@@ -105,21 +98,85 @@ impl DiscoveryDecoder {
                         return Err(ProtocolError::Capability);
                     }
                     self.capabilities = Some(capabilities);
-                    return Ok(Progress::Handshake);
+                    Ok(None)
                 }
-                Event::Error { .. } => return Err(ProtocolError::ProviderFailed),
-                _ => return Err(ProtocolError::Sequence),
+                Event::Error { .. } => Err(ProtocolError::ProviderFailed),
+                _ => Err(ProtocolError::Sequence),
             }
+        } else {
+            if envelope.id != operation {
+                return Err(ProtocolError::Sequence);
+            }
+            Ok(Some(envelope.event))
         }
-        if envelope.id != "discover" {
-            return Err(ProtocolError::Sequence);
+    }
+    fn remember<T>(&mut self, result: Result<T, ProtocolError>) -> Result<T, ProtocolError> {
+        if let Err(error) = result {
+            self.error = Some(error);
         }
-        match envelope.event {
+        result
+    }
+    fn finish(&self) -> Result<(), ProtocolError> {
+        if let Some(error) = self.error {
+            return Err(error);
+        }
+        if !self.completed {
+            return Err(ProtocolError::Incomplete);
+        }
+        Ok(())
+    }
+}
+
+/// Incremental validator for one handshake and discovery exchange.
+/// The caller supplies bounded LF-terminated frames and must observe EOF before
+/// calling `finish`. Any error permanently invalidates this decoder.
+pub struct DiscoveryDecoder {
+    session: Session,
+    snapshot: Snapshot,
+    count: usize,
+}
+impl DiscoveryDecoder {
+    /// Validate the original draft version 1 exchange.
+    pub fn new(
+        provider: &str,
+        instance: &str,
+        capabilities: Option<&[Capability]>,
+    ) -> Result<Self, ProtocolError> {
+        Self::new_versioned(provider, instance, capabilities, PROTOCOL_VERSION)
+    }
+    /// Pin the complete exchange to draft version 1 or 2; no fallback is allowed.
+    pub fn new_versioned(
+        provider: &str,
+        instance: &str,
+        capabilities: Option<&[Capability]>,
+        version: u32,
+    ) -> Result<Self, ProtocolError> {
+        Ok(Self {
+            session: Session::new(provider, instance, capabilities, version)?,
+            snapshot: Snapshot::new(instance),
+            count: 0,
+        })
+    }
+    /// Accept exactly one LF-terminated frame, including its delimiter in all
+    /// byte budgets. Additional lines and trailing bytes are rejected.
+    pub fn push_frame(&mut self, frame: &[u8]) -> Result<Progress, ProtocolError> {
+        let result = (|| {
+            let value = self.session.frame(frame)?;
+            self.accept(value)
+        })();
+        self.session.remember(result)
+    }
+    fn accept(&mut self, value: serde_json::Value) -> Result<Progress, ProtocolError> {
+        let Some(event) = self.session.accept(value, "discover")? else {
+            return Ok(Progress::Handshake);
+        };
+        match event {
             Event::Record { record } => {
                 if self.count == MAX_RECORDS {
                     return Err(ProtocolError::RecordLimit);
                 }
                 if !self
+                    .session
                     .capabilities
                     .as_ref()
                     .is_some_and(|items| items.contains(&record.capability()))
@@ -153,28 +210,75 @@ impl DiscoveryDecoder {
                     .iter()
                     .map(|item| item.message().to_owned())
                     .collect();
-                self.completed = true;
+                self.session.completed = true;
                 Ok(Progress::Complete)
             }
             Event::Error { .. } => Err(ProtocolError::ProviderFailed),
             _ => Err(ProtocolError::Sequence),
         }
     }
-
     /// After the caller observes EOF, validate references and return a sorted
     /// snapshot. Completion alone never exposes unvalidated records.
     pub fn finish(mut self) -> Result<Snapshot, ProtocolError> {
-        if let Some(error) = self.error {
-            return Err(error);
-        }
-        if !self.completed {
-            return Err(ProtocolError::Incomplete);
-        }
+        self.session.finish()?;
         self.snapshot
             .validate()
             .map_err(|_| ProtocolError::Snapshot)?;
         self.snapshot.sort();
         Ok(self.snapshot)
+    }
+}
+
+/// Incremental draft version 2 health exchange. The caller must observe EOF
+/// before calling `finish`; any additional frame permanently rejects the result.
+pub struct HealthDecoder {
+    session: Session,
+    health: Option<Health>,
+}
+impl HealthDecoder {
+    pub fn new(
+        provider: &str,
+        instance: &str,
+        capabilities: Option<&[Capability]>,
+    ) -> Result<Self, ProtocolError> {
+        Ok(Self {
+            session: Session::new(provider, instance, capabilities, 2)?,
+            health: None,
+        })
+    }
+    pub fn push_frame(&mut self, frame: &[u8]) -> Result<Progress, ProtocolError> {
+        let result = (|| {
+            let value = self.session.frame(frame)?;
+            let Some(event) = self.session.accept(value, "check")? else {
+                return Ok(Progress::Handshake);
+            };
+            match event {
+                Event::Health {
+                    limitations: Some(limitations),
+                    ..
+                } => {
+                    self.health = Some(Health {
+                        message: "Trusted external provider health check completed".to_owned(),
+                        limitations: limitations
+                            .iter()
+                            .map(|item| item.message().to_owned())
+                            .collect(),
+                    });
+                    self.session.completed = true;
+                    Ok(Progress::Complete)
+                }
+                Event::Health {
+                    limitations: None, ..
+                } => Err(ProtocolError::Schema),
+                Event::Error { .. } => Err(ProtocolError::ProviderFailed),
+                _ => Err(ProtocolError::Sequence),
+            }
+        })();
+        self.session.remember(result)
+    }
+    pub fn finish(self) -> Result<Health, ProtocolError> {
+        self.session.finish()?;
+        self.health.ok_or(ProtocolError::Incomplete)
     }
 }
 
@@ -185,15 +289,15 @@ fn has_duplicates(capabilities: &[Capability]) -> bool {
         .any(|(i, capability)| capabilities[..i].contains(capability))
 }
 
-/// Validate a handshake plus one discovery response through EOF. No process is
-/// launched. A malformed exchange never returns a partially validated snapshot.
+/// Validate a draft version 1 handshake and discovery response through EOF.
+/// No process is launched and malformed exchanges never return partial snapshots.
 pub fn validate_discovery(
     mut reader: impl BufRead,
     provider: &str,
     instance: &str,
 ) -> Result<Snapshot, ProtocolError> {
     let mut decoder = DiscoveryDecoder::new(provider, instance, None)?;
-    while let Some(value) = read_json_frame(&mut reader, &mut decoder.total)? {
+    while let Some(value) = read_json_frame(&mut reader, &mut decoder.session.total)? {
         decoder.accept(value)?;
     }
     decoder.finish()

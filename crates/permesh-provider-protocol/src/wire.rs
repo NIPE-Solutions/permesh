@@ -34,6 +34,8 @@ pub(crate) enum Event {
     },
     Health {
         status: HealthStatus,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limitations: Option<Vec<Limitation>>,
     },
     Cancelled,
 }
@@ -97,7 +99,7 @@ impl Limitation {
     }
 }
 impl Envelope {
-    pub fn parse(value: Value) -> Result<Self, ProtocolError> {
+    pub fn parse(value: Value, version: u32) -> Result<Self, ProtocolError> {
         let envelope: Self =
             serde_json::from_value(value.clone()).map_err(|_| ProtocolError::Schema)?;
         // Domain deserializers tolerate extensions. The wire does not: a lossless
@@ -106,7 +108,7 @@ impl Envelope {
         if serde_json::to_value(&envelope).map_err(|_| ProtocolError::Schema)? != value {
             return Err(ProtocolError::Schema);
         }
-        if envelope.protocol != PROTOCOL_VERSION {
+        if envelope.protocol != version {
             return Err(ProtocolError::Version);
         }
         Ok(envelope)
@@ -121,13 +123,26 @@ pub(crate) fn valid_name(value: &str) -> bool {
 }
 /// Encode the first request of a single-operation draft protocol process.
 pub fn handshake_request(instance: &str) -> Result<Vec<u8>, ProtocolError> {
+    handshake_request_versioned(instance, PROTOCOL_VERSION)
+}
+/// Encode a handshake pinned to supported draft version 1 or 2. Never downgrade.
+pub fn handshake_request_versioned(instance: &str, version: u32) -> Result<Vec<u8>, ProtocolError> {
+    validate_version(version)?;
     if !valid_name(instance) {
         return Err(ProtocolError::Provider);
     }
     let mut frame = serde_json::to_vec(&serde_json::json!({
-        "protocol": PROTOCOL_VERSION, "id":"handshake", "method":"handshake", "instance":instance
+        "protocol": version, "id":"handshake", "method":"handshake", "instance":instance
     }))
     .map_err(|_| ProtocolError::Schema)?;
     frame.push(b'\n');
     Ok(frame)
+}
+
+pub(crate) fn validate_version(version: u32) -> Result<(), ProtocolError> {
+    if matches!(version, 1 | 2) {
+        Ok(())
+    } else {
+        Err(ProtocolError::Version)
+    }
 }

@@ -42,6 +42,10 @@ fn main() {
     let mut lines = io::stdin().lock().lines();
     let request: serde_json::Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
     let instance = request["instance"].as_str().unwrap();
+    if request["protocol"] == 2 {
+        configured_peer(instance, &mut lines);
+        return;
+    }
     if instance == "handshake-hang" {
         hang();
     }
@@ -170,4 +174,166 @@ fn main() {
     if matches!(instance, "nonzero" | "descendant-nonzero") {
         std::process::exit(7);
     }
+}
+
+fn configured_peer(instance: &str, lines: &mut impl Iterator<Item = io::Result<String>>) {
+    use serde_json::json;
+    let provider = if instance == "wrong-provider" {
+        "wrong"
+    } else {
+        "fixture"
+    };
+    let version = if instance == "downgrade" { 1 } else { 2 };
+    let capabilities = if instance == "wrong-caps" {
+        json!([])
+    } else {
+        json!([
+            "accounts",
+            "identities",
+            "resources",
+            "groups",
+            "memberships",
+            "grants"
+        ])
+    };
+    emit(
+        json!({"protocol":version,"id":"handshake","event":"handshake","provider":provider,"capabilities":capabilities,"draft":true}),
+    );
+    let Some(Ok(line)) = lines.next() else {
+        return;
+    };
+    if matches!(instance, "wrong-provider" | "wrong-caps" | "downgrade") {
+        fs::write(marker("delivered"), "operation received").unwrap();
+        return;
+    }
+    let request: serde_json::Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(request["protocol"], 2);
+    assert_eq!(std::env::args_os().count(), 1);
+    assert!(
+        std::env::vars_os()
+            .all(|(key, _)| cfg!(windows)
+                && key.to_string_lossy().eq_ignore_ascii_case("SystemRoot"))
+    );
+    let credentials = request["credentials"].as_object().unwrap();
+    if let Some(token) = credentials.get("token") {
+        assert_eq!(token, "synthetic-fixture-token");
+    }
+    if instance == "two-first" {
+        assert_eq!(credentials["client_secret"], "first-private-slot");
+    }
+    if instance == "two-second" {
+        assert_eq!(credentials["client_secret"], "second-private-slot");
+    }
+    let mode = request["configuration"]["mode"]
+        .as_str()
+        .unwrap_or("normal");
+    let method = request["method"].as_str().unwrap();
+    assert_eq!(request["id"], method);
+    if mode == "hang" {
+        hang();
+    }
+    if mode == "test-hang" {
+        fs::write(marker("heartbeat"), "0").unwrap();
+        fs::write(marker("ready"), "yes").unwrap();
+        let mut count = 0u64;
+        loop {
+            count += 1;
+            fs::write(marker("heartbeat"), count.to_string()).unwrap();
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+    if mode == "echo-stderr" {
+        eprintln!("{}", credentials["token"].as_str().unwrap());
+    }
+    if mode == "checkfail" {
+        emit(json!({"protocol":2,"id":method,"event":"error","code":"authentication"}));
+        return;
+    }
+    let limitations = if mode == "partial" {
+        json!(["visibility_limited"])
+    } else {
+        json!([])
+    };
+    if method == "check" {
+        emit(
+            json!({"protocol":2,"id":"check","event":"health","status":"ok","limitations":limitations}),
+        );
+        assert!(lines.next().is_none());
+        return;
+    }
+    assert_eq!(method, "discover");
+    if matches!(mode, "echo" | "echo-escaped" | "echo-key") {
+        let secret = credentials["token"].as_str().unwrap();
+        if mode == "echo-escaped" {
+            let encoded: String = secret
+                .chars()
+                .map(|c| format!("\\u{:04x}", c as u32))
+                .collect();
+            println!(
+                "{{\"protocol\":2,\"id\":\"discover\",\"event\":\"record\",\"kind\":\"account\",\"data\":{{\"key\":{{\"provider\":\"{instance}\",\"id\":\"alice\"}},\"login\":\"{encoded}\",\"kind\":\"human\",\"verified_emails\":[]}}}}"
+            );
+            io::stdout().flush().unwrap();
+        } else if mode == "echo-key" {
+            emit(json!({"protocol":2,"id":"discover","event":"record",secret:"value"}));
+        } else {
+            emit(
+                json!({"protocol":2,"id":"discover","event":"record","kind":"account","data":{"key":{"provider":instance,"id":"alice"},"login":secret,"kind":"human","verified_emails":[]}}),
+            );
+        }
+        if mode != "echo-key" {
+            emit(
+                json!({"protocol":2,"id":"discover","event":"complete","count":1,"complete":true,"limitations":[]}),
+            );
+            assert!(lines.next().is_none());
+        }
+        return;
+    }
+    let alice = json!({"provider":instance,"id":"alice"});
+    let orphan = json!({"provider":instance,"id":"orphan"});
+    let group = json!({"provider":instance,"id":"backend"});
+    let repository = json!({"provider":instance,"id":"repository"});
+    let provenance =
+        json!({"method":"synthetic trusted fixture","observed_at":"2026-01-01T00:00:00Z"});
+    let records = [
+        (
+            "identity",
+            json!({"id":"alice@example.com","kind":"human","status":"active","verified_emails":["alice@example.com"]}),
+        ),
+        (
+            "identity",
+            json!({"id":"orphan@example.com","kind":"human","status":"inactive","verified_emails":["orphan@example.com"]}),
+        ),
+        (
+            "account",
+            json!({"key":alice,"login":"alice-dev","kind":"human","verified_emails":["alice@example.com"]}),
+        ),
+        (
+            "account",
+            json!({"key":orphan,"login":"orphan-dev","kind":"human","verified_emails":["orphan@example.com"]}),
+        ),
+        (
+            "resource",
+            json!({"key":repository,"name":"Fixture repository"}),
+        ),
+        ("group", json!({"key":group,"name":"Backend"})),
+        (
+            "membership",
+            json!({"member":{"kind":"account","key":alice},"group":group,"provenance":provenance}),
+        ),
+        (
+            "grant",
+            json!({"id":"owner","subject":{"kind":"group","key":group},"resource":repository,"role":"owner","privilege":"owner","certainty":"observed","provenance":provenance}),
+        ),
+        (
+            "grant",
+            json!({"id":"orphan-read","subject":{"kind":"account","key":orphan},"resource":repository,"role":"read","privilege":"standard","certainty":"observed","provenance":provenance}),
+        ),
+    ];
+    for (kind, data) in &records {
+        emit(json!({"protocol":2,"id":"discover","event":"record","kind":kind,"data":data}));
+    }
+    emit(
+        json!({"protocol":2,"id":"discover","event":"complete","count":records.len(),"complete":mode!="partial","limitations":limitations}),
+    );
+    assert!(lines.next().is_none());
 }

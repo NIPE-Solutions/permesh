@@ -1,33 +1,43 @@
 # Provider development
 
-The current provider boundary is the Rust SDK and validated core snapshot. Read [PROVIDER_MODEL.md](PROVIDER_MODEL.md), [DOMAIN_MODEL.md](DOMAIN_MODEL.md), and the existing demo/GitHub adapters. A provider must preserve scoped native IDs, distinguish observation from effective authorization, report incomplete visibility, and return structured failures. Never turn permission denial into an apparently successful empty result. Use synthetic fixtures and local mock APIs for contract tests.
+Providers normalize scoped native IDs, distinguish observation from effective
+authorization, preserve provenance and report incomplete visibility. Core owns
+correlation. Read [PROVIDER_MODEL.md](PROVIDER_MODEL.md),
+[DOMAIN_MODEL.md](DOMAIN_MODEL.md), and the demo/GitHub adapters. Never turn
+permission denial into an apparently successful empty result. Use synthetic
+fixtures and local mock APIs for contract tests.
 
-## External protocol validation
+## Protocol and native execution
 
-The pure Rust `permesh-provider-protocol` crate validates bounded draft-1
-handshake/discovery transcripts into core snapshots. Read the
-[wire specification](provider-protocol.md) and run the
-[Python example and offline validator](../examples/external-provider/README.md).
-All six normalized record kinds are exercised across the language boundary.
+The pure `permesh-provider-protocol` crate validates bounded draft-1 and draft-2
+discovery, plus draft-2 health. Read the [wire specification](provider-protocol.md).
+The [Python example and offline validator](../examples/external-provider/README.md)
+remain draft-1 interoperability references exercising all six normalized record
+kinds. Scripts and interpreter commands cannot be registered as native providers.
 
-## Explicit native execution
+Build a self-contained native binary for each target platform. Its handshake
+provider type must equal the registered ID; capabilities must match registration
+exactly. Standalone `provider external discover` speaks draft 1 and supplies no
+configuration or credentials. Workspace operations require draft 2 and a matching
+local approval. See the [registration and approval workflow](external-providers.md).
+There is no automatic download, PATH lookup or executable selection from YAML.
 
-The separate `permesh-provider-external` crate implements user-local trust
-registration and supervised discovery. See [external providers](external-providers.md)
-for commands and trust boundaries. Workspace YAML cannot select an executable;
-ordinary access queries never launch registered programs.
+For draft 2, accept the handshake before reading one `discover` or `check` request.
+Only after exact handshake validation does the host send configuration and named
+credentials over stdin. Handle those values as secrets: do not print, log or echo
+them. Health returns the strict `health/ok` terminal with known limitation codes;
+it must not enumerate the graph. Discovery retains the normalized record and
+completion shapes with `protocol: 2`. Terminate with EOF and a successful exit.
+Never rely on a draft-1 fallback for a configured invocation.
 
-Implement a self-contained native binary speaking draft 1. The registered ID
-must equal the handshake provider type, and its declared capabilities must match
-the reviewed registration exactly. Build for each target platform. The Python
-example remains an offline interoperability reference: scripts and interpreter
-launch commands are not accepted by the native host.
+Return identity assertions only within documented provider visibility. Authority
+requires explicit approved source selection and registered `identities` capability;
+a syntactically valid identity is not automatically authoritative.
 
-The host supplies no provider configuration or credentials. Credential transport,
-interpreted-provider trust, workspace integration and authoritative identity-source
-selection require separate designs. Parsed identity assertions are not automatically
-promoted to authority or correlated with the ordinary access graph.
-
-Use synthetic fixtures for hostile-process tests: malformed responses, floods,
-hangs, cancellation, descendant cleanup, unexpected capabilities and executable
-replacement. The protocol parser alone cannot satisfy process-security requirements.
+Use native fixtures to test malformed/extra/partial frames, wrong versions and
+capabilities, missing health limitations, floods, hangs, cancellation, descendants,
+changed executable bytes, rejected approvals and escaped credential reflection.
+The parser alone cannot satisfy execution or credential-delivery requirements.
+External code runs as the user's account; neither the protocol nor registration
+provides a sandbox. Catalogs, setup wizards and interpreter/dependency-bundle trust
+remain deferred.
