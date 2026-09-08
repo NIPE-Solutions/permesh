@@ -8,4 +8,4 @@ The first implementation milestone delivers `init --demo`, `doctor`, `provider l
 
 Success means a new contributor can run the four demo commands without credentials, explain a team-derived grant, observe partial failures in both output formats, and reproduce tests without Internet access after dependencies are installed.
 
-Future slices add further identity sources, trusted external execution, and additional providers. No mutation APIs, policy engine, web UI, provisioning, HR system, SSO, password manager, SIEM, billing, cloud synchronization, AI matching, or feature gates belong in this milestone.
+Explicit native external discovery is available through local trust registration; ordinary query integration remains separate. Future slices add further identity sources and additional providers. No mutation APIs, policy engine, web UI, provisioning, HR system, SSO, password manager, SIEM, billing, cloud synchronization, AI matching, or feature gates belong in this milestone.

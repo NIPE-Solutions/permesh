@@ -82,3 +82,23 @@ A broken stdout pipe exits cleanly with 0, following Unix pipeline conventions. 
 `completion <shell>` emits shell source rather than an access report. It rejects
 `--json` with an input error using the existing error envelope. See
 [shell completion](completion.md).
+
+## Explicit external commands
+
+External commands bypass workspace loading and retain the schema-1 report envelope:
+
+- `external_inspect`: `{inspection: {sha256,size}, message}`; hashes without executing.
+- `external_trust`: `{registration: {schema,id,sha256,capabilities}, storage, message}`.
+- `external_list`: `{registrations: [...], storage}` sorted by registered ID.
+- `external_remove`: `{id, storage, message}`.
+- `external_discover`: `{snapshot, storage}` and one provider-status entry. Snapshot
+  fields are `provider`, `identities`, `accounts`, `resources`, `groups`,
+  `memberships`, `grants`, `complete` and `limitations`, using the domain schema.
+
+The registration schema is independent of the output and wire versions. Digests
+are lowercase SHA-256 hex; size is bytes. Capabilities describe normalized record
+classes. Discovery exits 0 for a validated complete snapshot, 4 for a validated
+partial snapshot, 3 for host/protocol/provider failure and 130 on cancellation.
+Invalid input, missing registration or changed trust state exits 2. Raw child
+stderr and operating-system diagnostics are not included in errors. The explicit
+storage path is local configuration metadata; protect reports appropriately.

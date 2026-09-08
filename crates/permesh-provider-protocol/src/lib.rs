@@ -3,7 +3,7 @@
 mod framing;
 mod session;
 mod wire;
-pub use session::validate_discovery;
+pub use session::{DiscoveryDecoder, Progress, validate_discovery};
 pub use wire::handshake_request;
 
 pub const PROTOCOL_VERSION: u32 = 1;

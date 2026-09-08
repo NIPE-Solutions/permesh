@@ -64,9 +64,18 @@ pub enum Command {
 #[derive(Subcommand, Clone)]
 pub enum ProviderCommand {
     List,
-    Status { id: Option<String> },
-    Capabilities { id: String },
+    Status {
+        id: Option<String>,
+    },
+    Capabilities {
+        id: String,
+    },
     Add(AddProvider),
+    /// Explicitly manage and run trusted native external providers.
+    External {
+        #[command(subcommand)]
+        command: crate::external::ExternalCommand,
+    },
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {

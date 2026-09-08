@@ -4,7 +4,9 @@ User-visible changes are recorded here. No public release has been qualified.
 
 ## Unreleased
 
-- Add bounded offline external-provider protocol validation, normalized Python interoperability fixtures and a developer transcript validator; plugin execution remains disabled.
+- Add explicit native external-provider inspection, local digest-bound trust registration and supervised discovery with bounded streams and cancellation cleanup. Workspace integration and credential transport remain unsupported.
+
+- Add bounded offline external-provider protocol validation, normalized Python interoperability fixtures and a developer transcript validator; ordinary workspace queries do not execute plugins.
 
 - Add static shell completion for Bash, Zsh, Fish, PowerShell and Elvish without workspace or provider access.
 

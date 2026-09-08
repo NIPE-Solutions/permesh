@@ -7,6 +7,8 @@ mod blocking;
 mod collection;
 mod completion;
 mod error;
+mod external;
+mod external_output;
 mod orphaned_output;
 mod output;
 mod report;
@@ -57,10 +59,17 @@ async fn main() -> ExitCode {
         };
     }
     let blocking = blocking::BlockingPool::new();
-    let result = tokio::select! {
-        biased;
-        signal=tokio::signal::ctrl_c()=>match signal {Ok(())=>Err(AppError::new(130,"Cancelled")),Err(_)=>Err(AppError::new(5,"Cannot install Ctrl+C handler"))},
-        result=app::run(&cli, &blocking)=>result,
+    let result = if let args::Command::Provider {
+        command: args::ProviderCommand::External { command },
+    } = &cli.command
+    {
+        external::run(command, &blocking).await
+    } else {
+        tokio::select! {
+            biased;
+            signal=tokio::signal::ctrl_c()=>match signal {Ok(())=>Err(AppError::new(130,"Cancelled")),Err(_)=>Err(AppError::new(5,"Cannot install Ctrl+C handler"))},
+            result=app::run(&cli, &blocking)=>result,
+        }
     };
     match result {
         Ok(outcome) => {
