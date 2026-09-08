@@ -30,10 +30,13 @@ def smoke(binary):
         human = run('--config', str(config), 'user', 'alice@example.com')
         if 'acme/payments-api' not in human or 'team/backend' not in human:
             raise RuntimeError('demo user access missing')
-        for command in [('user', 'alice@example.com'), ('admins',)]:
+        for command in [('user', 'alice@example.com'), ('admins',), ('orphaned',)]:
             report = json.loads(run('--config', str(config), *command, '--json'))
             if report['schema_version'] != 1 or report['complete'] is not True or not report['result']['access']:
                 raise RuntimeError('unexpected demo report')
+        reasons = {record['reason'] for record in report['result']['accounts']}
+        if report['result']['authority_complete'] is not True or 'inactive_identity' not in reasons or not reasons.intersection({'bot', 'service_account'}):
+            raise RuntimeError('unexpected demo orphaned classifications')
         if config.read_bytes() != original:
             raise RuntimeError('inspection changed shared configuration')
     print('Synthetic candidate smoke passed; temporary workspace removed.')

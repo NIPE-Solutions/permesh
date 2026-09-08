@@ -83,21 +83,43 @@ pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<
             outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":config.identity.sources,"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider add github --organization YOUR_ORG."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"Execution unsupported; workspace programs are never run","local_overrides":"Not loaded"});
             Ok(outcome)
         }
-        Command::User { .. } | Command::Admins => {
+        Command::User { .. } | Command::Admins | Command::Orphaned => {
             if config.providers.is_empty() {
                 return Err(AppError::input(
                     "No providers configured. Run permesh provider add github --organization YOUR_ORG, or try a new workspace with init --demo.",
                 ));
             }
-            let command = if matches!(cli.command, Command::Admins) {
-                "admins"
-            } else {
-                "user"
+            let authorities: Vec<_> = config
+                .identity
+                .sources
+                .iter()
+                .filter(|source| source.authoritative)
+                .map(|source| source.provider.clone())
+                .collect();
+            if matches!(cli.command, Command::Orphaned) && authorities.is_empty() {
+                return Err(AppError::input(
+                    "Orphaned account review requires an explicitly configured authoritative identity source. Configure identity.sources or add Google with --authoritative.",
+                ));
+            }
+            let command = match cli.command {
+                Command::Admins => "admins",
+                Command::Orphaned => "orphaned",
+                _ => "user",
             };
             let (mut outcome, snapshots) =
                 collection::collect(blocking, &config, config.providers.clone(), true, command)
                     .await?;
             if snapshots.is_empty() {
+                return Ok(outcome);
+            }
+            if matches!(cli.command, Command::Orphaned) {
+                let result = permesh_core::query_orphaned(
+                    &snapshots,
+                    &config.identity.aliases,
+                    &authorities,
+                )?;
+                outcome.report.result = serde_json::to_value(result)
+                    .map_err(|_| AppError::new(5, "Cannot serialize orphaned account review"))?;
                 return Ok(outcome);
             }
             if matches!(cli.command, Command::Admins) {

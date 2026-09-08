@@ -75,6 +75,8 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         writeln!(out, "\nSummary\n  {count} observed access paths")?;
     } else if report.command == "admins" {
         crate::admins_output::write_admins(&mut out, result, dot)?;
+    } else if report.command == "orphaned" {
+        crate::orphaned_output::write_orphaned(&mut out, result, dot)?;
     } else if report.command == "provider_list" {
         writeln!(out, "Providers")?;
         if let Some(providers) = result["providers"].as_array() {

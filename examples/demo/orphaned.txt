@@ -1,0 +1,31 @@
+Permesh
+
+Orphaned account review
+
+Inactive identities
+
+demo · former-dev
+  Identity: former@example.com (inactive)
+  acme/payments-api
+    Read (standard)
+    via synthetic demo fixture
+    certainty: observed
+
+Bots
+  Listed separately; this classification does not establish approved access.
+
+demo · build-bot
+  Identity: build@example.com (service)
+  acme/payments-api
+    Write (standard)
+    via synthetic demo fixture
+    certainty: observed
+
+Summary
+  Accounts needing identity review: 1
+  Service, bot or external accounts: 1
+  Unassessed accounts: 0
+
+Providers
+  demo · demo: connected
+    Discovery completed

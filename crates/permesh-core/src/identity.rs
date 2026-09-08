@@ -22,6 +22,20 @@ pub(crate) struct IdentityIndex<'a> {
 }
 impl<'a> IdentityIndex<'a> {
     pub(crate) fn build(snapshots: &'a [Snapshot], aliases: &Aliases) -> Result<Self, DomainError> {
+        Self::build_filtered(snapshots, aliases, None)
+    }
+    pub(crate) fn build_with_authorities(
+        snapshots: &'a [Snapshot],
+        aliases: &Aliases,
+        authorities: &BTreeSet<&str>,
+    ) -> Result<Self, DomainError> {
+        Self::build_filtered(snapshots, aliases, Some(authorities))
+    }
+    fn build_filtered(
+        snapshots: &'a [Snapshot],
+        aliases: &Aliases,
+        authorities: Option<&BTreeSet<&str>>,
+    ) -> Result<Self, DomainError> {
         let mut identities: BTreeMap<String, Identity> = BTreeMap::new();
         let mut conflicting = BTreeSet::new();
         let mut email_index: BTreeMap<&str, BTreeSet<String>> = BTreeMap::new();
@@ -32,7 +46,11 @@ impl<'a> IdentityIndex<'a> {
                 return Err(DomainError::Identifier);
             }
             snapshot.validate()?;
-            for identity in &snapshot.identities {
+            for identity in snapshot
+                .identities
+                .iter()
+                .filter(|_| authorities.is_none_or(|ids| ids.contains(snapshot.provider.as_str())))
+            {
                 let merged = identities
                     .entry(identity.id.clone())
                     .or_insert_with(|| identity.clone());
