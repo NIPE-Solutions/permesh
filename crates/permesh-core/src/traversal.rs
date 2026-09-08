@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
+use crate::path_budget::{self, CopyBudget};
 use crate::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) const MAX_PATH_STEPS: usize = 100_000;
 const MAX_GROUP_DEPTH: usize = 256;
+type Frame = (Subject, Vec<Group>, Vec<Membership>, usize);
 pub(crate) fn paths<'a>(
     snapshots: &[Snapshot],
     accounts: impl IntoIterator<Item = &'a Account>,
@@ -62,18 +64,21 @@ pub(crate) fn paths<'a>(
     for e in edges.values_mut() {
         e.sort_by(|a, b| a.group.cmp(&b.group));
     }
+    let mut budget = CopyBudget::new();
     let mut result = Vec::new();
     let mut steps = 0usize;
     for account in accounts {
         if !relevant.contains(&Subject::Account(account.key.clone())) {
             continue;
         }
+        budget.charge(size_of::<Frame>().saturating_add(path_budget::key_heap(&account.key)))?;
         let mut stack = vec![(
             Subject::Account(account.key.clone()),
             Vec::<Group>::new(),
             Vec::<Membership>::new(),
+            0usize,
         )];
-        while let Some((subject, via, memberships)) = stack.pop() {
+        while let Some((subject, via, memberships, via_bytes)) = stack.pop() {
             steps += 1;
             if steps > MAX_PATH_STEPS || via.len() > MAX_GROUP_DEPTH {
                 return Err(DomainError::PathLimit);
@@ -86,6 +91,13 @@ pub(crate) fn paths<'a>(
                     let resource = resources
                         .get(&grant.resource)
                         .ok_or(DomainError::Reference)?;
+                    budget.charge(
+                        size_of::<AccessPath>()
+                            .saturating_add(path_budget::key_heap(&account.key))
+                            .saturating_add(via_bytes)
+                            .saturating_add(path_budget::resource(resource))
+                            .saturating_add(path_budget::grant(grant)),
+                    )?;
                     result.push(AccessPath {
                         account: account.key.clone(),
                         groups: via.clone(),
@@ -106,6 +118,14 @@ pub(crate) fn paths<'a>(
                     let group = groups
                         .get(&membership.group)
                         .ok_or(DomainError::Reference)?;
+                    let next_bytes = via_bytes
+                        .saturating_add(path_budget::group(group))
+                        .saturating_add(path_budget::membership(membership));
+                    budget.charge(
+                        next_bytes
+                            .saturating_add(size_of::<Frame>())
+                            .saturating_add(path_budget::key_heap(&membership.group)),
+                    )?;
                     let mut next = via.clone();
                     next.push((*group).clone());
                     let mut next_memberships = memberships.clone();
@@ -114,6 +134,7 @@ pub(crate) fn paths<'a>(
                         Subject::Group(membership.group.clone()),
                         next,
                         next_memberships,
+                        next_bytes,
                     ));
                 }
             }

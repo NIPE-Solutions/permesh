@@ -10,8 +10,9 @@ Reject legacy health, queries, metadata and credential commands with actionable
 migration instructions before parsing or resolving credentials. Mixed-provider
 queries retain available observations and report the legacy provider failure.
 
-`provider add github` remains recognized solely to explain install/trust/setup;
-it does not create a legacy configuration. New GitHub instances use independently
+`provider add github` does not create a legacy configuration. Its initial
+install/trust/setup guidance is superseded by the guided orchestration in
+[ADR 0022](0022-guided-official-provider-trust.md). New GitHub instances use independently
 packaged native code, explicit binary trust, declarative setup and workspace
 approval. Google and the offline demo remain bundled.
 

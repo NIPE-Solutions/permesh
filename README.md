@@ -68,31 +68,28 @@ Shell completions for Bash, Zsh, Fish, PowerShell and Elvish are available throu
 
 ```bash
 permesh init --organization Acme
-permesh provider install github --version 0.1.0
-permesh provider external trust /ABSOLUTE/PATH/TO/INSTALLED/provider \
-  --id github --sha256 REVIEWED_EXECUTABLE_SHA256 \
-  --capability accounts --capability resources --capability groups \
-  --capability memberships --capability grants --accept-risk
-permesh provider setup github --id github-main
+permesh provider add github
 permesh auth login github-main
-permesh provider external review github-main
-permesh provider external approve github-main --fingerprint REVIEWED_FINGERPRINT --accept-risk
 permesh doctor
 permesh user YOUR_GITHUB_LOGIN
 ```
 
-Replace the executable path and digest with the installed package's reviewed
-values, and `REVIEWED_FINGERPRINT` with the
-workspace review result. During setup, supply organization names and a token
-reference such as `keychain://github-main/token`; `auth login` then stores the token
-in the native keychain. For `env://PERMESH_GITHUB_TOKEN`, inject that variable through
-existing secret tooling and skip `auth login`. Never put token values in arguments
-or configuration.
+Add downloads the newest compatible official package, asks whether to trust its
+native code, collects settings and credential references, then asks you to approve
+that instance. Authentication remains separate. Use `--version VERSION` to choose
+an exact release and `--id ID` to choose an instance name.
 
-Downloading does not trust or execute code. Setup requires explicit binary trust;
-queries require a separate workspace approval. The catalog advertises only
-qualified external releases. See [packages](docs/provider-packages.md)
-and the [provider's permissions and visibility documentation](https://github.com/NIPE-Solutions/permesh-providers/blob/main/docs/github.md).
+During setup, supply organization names and a token reference such as
+`keychain://github-main/token`; `auth login` then stores the token in the native
+keychain. For `env://PERMESH_GITHUB_TOKEN`, inject that variable through existing
+secret tooling and skip `auth login`. Never put token values in arguments or
+configuration.
+
+Checksums verify bytes against the public catalog; this does not verify publisher
+signatures. Native providers run as your user and are not sandboxed. The workspace
+pins the current host's executable digest; the same pin does not automatically
+select packages for other operating systems or architectures. See [guided setup
+and automation](docs/provider-setup.md) and [packages](docs/provider-packages.md).
 
 Existing `type: github` workspaces must use [explicit migration](docs/github-migration.md).
 Legacy parsing remains available, but health checks, queries and credential commands

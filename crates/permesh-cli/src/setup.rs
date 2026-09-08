@@ -9,7 +9,10 @@ use crate::{
     setup_workspace::Draft,
 };
 use clap::Args;
-use permesh_provider_external::{host, trust::Registry};
+use permesh_provider_external::{
+    host,
+    trust::{Registration, Registry},
+};
 use permesh_provider_sdk::{
     Capability,
     setup::{Input, SetupSpec},
@@ -77,12 +80,29 @@ pub(crate) fn validate_references(
     }
     Ok(())
 }
-pub async fn run(
-    cli: &Cli,
-    args: &SetupArgs,
-    pool: &BlockingPool,
-    cancellation: &Cancellation,
-) -> Result<Outcome, AppError> {
+pub(crate) struct Prepared {
+    pub id: String,
+    answers: BTreeMap<String, Value>,
+    draft: Option<Draft>,
+}
+pub(crate) struct TrustedSetup {
+    pub root: PathBuf,
+    pub registration: Registration,
+    pub executable: PathBuf,
+}
+pub(crate) enum SetupOutcome {
+    Described(Outcome),
+    Created(crate::setup_workspace::CreatedInstance),
+}
+impl SetupOutcome {
+    fn outcome(self) -> Result<Outcome, AppError> {
+        match self {
+            Self::Described(outcome) => Ok(outcome),
+            Self::Created(created) => created.outcome(),
+        }
+    }
+}
+pub(crate) fn prepare(cli: &Cli, args: &SetupArgs) -> Result<Prepared, AppError> {
     if args.describe && (args.answers.is_some() || args.authoritative) {
         return Err(AppError::input(
             "--describe cannot use --answers or --authoritative",
@@ -102,7 +122,7 @@ pub async fn run(
             "Provider and instance IDs require an ASCII letter followed by letters, digits, hyphen or underscore, up to 64 bytes; use --id for a shorter instance ID",
         ));
     }
-    let mut answers = if let Some(path) = &args.answers {
+    let answers = if let Some(path) = &args.answers {
         permesh_config::load_setup_answers(path).map_err(|error| {
             let message = match error {
                 permesh_config::Error::ParseAt { line, column } => format!("Invalid setup answers at line {line}, column {column}; check duplicate keys, field names and nesting limits in --answers FILE"),
@@ -119,13 +139,54 @@ pub async fn run(
     } else {
         Some(Draft::load(cli, &id)?)
     };
-    let registry = Registry::new(storage_root()?).map_err(failure)?;
+    Ok(Prepared { id, answers, draft })
+}
+pub async fn run(
+    cli: &Cli,
+    args: &SetupArgs,
+    pool: &BlockingPool,
+    cancellation: &Cancellation,
+) -> Result<Outcome, AppError> {
+    let prepared = prepare(cli, args)?;
+    let root = storage_root()?;
+    let registry = Registry::new(root.clone()).map_err(failure)?;
     let provider = args.provider.clone();
     let (registration, executable) = tokio::select! {
         biased;
         ()=cancellation.cancelled()=>return Err(cancelled()),
         result=tokio::time::timeout(LOCAL_DEADLINE,pool.run(move|| {let registration=registry.load(&provider)?; let path=registry.verify(&registration)?; Ok::<_,permesh_provider_external::ExternalError>((registration,path))}))=>result.map_err(|_|AppError::new(3,"Provider registration verification timed out"))??.map_err(failure)?,
     };
+    execute(
+        args,
+        prepared,
+        pool,
+        cancellation,
+        TrustedSetup {
+            root,
+            registration,
+            executable,
+        },
+    )
+    .await?
+    .outcome()
+}
+pub(crate) async fn execute(
+    args: &SetupArgs,
+    prepared: Prepared,
+    pool: &BlockingPool,
+    cancellation: &Cancellation,
+    trusted: TrustedSetup,
+) -> Result<SetupOutcome, AppError> {
+    let Prepared {
+        id,
+        mut answers,
+        draft,
+    } = prepared;
+    let TrustedSetup {
+        root,
+        registration,
+        executable,
+    } = trusted;
     if args.authoritative && !registration.capabilities.contains(&Capability::Identities) {
         return Err(AppError::input(
             "Authoritative identity sources require the registered identities capability",
@@ -148,10 +209,12 @@ pub async fn run(
         }
     })?;
     if args.describe {
+        // SetupSpec is an SDK-owned, independently versioned public boundary
+        // contract; schema 1 deliberately embeds it rather than storage serde.
         return Outcome::new(
             "provider_setup_describe",
             serde_json::json!({"provider":registration.id,"id":id,"sha256":registration.sha256,"spec":spec,"message":"Setup form from a trusted native provider. No workspace settings, answers or credentials were sent. No configuration was changed."}),
-        );
+        ).map(SetupOutcome::Described);
     }
     spec.questions(&answers)
         .map_err(|e| AppError::input(e.to_string()))?;
@@ -173,7 +236,7 @@ pub async fn run(
         .map_err(|e| AppError::input(e.to_string()))?;
     validate_references(&spec, &answers, &id)?;
     // Reject a changed registration after a potentially long interactive form.
-    let registry = Registry::new(storage_root()?).map_err(failure)?;
+    let registry = Registry::new(root).map_err(failure)?;
     let expected = registration.clone();
     tokio::select! {
         biased;
@@ -187,5 +250,6 @@ pub async fn run(
     // No background prompt/credential worker can write the configuration later.
     draft
         .ok_or_else(|| AppError::new(5, "Setup workspace is missing"))?
-        .commit(&id, &registration, values, args.authoritative)
+        .commit_instance(&id, &registration, values, args.authoritative)
+        .map(SetupOutcome::Created)
 }

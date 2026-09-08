@@ -3,6 +3,7 @@ mod admins;
 mod identity;
 mod model;
 mod orphaned;
+mod path_budget;
 mod query;
 mod traversal;
 mod validation;

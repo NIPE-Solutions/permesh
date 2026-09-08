@@ -76,7 +76,7 @@ pub enum ProviderCommand {
     Capabilities {
         id: String,
     },
-    Add(AddProvider),
+    Add(Box<AddProvider>),
     /// Configure a new instance using a trusted provider's declarative setup form.
     Setup(crate::setup::SetupArgs),
     /// Explicitly manage and run trusted native external providers.
@@ -87,8 +87,24 @@ pub enum ProviderCommand {
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {
-    #[arg(value_parser=["github", "google", "external"], help="Provider type; legacy github is rejected with external setup guidance")]
+    #[arg(value_parser=["github", "google", "external"], help="Provider type; github guides official package trust and setup")]
     pub provider_type: String,
+    #[arg(
+        long,
+        help = "Exact official GitHub version; defaults to the newest compatible release"
+    )]
+    pub version: Option<String>,
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "GitHub declarative setup answers; nonsecret settings and credential references only"
+    )]
+    pub answers: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Explicitly trust the selected official GitHub binary and approve the resulting instance's settings and credential delivery"
+    )]
+    pub accept_risk: bool,
     #[arg(long, help = "Stable instance ID; defaults to TYPE-main")]
     pub id: Option<String>,
     #[arg(long, help = "GitHub organization (repeat for multiple organizations)")]

@@ -69,6 +69,9 @@ pub async fn run(
         command: ProviderCommand::Add(args),
     } = &cli.command
     {
+        if args.provider_type == "github" {
+            return crate::guided_add::run(cli, args, blocking, cancellation).await;
+        }
         return workspace::add(cli, args);
     }
     let path = std::fs::canonicalize(workspace::path(cli)?)
@@ -108,7 +111,7 @@ pub async fn run(
                 })?;
             Outcome::new(
                 "provider_capabilities",
-                serde_json::json!({"id":id,"metadata":collection::metadata(provider)?}),
+                serde_json::json!({"id":id,"metadata":crate::schema1_control::Metadata::from(&collection::metadata(provider)?)}),
             )
         }
         Command::Doctor
@@ -137,13 +140,13 @@ pub async fn run(
                 },
             )
             .await?;
-            outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":config.identity.sources,"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider install github --version VERSION."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"External execution requires a pinned registered binary and approval of this workspace configuration","local_overrides":"Not loaded"});
+            outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":crate::schema1_control::identity_sources(&config.identity.sources),"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider add github."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"External execution requires a pinned registered binary and approval of this workspace configuration","local_overrides":"Not loaded"});
             Ok(outcome)
         }
         Command::User { .. } | Command::Admins | Command::Orphaned => {
             if config.providers.is_empty() {
                 return Err(AppError::input(
-                    "No providers configured. Run permesh provider install github --version VERSION, or try a new workspace with init --demo.",
+                    "No providers configured. Run permesh provider add github, or try a new workspace with init --demo.",
                 ));
             }
             let authorities: Vec<_> = config

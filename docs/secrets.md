@@ -1,5 +1,11 @@
 # Credentials
 
+| Backend | Storage and access | Team/CI use | Rotation and removal |
+| --- | --- | --- | --- |
+| `env://NAME` | Supplied to the local process by its parent; subject to OS process-access rules | Commit the reference; inject the value through existing CI secret tooling | Replace/unset the variable in its owner; revoke old credentials at the provider |
+| `keychain://instance/slot` | Native credential store under the current user's OS security policy | Recommended local desktop storage; share references, not entries | Explicit login replaces the local entry; logout removes it; revoke remotely through the provider |
+| Native AWS profile/SSO, SOPS, Vault, command resolvers | Not a supported Permesh secret backend yet | No implicit ambient credential-chain or command execution | Future explicit contracts; do not place commands or plaintext credentials in references |
+
 Workspace configuration accepts `env://NAME` and
 `keychain://instance-id/credential-name`. Built-in providers continue to use the
 `token` account only. Approved external instances can declare named credential
@@ -44,8 +50,9 @@ credential-store integration remains a platform release check.
 
 A separate manual macOS Apple Silicon exercise verified synthetic credential
 storage, resolution, independent OS retrieval and deletion for revision
-`9ad1504`. The temporary entry was removed afterward. Windows Credential Manager
-and Linux Secret Service still require native integration qualification; see
+`9ad1504`. The temporary entry was removed afterward. Current CI also runs
+synthetic Windows Credential Manager and Linux Secret Service checks; broader
+interactive desktop acceptance remains a release qualification gate. See
 [release evidence](releasing.md#qualification-evidence-2026-09-08).
 
 Configuration loading rejects nonregular files before opening and checks the
