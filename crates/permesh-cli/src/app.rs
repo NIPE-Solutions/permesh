@@ -69,6 +69,9 @@ pub async fn run(
         command: ProviderCommand::Add(args),
     } = &cli.command
     {
+        if args.provider_type == "github" {
+            return crate::guided_add::run(cli, args, blocking, cancellation).await;
+        }
         return workspace::add(cli, args);
     }
     let path = std::fs::canonicalize(workspace::path(cli)?)

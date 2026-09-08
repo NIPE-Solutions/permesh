@@ -45,6 +45,10 @@ fn store() -> Result<PackageStore, AppError> {
     PackageStore::new(root).map_err(failure)
 }
 
+pub(crate) struct Acquired {
+    pub outcome: Outcome,
+    pub package: Option<InstalledPackage>,
+}
 pub async fn run(
     provider: &str,
     version: Option<&str>,
@@ -53,6 +57,22 @@ pub async fn run(
     pool: &BlockingPool,
     cancellation: &Cancellation,
 ) -> Result<Outcome, AppError> {
+    Ok(
+        acquire(provider, version, update, check, false, pool, cancellation)
+            .await?
+            .outcome,
+    )
+}
+
+pub(crate) async fn acquire(
+    provider: &str,
+    version: Option<&str>,
+    update: bool,
+    check: bool,
+    setup: bool,
+    pool: &BlockingPool,
+    cancellation: &Cancellation,
+) -> Result<Acquired, AppError> {
     let started_at = crate::report::now()?;
     catalog::validate_request(provider, version).map_err(failure)?;
     let target = catalog::native_target().ok_or_else(|| {
@@ -76,10 +96,14 @@ pub async fn run(
         ));
     }
     let catalog = download::fetch_catalog().await.map_err(failure)?;
-    let available = catalog.select(provider, target, version).map_err(failure)?;
+    let available = select_release(&catalog, provider, target, version, setup).map_err(failure)?;
     validate_known_versions(&catalog, &installed)?;
     let current = installed.last();
-    let selected = selection(available, current, version.is_some());
+    let selected = if setup {
+        available
+    } else {
+        selection(available, current, version.is_some())
+    };
     let existing = installed.iter().find(|p| p.release == *selected);
     let changed = existing.is_none();
     let package = if check {
@@ -126,7 +150,7 @@ pub async fn run(
         result,
     )?;
     outcome.report.started_at = started_at;
-    Ok(outcome)
+    Ok(Acquired { outcome, package })
 }
 fn validate_known_versions(
     catalog: &Catalog,
@@ -143,6 +167,30 @@ fn validate_known_versions(
         }
     }
     Ok(())
+}
+fn select_release<'a>(
+    catalog: &'a Catalog,
+    provider: &str,
+    target: &str,
+    version: Option<&str>,
+    setup: bool,
+) -> Result<&'a Release, DistributionError> {
+    // Validate the whole catalog and request before applying operation compatibility.
+    let available = catalog.select(provider, target, version)?;
+    if !setup {
+        return Ok(available);
+    }
+    catalog
+        .releases
+        .iter()
+        .filter(|release| {
+            release.provider == provider
+                && release.target == target
+                && release.protocols.contains(&3)
+                && version.is_none_or(|version| release.version.to_string() == version)
+        })
+        .max_by(|a, b| a.version.cmp(&b.version))
+        .ok_or(DistributionError::Compatibility)
 }
 fn selection<'a>(
     available: &'a Release,
@@ -167,6 +215,32 @@ mod tests {
             "protocols":[2], "archive_sha256":"a".repeat(64),
             "executable_sha256":"b".repeat(64), "archive_size":100
         }))
+    }
+    #[test]
+    fn guided_selection_requires_setup_and_honors_exact_or_catalog_latest()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut compatible = release("1.0.0")?;
+        compatible.protocols.push(3);
+        let newer = release("2.0.0")?;
+        let catalog = Catalog {
+            schema_version: 1,
+            releases: vec![compatible.clone(), newer.clone()],
+        };
+        let target = "x86_64-unknown-linux-gnu";
+        assert_eq!(
+            select_release(&catalog, "fixture", target, None, true)?.version,
+            compatible.version
+        );
+        assert!(select_release(&catalog, "fixture", target, Some("2.0.0"), true).is_err());
+        assert_eq!(
+            select_release(&catalog, "fixture", target, Some("1.0.0"), true)?.version,
+            compatible.version
+        );
+        assert_eq!(
+            select_release(&catalog, "fixture", target, None, false)?.version,
+            newer.version
+        );
+        Ok(())
     }
     #[test]
     fn ordinary_update_never_downgrades_but_exact_version_allows_rollback()

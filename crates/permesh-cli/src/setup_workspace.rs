@@ -10,6 +10,20 @@ pub struct Draft {
     original: Vec<u8>,
     config: Config,
 }
+pub(crate) struct CreatedInstance {
+    pub path: PathBuf,
+    pub config: Config,
+    pub id: String,
+    pub registration: Registration,
+}
+impl CreatedInstance {
+    pub fn outcome(&self) -> Result<Outcome, AppError> {
+        Outcome::new(
+            "provider_setup",
+            serde_json::json!({"id":self.id,"provider":self.registration.id,"sha256":self.registration.sha256,"file":self.path,"message":"Created provider instance. Review the configuration diff and execution approval before querying; credentials were not resolved or stored.","next":format!("permesh provider external review {}",self.id)}),
+        )
+    }
+}
 impl Draft {
     pub fn load(cli: &Cli, id: &str) -> Result<Self, AppError> {
         let path = crate::workspace::path(cli)?;
@@ -29,13 +43,13 @@ impl Draft {
             config,
         })
     }
-    pub fn commit(
+    pub(crate) fn commit_instance(
         mut self,
         id: &str,
         registration: &Registration,
         values: ResolvedSetup,
         authoritative: bool,
-    ) -> Result<Outcome, AppError> {
+    ) -> Result<CreatedInstance, AppError> {
         self.config.providers.push(ProviderConfig {
             id: id.into(),
             kind: ProviderKind::External,
@@ -58,10 +72,12 @@ impl Draft {
         let yaml = permesh_config::to_yaml(&self.config)?;
         Config::from_bytes(yaml.as_bytes())?;
         crate::workspace::replace(&self.path, &self.original, yaml.as_bytes())?;
-        Outcome::new(
-            "provider_setup",
-            serde_json::json!({"id":id,"provider":registration.id,"sha256":registration.sha256,"file":self.path,"message":"Created provider instance. Review the configuration diff and execution approval before querying; credentials were not resolved or stored.","next":format!("permesh provider external review {id}")}),
-        )
+        Ok(CreatedInstance {
+            path: self.path,
+            config: self.config,
+            id: id.into(),
+            registration: registration.clone(),
+        })
     }
 }
 
@@ -95,7 +111,7 @@ mod tests {
         };
         assert!(
             draft
-                .commit(
+                .commit_instance(
                     "example-main",
                     &registration,
                     ResolvedSetup::default(),
@@ -111,7 +127,7 @@ mod tests {
             .insert("token".into(), "SENTINEL_PRIVATE".into());
         assert!(
             draft
-                .commit("example-main", &registration, values, false)
+                .commit_instance("example-main", &registration, values, false)
                 .is_err_and(|e| !e.message.contains("SENTINEL_PRIVATE"))
         );
         assert_eq!(std::fs::read_to_string(&path)?, changed);
@@ -147,7 +163,7 @@ mod tests {
         );
         assert!(
             draft
-                .commit("new-main", &registration, values, false)
+                .commit_instance("new-main", &registration, values, false)
                 .is_err()
         );
         assert_eq!(std::fs::read(&path)?, original);

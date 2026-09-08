@@ -101,6 +101,11 @@ fn create_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
         .map_err(|_| AppError::new(5, "Cannot finish writing workspace file"))
 }
 pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
+    if args.version.is_some() || args.answers.is_some() || args.accept_risk {
+        return Err(AppError::input(
+            "--version, --answers and --accept-risk require provider add github",
+        ));
+    }
     if args.provider_type == "github" {
         return Err(AppError::input(
             "GitHub uses an external provider: install an official package, explicitly trust its binary, then run permesh provider setup github --id INSTANCE. Existing legacy instances use provider migrate",

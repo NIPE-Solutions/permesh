@@ -1,4 +1,50 @@
-# Set up a registered provider
+# Set up a provider
+
+## Official GitHub
+
+```bash
+permesh provider add github
+```
+
+In an existing workspace, this command downloads the newest release in the public
+catalog compatible with the current host and declarative setup. `--version VERSION`
+selects that exact stable release; `--id ID` replaces the default `github-main`.
+A newer locally installed release does not override this selection.
+
+The first prompt shows the source, version, reported capabilities and native-code
+risk. Answer `yes` to trust the verified executable and run its setup description.
+Checksums match the public catalog; publisher signatures are not verified. Use `-v`
+for the executable path and digest. The second prompt reviews the resulting settings
+and named credential references before approving workspace execution and credential
+delivery. Neither step resolves credentials. Run `permesh auth login github-main`
+separately for keychain references; supply environment references outside Permesh.
+
+For automation, prepare the strict answer file described below using the provider's
+setup field names and credential references, then explicitly authorize both steps:
+
+```bash
+permesh provider add github --id github-main --version VERSION \
+  --answers github-answers.yaml --accept-risk --json
+```
+
+Noninteractive input, including `--json`, requires both `--answers` and
+`--accept-risk`. JSON contains only the result envelope, with no prompt decoration.
+Legacy organization/token flags and manual external settings are rejected: use the
+form or answer file. Other providers retain their existing add/setup workflows.
+
+Declining binary trust leaves only downloaded package files and executes no
+provider. A setup failure retains the package and any completed local trust;
+correct the answers and retry the returned exact-version add command. If an instance
+was created but workspace approval was declined or failed, use the returned external
+review/approve commands. Add never overwrites an existing instance. Detected workspace
+edits during setup or approval prevent stale writes or approval.
+
+Configuration schema 1 pins one current-host executable digest. A shared configuration
+does not automatically select another platform's artifact; cross-platform release
+pins require a separate configuration design. Install/update still only download
+packages and never silently change instance pins or approvals.
+
+## Registered and third-party providers
 
 `permesh provider setup` asks a locally registered native provider for a declarative
 setup description, then uses CLI-owned prompts or an answer file to add a workspace
