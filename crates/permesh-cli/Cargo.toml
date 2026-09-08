@@ -1,0 +1,34 @@
+[package]
+name = "permesh-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+permesh-core.workspace = true
+permesh-config.workspace = true
+permesh-secrets.workspace = true
+permesh-provider-sdk.workspace = true
+permesh-provider-demo.workspace = true
+permesh-provider-github.workspace = true
+clap.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+time.workspace = true
+rpassword.workspace = true
+zeroize = "1"
+
+tempfile.workspace = true
+
+[dev-dependencies]
+
+[[bin]]
+name = "permesh"
+path = "src/main.rs"

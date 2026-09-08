@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+use crate::{
+    args::{Cli, Command, ProviderCommand},
+    auth, collection,
+    error::AppError,
+    report::Outcome,
+    workspace,
+};
+pub async fn run(cli: &Cli, blocking: &crate::blocking::BlockingPool) -> Result<Outcome, AppError> {
+    if let Command::Init { demo, organization } = &cli.command {
+        let owned_cli = cli.clone();
+        let demo = *demo;
+        let organization = organization.clone();
+        return blocking
+            .run(move || workspace::init(&owned_cli, demo, &organization))
+            .await?;
+    }
+    if let Command::Version = &cli.command {
+        return Outcome::new(
+            "version",
+            serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"telemetry":false,"backend":false}),
+        );
+    }
+    if let Command::Provider {
+        command: ProviderCommand::Add(args),
+    } = &cli.command
+    {
+        return workspace::add(cli, args);
+    }
+    let config = workspace::load(cli)?;
+    match &cli.command {
+        Command::Auth { command } => auth::run(&config, command, cli.json, blocking).await,
+        Command::Provider {
+            command: ProviderCommand::List,
+        } => {
+            let mut providers: Vec<_> = config
+                .providers
+                .iter()
+                .map(|p| serde_json::json!({"id":p.id,"type":collection::kind(p)}))
+                .collect();
+            providers.sort_by_key(|v| v["id"].as_str().unwrap_or_default().to_string());
+            Outcome::new("provider_list", serde_json::json!({"providers":providers}))
+        }
+        Command::Provider {
+            command: ProviderCommand::Capabilities { id },
+        } => {
+            let provider = config
+                .providers
+                .iter()
+                .find(|p| p.id == *id)
+                .ok_or_else(|| {
+                    AppError::input("Unknown provider instance; run permesh provider list")
+                })?;
+            Outcome::new(
+                "provider_capabilities",
+                serde_json::json!({"id":id,"metadata":collection::metadata(provider)}),
+            )
+        }
+        Command::Doctor
+        | Command::Provider {
+            command: ProviderCommand::Status { .. },
+        } => {
+            let id = if let Command::Provider {
+                command: ProviderCommand::Status { id },
+            } = &cli.command
+            {
+                id.as_deref()
+            } else {
+                None
+            };
+            let (mut outcome, _) = collection::collect(
+                blocking,
+                &config,
+                collection::selected(&config, id)?,
+                false,
+                if matches!(cli.command, Command::Doctor) {
+                    "doctor"
+                } else {
+                    "provider_status"
+                },
+            )
+            .await?;
+            outcome.report.result = serde_json::json!({"workspace_schema":config.version,"organization":config.organization.name,"identity_sources":config.identity.sources,"message":if config.providers.is_empty(){"Configuration valid. No providers configured; run permesh provider add github --organization YOUR_ORG."}else{"Configuration valid. Health checks do not enumerate the access graph. Use a query to test discovery visibility."},"external_providers":"Execution unsupported; workspace programs are never run","local_overrides":"Not loaded"});
+            Ok(outcome)
+        }
+        Command::User { .. } | Command::Admins => {
+            if config.providers.is_empty() {
+                return Err(AppError::input(
+                    "No providers configured. Run permesh provider add github --organization YOUR_ORG, or try a new workspace with init --demo.",
+                ));
+            }
+            let command = if matches!(cli.command, Command::Admins) {
+                "admins"
+            } else {
+                "user"
+            };
+            let (mut outcome, snapshots) =
+                collection::collect(blocking, &config, config.providers.clone(), true, command)
+                    .await?;
+            if snapshots.is_empty() {
+                return Ok(outcome);
+            }
+            if matches!(cli.command, Command::Admins) {
+                let result = permesh_core::query_admins(&snapshots, &config.identity.aliases)?;
+                outcome.report.result = serde_json::to_value(result)
+                    .map_err(|_| AppError::new(5, "Cannot serialize privileged-access result"))?;
+                return Ok(outcome);
+            }
+            let Command::User { identity } = &cli.command else {
+                return Err(AppError::new(5, "Query command dispatch failed"));
+            };
+            match permesh_core::query_user(&snapshots, &config.identity.aliases, identity) {
+                Ok(result) => {
+                    outcome.report.result = serde_json::to_value(result)
+                        .map_err(|_| AppError::new(5, "Cannot serialize query result"))?;
+                }
+                Err(permesh_core::DomainError::NotFound) if !outcome.report.complete => {
+                    outcome.report.result = serde_json::json!({"identity":null,"accounts":[],"access":[],"message":"No match in available results; unavailable providers may contain this identity."});
+                }
+                Err(error) => return Err(error.into()),
+            }
+            Ok(outcome)
+        }
+        _ => Err(AppError::new(5, "Command dispatch failed")),
+    }
+}

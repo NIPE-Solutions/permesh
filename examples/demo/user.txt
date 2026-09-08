@@ -1,0 +1,25 @@
+Permesh
+
+Identity
+  alice@example.com
+  active
+  demo · alice-dev
+
+Access
+
+demo
+  acme/payments-api
+    Write (standard)
+    via team/backend
+    certainty: observed
+  acme/infrastructure
+    Read (standard)
+    via synthetic demo fixture
+    certainty: observed
+
+Summary
+  2 observed access paths
+
+Providers
+  demo · demo: connected
+    Discovery completed

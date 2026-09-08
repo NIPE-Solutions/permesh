@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+use serde::Serialize;
+#[derive(Debug, Serialize)]
+pub struct AppError {
+    pub code: u8,
+    pub message: String,
+}
+impl AppError {
+    pub fn new(code: u8, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+    pub fn input(message: impl Into<String>) -> Self {
+        Self::new(2, message)
+    }
+}
+impl From<permesh_config::Error> for AppError {
+    fn from(error: permesh_config::Error) -> Self {
+        Self::input(format!(
+            "{error}. Check permesh.yaml or pass --config FILE."
+        ))
+    }
+}
+impl From<permesh_core::DomainError> for AppError {
+    fn from(error: permesh_core::DomainError) -> Self {
+        let code = match error {
+            permesh_core::DomainError::NotFound => 1,
+            permesh_core::DomainError::Ambiguous => 2,
+            _ => 3,
+        };
+        Self::new(code, error.to_string())
+    }
+}

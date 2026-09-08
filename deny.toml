@@ -1,0 +1,18 @@
+# Review the complete workspace graph, including platform-specific dependencies.
+[advisories]
+ignore = []
+
+[licenses]
+confidence-threshold = 0.93
+allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "CDLA-Permissive-2.0"]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Private workspace path dependencies intentionally have no registry version.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

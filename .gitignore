@@ -1,0 +1,36 @@
+/target/
+.DS_Store
+permesh.local.yaml
+*.local.json
+/candidate-output/
+/scripts/__pycache__/
+
+# Local assistant instructions and session artifacts are kept outside this repository.
+AGENTS.md
+agents.md
+CLAUDE.md
+claude.md
+CODEX.md
+GEMINI.md
+.cursorrules
+.windsurfrules
+.aider*
+.agent/
+.agents/
+.ai/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.windsurf/
+.github/copilot-instructions.md
+.github/instructions/
+docs/superpowers/
+docs/IMPLEMENTATION_PLAN.md
+docs/ADMIN_SLICE.md
+docs/VERIFICATION.md
+
+.idea/
+
+# Generated local code index.
+.codegraph/

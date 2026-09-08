@@ -1,0 +1,20 @@
+Permesh
+
+Privileged access
+
+demo · bob-admin
+  Identity: bob@example.com
+  acme/infrastructure
+    Admin (admin)
+    via synthetic demo fixture
+    certainty: observed
+
+Summary
+  1 accounts with known privileged paths
+  1 known privileged paths
+  0 paths with unknown privilege
+  0 grants without an observed account path
+
+Providers
+  demo · demo: connected
+    Discovery completed

@@ -1,0 +1,23 @@
+# Provider development
+
+The current provider boundary is the Rust SDK and validated core snapshot. Read [PROVIDER_MODEL.md](PROVIDER_MODEL.md), [DOMAIN_MODEL.md](DOMAIN_MODEL.md), and the existing demo/GitHub adapters. A provider must preserve scoped native IDs, distinguish observation from effective authorization, report incomplete visibility, and return structured failures. Never turn permission denial into an apparently successful empty result. Use synthetic fixtures and local mock APIs for contract tests.
+
+## External protocol direction: draft version 1
+
+No external runtime is enabled and this is not a stable compatibility promise. The [Python example](../examples/external-provider/README.md) is a manually invoked protocol peer. Its illustrative record payloads require a future mapping to the validated Rust domain before ingestion. Merely placing a program or configuration in a repository must never trigger execution.
+
+Transport is UTF-8 NDJSON over dedicated stdin/stdout pipes. Each complete frame, including its LF terminator, is at most **1 MiB (1,048,576 bytes)**. Read with a byte bound before decoding or allocating a complete line. Stdout is protocol-only. Reject invalid UTF-8, malformed JSON, truncated frames, wrong versions, unknown envelope fields, unexpected events, and mismatched request IDs. Reject duplicate JSON keys in the future host; the pedagogical Python peer does not implement that extra decoder restriction.
+
+A request has exactly `protocol` (integer 1), `id` (1–64 ASCII letters/digits/underscore/hyphen), and `method`. The host uses unique IDs within the process lifetime. The methods are `handshake`, `check`, `discover`, and `cancel`; no mutation method exists. A future credential exchange needs a separate reviewed specification; do not pass secrets in argv or grant a child the parent's entire environment.
+
+Responses contain `protocol`, the matching `id`, and `event`, plus event-specific fields. The first successful request must be `handshake`; its response declares `provider`, `capabilities`, and `draft`. Claimed metadata must match the local trust registration, not establish that trust. `check` yields `health` with a status. `discover` emits zero or more `record` events with `kind` and `data`, followed by exactly one `complete` with the count, or a structured `error` with a curated code. `cancel` produces `cancelled` and exits in this example. A host must reject records after a terminal event and bound both total records and total bytes; proposed ceilings are 100,000 records and 64 MiB per request, subject to provider-specific lower budgets.
+
+Proposed host defaults are a 5-second handshake deadline, a 60-second operation deadline, and a 1-second cancellation grace period. Cancellation or timeout sends a cancel request if writable without blocking; after the grace period the host kills the child and descendants and reaps the process. Use platform-specific process-group/job-object supervision and test it natively. Bound stderr (proposed 64 KiB retained maximum), drain it concurrently to prevent deadlock, and expose only sanitized summaries. Do not reset an overall deadline on every frame.
+
+## Future local trust registration
+
+Execution requires an explicit user-level registration outside workspace YAML. Record an absolute executable path, a cryptographic digest and provider identity; show the path, digest, requested capabilities and same-user execution risk for acknowledgment. Bind trust to the actual executable and revalidate at launch; a changed digest requires renewed acknowledgment. For interpreted providers, trust must cover both interpreter and script plus meaningful dependency changes, not merely the Python executable. Reject repository-selected executable paths, PATH lookup, shell command strings and symlink substitutions. Avoid a check-then-execute race or document the platform-specific residual risk before enabling the feature.
+
+Trust is permission to run reviewed local code, not a sandbox. A child can access files and the network with the user's authority unless separately restricted. Minimize inherited environment variables, handles and working-directory exposure. Never auto-install, auto-update or automatically run discovered provider programs. Workspace configuration can refer to a registered identity only after this trust mechanism exists.
+
+Host implementation acceptance requires adversarial process tests for floods, hangs, forked children, malformed or oversized frames, credential-bearing stderr, unexpected capabilities, identity mismatch, partial discovery, cancellation and executable replacement. The current example covers its own framing and synthetic records only; it must not be cited as passing those host requirements.

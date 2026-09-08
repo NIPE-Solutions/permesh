@@ -1,0 +1,12 @@
+version: 1
+organization:
+  name: Example
+providers:
+- id: demo
+  type: demo
+  organizations: []
+identity:
+  sources:
+  - provider: demo
+    authoritative: true
+  aliases: {}
