@@ -62,7 +62,7 @@ jobs:
         run: |
           version=$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
           python scripts/package_candidate.py --target '${{ matrix.target }}' --version "$version" --output candidate-output
-      - name: Retain unsigned candidate and checksum
+      - name: Retain unsigned candidate, dependency inventory and checksums
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: permesh-candidate-${{ matrix.target }}-${{ github.sha }}
@@ -70,6 +70,7 @@ jobs:
             candidate-output/*.tar.gz
             candidate-output/*.zip
             candidate-output/*.sha256
+            candidate-output/*.dependencies.json
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

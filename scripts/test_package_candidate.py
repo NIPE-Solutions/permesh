@@ -1,9 +1,11 @@
 import hashlib
+import json
 from pathlib import Path
 import tarfile
 import tempfile
 import subprocess
 import unittest
+from unittest.mock import patch
 import zipfile
 
 import package_candidate as package
@@ -82,7 +84,16 @@ windowsonly = { path = "../windowsonly" }
                 self.assertEqual(b'Complete windowsonly license text.' in notices, 'windows' in target)
                 checksum = one.with_name(one.name + '.sha256').read_text()
                 self.assertEqual(checksum, hashlib.sha256(one.read_bytes()).hexdigest() + '  ' + one.name + '\n')
-                self.assertEqual(len(list(one.parent.iterdir())), 2)
+                inventory = one.parent / f'permesh-0.1.0-alpha.1-{target}.dependencies.json'
+                document = json.loads(inventory.read_bytes())
+                self.assertEqual(document['format'], 'permesh-dependency-inventory')
+                self.assertEqual(document['candidate']['target'], target)
+                self.assertEqual(document['candidate']['sha256'], hashlib.sha256(binary.read_bytes()).hexdigest())
+                self.assertNotIn(b'SECRET', inventory.read_bytes())
+                self.assertNotIn(str(self.root).encode(), inventory.read_bytes())
+                self.assertEqual(inventory.with_suffix('.json.sha256').read_text(),
+                                 hashlib.sha256(inventory.read_bytes()).hexdigest() + '  ' + inventory.name + '\n')
+                self.assertEqual(len(list(one.parent.iterdir())), 4)
 
     def test_missing_dependency_notice_fails_before_creating_output(self):
         self.binary('aarch64-apple-darwin')
@@ -94,6 +105,31 @@ windowsonly = { path = "../windowsonly" }
     def test_stale_lockfile_fails_before_creating_output(self):
         self.binary('aarch64-apple-darwin')
         (self.root / 'Cargo.lock').unlink()
+        with self.assertRaises(FileNotFoundError):
+            package.package(self.root, 'aarch64-apple-darwin', '0.1.0-alpha.1', self.root / 'out')
+        self.assertFalse((self.root / 'out').exists())
+
+    def test_changed_lockfile_fails_before_creating_output(self):
+        self.binary('aarch64-apple-darwin')
+        actual_run = subprocess.run
+
+        def change_after_metadata(*args, **kwargs):
+            result = actual_run(*args, **kwargs)
+            with (self.root / 'Cargo.lock').open('a') as lock:
+                lock.write('\n# concurrent edit\n')
+            return result
+
+        with patch.object(package.subprocess, 'run', side_effect=change_after_metadata):
+            with self.assertRaisesRegex(ValueError, 'lockfile changed'):
+                package.package(self.root, 'aarch64-apple-darwin', '0.1.0-alpha.1', self.root / 'out')
+        self.assertFalse((self.root / 'out').exists())
+
+    def test_stale_dependency_and_mismatched_candidate_version_fail(self):
+        self.binary('aarch64-apple-darwin')
+        with self.assertRaisesRegex(ValueError, 'version differs'):
+            package.package(self.root, 'aarch64-apple-darwin', '0.2.0', self.root / 'out')
+        manifest = self.root.parent / 'runtime/Cargo.toml'
+        manifest.write_text(manifest.read_text().replace('1.0.0', '1.1.0'))
         with self.assertRaises(subprocess.CalledProcessError):
             package.package(self.root, 'aarch64-apple-darwin', '0.1.0-alpha.1', self.root / 'out')
         self.assertFalse((self.root / 'out').exists())
@@ -130,7 +166,7 @@ windowsonly = { path = "../windowsonly" }
         sentinel = output / 'keep'
         sentinel.write_text('keep')
         with self.assertRaises(FileExistsError):
-            package.package(self.root, 'aarch64-apple-darwin', '0.1', output)
+            package.package(self.root, 'aarch64-apple-darwin', '0.1.0-alpha.1', output)
         self.assertEqual(sentinel.read_text(), 'keep')
 
     def test_rejects_symlink_input_and_parent(self):
