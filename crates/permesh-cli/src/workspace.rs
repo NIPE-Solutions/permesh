@@ -125,6 +125,7 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         .clone()
         .unwrap_or_else(|| format!("{}-main", args.provider_type));
     let external = Some(permesh_config::ExternalConfig {
+        network: None,
         discovery_protocol: args.discovery_protocol.into(),
         provider: args
             .provider

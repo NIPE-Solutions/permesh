@@ -20,6 +20,8 @@ pub(crate) enum Event {
         capabilities: Vec<Capability>,
         draft: bool,
         operations: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        features: Option<Vec<super::Feature>>,
     },
     Record {
         #[serde(flatten)]

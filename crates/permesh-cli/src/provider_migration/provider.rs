@@ -97,6 +97,7 @@ pub(super) fn convert(
         .token;
     provider.kind = ProviderKind::External;
     provider.external = Some(ExternalConfig {
+        network: None,
         discovery_protocol,
         provider: kind.name().into(),
         sha256: sha256.into(),

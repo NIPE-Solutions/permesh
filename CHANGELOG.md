@@ -4,6 +4,12 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add explicit per-instance proxy/bypass and digest-pinned CA configuration for
+  negotiated discovery/health. The host requires provider acknowledgement before
+  credential delivery, preserves sanitized environments, and rejects unsupported
+  legacy/browser flows. Provider rollout is qualified separately.
+
+
 - Carry negotiated-v1 package compatibility into guided official provider setup;
   expose explicit discovery selection for advanced setup and migration. Legacy
   metadata remains unchanged; conflicting protocol declarations fail closed.

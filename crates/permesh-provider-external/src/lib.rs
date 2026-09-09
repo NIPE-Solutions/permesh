@@ -49,6 +49,10 @@ pub enum ExternalError {
     Cancelled,
     #[error("external provider protocol failed validation")]
     Protocol,
+    #[error(
+        "unable to negotiate the configured network context; update the provider or review its network settings; no credentials were delivered"
+    )]
+    NetworkNegotiation,
     #[error("external provider diagnostic output exceeded its limit")]
     StderrLimit,
     #[error("external provider exited unsuccessfully")]

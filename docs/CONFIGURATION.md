@@ -99,3 +99,6 @@ requires fresh review before any credential resolution or execution. It does not
 change executable trust or grant additional record capabilities. Old CLI versions
 reject the new field rather than silently selecting another protocol. There is no
 automatic workspace rewrite or protocol fallback.
+
+Explicit instance proxy/CA settings use [approved network context](networking.md);
+provider environments stay sanitized and unsupported transports fail closed.

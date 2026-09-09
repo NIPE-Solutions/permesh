@@ -16,6 +16,7 @@ serde_json.workspace = true
 serde-saphyr.workspace = true
 thiserror.workspace = true
 permesh-secrets.workspace = true
+permesh-provider-sdk.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

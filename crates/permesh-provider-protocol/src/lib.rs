@@ -38,6 +38,8 @@ pub enum ProtocolError {
     Provider,
     #[error("provider protocol capability declaration or record kind is invalid")]
     Capability,
+    #[error("provider protocol features do not match the requested contract")]
+    Features,
     #[error("provider protocol record limit exceeded")]
     RecordLimit,
     #[error("provider protocol completion count is invalid")]

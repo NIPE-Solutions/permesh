@@ -887,3 +887,6 @@ async fn negotiated_wrong_operation_writes_only_handshake_to_stdin() {
         );
     }
 }
+
+#[path = "host_network_tests.rs"]
+mod network;

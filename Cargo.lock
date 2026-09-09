@@ -1494,6 +1494,7 @@ dependencies = [
 name = "permesh-config"
 version = "0.1.0-alpha.2"
 dependencies = [
+ "permesh-provider-sdk",
  "permesh-secrets",
  "serde",
  "serde-saphyr",

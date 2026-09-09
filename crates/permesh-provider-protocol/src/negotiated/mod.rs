@@ -5,6 +5,7 @@ pub mod records;
 mod session;
 mod wire;
 use crate::ProtocolError;
+use serde::{Deserialize, Serialize};
 pub use session::{DiscoveryDecoder, HealthDecoder};
 /// The only version supported by this negotiated contract. Never downgrade.
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -29,12 +30,44 @@ impl Operation {
         }
     }
 }
+/// Explicit optional contract features, independent of operation capabilities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Feature {
+    NetworkV1,
+}
+/// Maximum negotiated features; currently only `network_v1` is defined.
+pub const MAX_FEATURES: usize = 1;
+pub(crate) fn validate_features(features: &[Feature]) -> Result<(), ProtocolError> {
+    if features.len() > MAX_FEATURES
+        || features
+            .iter()
+            .enumerate()
+            .any(|(i, feature)| features[..i].contains(feature))
+    {
+        return Err(ProtocolError::Features);
+    }
+    Ok(())
+}
 /// Encode a pinned handshake naming the operation before credentials are delivered.
 pub fn handshake_request(instance: &str, operation: Operation) -> Result<Vec<u8>, ProtocolError> {
+    handshake_request_with_features(instance, operation, &[])
+}
+/// Request an exact optional feature set. Empty features preserve the original wire bytes.
+pub fn handshake_request_with_features(
+    instance: &str,
+    operation: Operation,
+    features: &[Feature],
+) -> Result<Vec<u8>, ProtocolError> {
     if !crate::wire::valid_name(instance) {
         return Err(ProtocolError::Provider);
     }
-    let mut frame=serde_json::to_vec(&serde_json::json!({"protocol_version":PROTOCOL_VERSION,"id":"handshake","method":"handshake","instance":instance,"operation":operation.as_str()})).map_err(|_| ProtocolError::Schema)?;
+    validate_features(features)?;
+    let mut value = serde_json::json!({"protocol_version":PROTOCOL_VERSION,"id":"handshake","method":"handshake","instance":instance,"operation":operation.as_str()});
+    if !features.is_empty() {
+        value["features"] = serde_json::to_value(features).map_err(|_| ProtocolError::Schema)?;
+    }
+    let mut frame = serde_json::to_vec(&value).map_err(|_| ProtocolError::Schema)?;
     frame.push(b'\n');
     Ok(frame)
 }
