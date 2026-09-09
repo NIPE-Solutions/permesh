@@ -178,7 +178,7 @@ without changing Permesh core.
 - **Local processing.** No persistent access database, automatic uploads, or hidden
   update checks. Explicit install/update commands contact public GitHub artifacts.
 - **Reviewable configuration.** One `permesh.yaml` describes providers and identity
-  mappings. Tokens stay in environment variables or the OS keychain.
+  mappings. Credential values remain outside shared configuration.
 - **Useful in a terminal and a pipeline.** Human output explains access paths;
   versioned JSON exposes evidence, limitations, and completeness.
 - **Read-only by design.** Inspect and review access; use the provider’s own tools

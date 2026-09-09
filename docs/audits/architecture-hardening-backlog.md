@@ -141,19 +141,57 @@ HTML output, private artifact modes and policy findings exit 6. These are local
 source checks, not claims about every PR head, platform or published artifact.
 The combined public source candidate `48d8089` subsequently passed all 503 Rust
 tests, strict Clippy, formatting, 37 Python tests and the 101-document link check.
-The split PRs retain their own CI gates. Identity tools and remote credential
-sources have reached main; remaining snapshot/offboard, policy, tooling and AWS
-profile slices must retain combined regression coverage as they are integrated.
+The split PRs retain their own CI gates. The implementation is delivered through
+[identity/inventory](https://github.com/NIPE-Solutions/permesh/pull/34),
+[snapshots/offboarding](https://github.com/NIPE-Solutions/permesh/pull/35),
+[resources/policies](https://github.com/NIPE-Solutions/permesh/pull/36),
+[provider tooling](https://github.com/NIPE-Solutions/permesh/pull/37),
+[remote credentials](https://github.com/NIPE-Solutions/permesh/pull/38) and
+[temporary AWS profiles](https://github.com/NIPE-Solutions/permesh/pull/39).
+The combined candidate passed Linux, macOS and Windows CI, the minimum-Rust
+check, dependency checks and all five native build jobs.
+
+### Exact trial artifact evidence
+
+On 2026-09-09, all five CLI target archives and their inventories/checksums
+(20 files) from [run 34345582681](https://github.com/NIPE-Solutions/permesh/actions/runs/34345582681)
+passed the existing candidate verifier and independent archive checks. The
+reviewed source is [48d8089](https://github.com/NIPE-Solutions/permesh/commit/48d8089232cebef4df638cbc58b5f277a4d9a2d6);
+the tested pull-request checkout is `3884e937a3bd73814e53a57b25b4d2d5a4b2605a`.
+Their source trees match (`990dbd973e37c9d4e73194017f229cdaf356149f`).
+Checks covered strict archive/file allowlists, SHA-256 checksums, ELF/Mach-O/PE
+architecture, binary/inventory/lockfile bindings, dependency references and
+registry checksums, notice coverage and individual notice-content hashes.
+Downloaded executables were not run during this independent verification.
+
+All seven providers across the same five targets (35 packages) from
+[provider run 34343615189](https://github.com/NIPE-Solutions/permesh-providers/actions/runs/34343615189)
+also passed independent package checks: GitHub upload digests, archive and
+executable checksums, native target headers, bounded two-file ZIP layout and
+combined project/dependency notices. The reviewed source is
+[ad5b348](https://github.com/NIPE-Solutions/permesh-providers/commit/ad5b348b6f37f2493d2c0729b715bafdc64e2877);
+the tested checkout is `c0c86b7450091700959d7ec6971e6bbbd2eacfe0`.
+Both have source tree `bae6a7dd6086e60b3687b8155d7700e1978dd76a`.
+See the [provider qualification record](https://github.com/NIPE-Solutions/permesh-providers/blob/main/docs/qualification.md)
+for provider-specific evidence and live prerequisites.
+
+These are transient CI trial artifacts, without platform signing or release
+attestations. Checksums establish byte integrity, not publisher authentication,
+reproducible builds or live-provider correctness. CLI trial archives still carry
+the source version `0.1.0-alpha.2`; they must never replace published alpha.2
+assets. A new version and exact release-run qualification are required.
+Later documentation commits do not change which source revisions produced these
+artifacts.
 
 | Remaining gate | Concrete prerequisite and acceptance evidence |
 | --- | --- |
-| Candidate packages | Build and verify exact CLI/provider revisions for every supported target, dependency inventories, notices, checksums and provenance. The seven source binaries do not imply seven published packages or catalog entries. |
+| Release candidates | Five-target CLI and 35-provider trial packages passed the checks above. Select a new CLI prerelease version, build the exact reviewed release revisions, verify same-run provenance and exercise packaged host/provider setup before publication. Trial packages do not imply published assets or catalog entries. |
 | GitHub breadth | An authorized tenant and least-privilege credential for API-path/visibility comparisons beyond the limited local health/status/account acceptance. No other provider inherits this result. |
 | Google / Cloudflare / AWS IAM | Authorized tenants/accounts, explicit scopes and credentials; compare visible source records and document omitted permissions. Google browser flow needs desktop acceptance too. |
 | GitLab / Entra | Authorized scoped GitLab groups/projects and read_api PAT; an Entra tenant and permitted Graph application credential. Verify pagination, tenant binding, membership visibility and unsupported-role boundaries against real APIs. |
 | Identity Center / temporary AWS profile | An authorized STS account/role, Identity Center instance/store pair, account allowlist and temporary session. Verify provisioned permission-set assignments, explicit Organizations scope if enabled, and session expiry/role mismatch. No interactive SSO flow is implemented. |
 | Remote credential stores | Explicitly authorized Connect and separately qualified Vault/OpenBao KV v2 services, HTTPS trust, bootstrap credentials and exact item/path/field permissions. Fixture qualification does not establish product/version compatibility or operational availability. |
-| Desktop and Windows | Native interactive keychain/terminal tests on supported operating systems, plus five-target candidate CI. Local macOS tests do not substitute for these checks. |
+| Desktop and Windows | Native interactive keychain/terminal tests on supported operating systems, beyond the completed five-target native CI. Automated builds do not substitute for interactive checks. |
 | Signing and release | Available Apple/Windows signing identities where required; final reviewed release notes, compatible catalogs and immutable publication. No signing, publication or adoption is implied by source completion. |
 | Voluntary pilots | Opt-in operator feedback with sanitized examples; no automatic telemetry, enrollment, outreach or fabricated tenant evidence. |
 
