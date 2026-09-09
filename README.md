@@ -173,12 +173,12 @@ Read the [privacy guarantee](docs/privacy.md) and [team workflow](docs/team-work
 team administrators, and provider authors.
 
 - [Getting started](docs/getting-started.md) — install, explore, connect, query.
-- [Configuration](docs/configuration.md) and [credentials](docs/secrets.md).
+- [Configuration](docs/CONFIGURATION.md) and [credentials](docs/secrets.md).
 - [Identity matching](docs/identity-resolution.md), [orphan review](docs/orphaned.md),
   and [privileged access](docs/admins.md).
 - [JSON and exit codes](docs/output-schema.md), [troubleshooting](docs/troubleshooting.md),
   and [shell completion](docs/completion.md).
-- [Architecture](docs/architecture.md), [security](docs/security.md), and [roadmap](docs/ROADMAP.md).
+- [Architecture](docs/ARCHITECTURE.md), [security](docs/security.md), and [roadmap](docs/ROADMAP.md).
 
 ## Contribute
 

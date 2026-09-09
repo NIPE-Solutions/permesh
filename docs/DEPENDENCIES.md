@@ -40,7 +40,7 @@ On 2026-09-08, cargo-deny 0.20.2 reported advisories, bans, licenses and sources
 
 Terminal output deliberately uses the standard library (`IsTerminal`, stdout/stderr) and a small internal renderer, rather than a table/progress framework. Vertical records remain readable in narrow terminals; no animation state needs cleanup. Styling is optional and meaning is always present in text. Test coverage uses ordinary Rust tests and local HTTP servers; bounded deterministic permutation/cycle/ambiguity fixtures cover the initial graph risk without a property-testing dependency. Reevaluate property-based generation when providers broaden the input space.
 
-Native candidate qualification adds no runtime or Python package dependencies. Python 3.12's standard library creates allowlisted archives and checksums; [releasing.md](releasing.md#unsigned-native-candidates) records the verified action revision, native runner matrix, determinism limits, and remaining distribution gates. Cargo-dist remains deferred until public distribution policy is settled.
+Native candidate qualification adds no runtime or Python package dependencies. Python 3.12's standard library creates allowlisted archives and checksums; [releasing.md](releasing.md#native-candidate-builds-without-platform-signing) records the verified action revision, native runner matrix, determinism limits, and remaining distribution gates. Cargo-dist remains deferred until public distribution policy is settled.
 
 ## Explicit native external providers (2026-09-08)
 
