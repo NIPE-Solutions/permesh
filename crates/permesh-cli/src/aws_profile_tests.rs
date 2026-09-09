@@ -75,3 +75,21 @@ fn source_requires_an_explicit_regular_private_file() {
         assert!(load(&path, "review").is_err());
     }
 }
+
+#[cfg(windows)]
+#[test]
+fn windows_drive_and_verbatim_paths_inspect_rooted_components() {
+    let directory = tempfile::tempdir().unwrap();
+    let ordinary = directory.path().join("credentials");
+    std::fs::write(&ordinary, PROFILE).unwrap();
+    let verbatim = ordinary.canonicalize().unwrap();
+    assert!(matches!(
+        verbatim.components().next(),
+        Some(Component::Prefix(_))
+    ));
+    for path in [&ordinary, &verbatim] {
+        assert!(path.is_absolute());
+        let session = load(path, "review").unwrap();
+        assert_eq!(session.session_token.expose(), "synthetic-session-value");
+    }
+}

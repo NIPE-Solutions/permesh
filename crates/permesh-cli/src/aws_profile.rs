@@ -125,6 +125,11 @@ pub(crate) fn load(path: &Path, profile: &str) -> Result<Session, AppError> {
             return Err(invalid());
         }
         prefix.push(component);
+        // A Windows drive/UNC prefix is not a rooted path on its own. Inspect
+        // it after RootDir is appended, then inspect every remaining component.
+        if matches!(component, Component::Prefix(_)) {
+            continue;
+        }
         let metadata = fs::symlink_metadata(&prefix).map_err(|_| invalid())?;
         if metadata.file_type().is_symlink() {
             return Err(invalid());
