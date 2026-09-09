@@ -4,6 +4,12 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add explicit private snapshots, offline inspection and source-scoped diffs with
+  independent format version 1. Changed visibility, failed collection and older
+  exports never imply revoked access. Existing provider wire schemas are unchanged.
+- Add read-only departure assessment, target-scoped advisory plans and repeatable
+  verification with JSON/HTML reports. Evidence freshness, ownership dependencies
+  and unsupported checks remain explicit; no remote mutation commands are added.
 - Add host-owned, explicitly approved exact credential reads from 1Password
   Connect and separately dispatched Vault/OpenBao KV v2 stores. Configuration
   remains offline; remote auth status is configured/unverified. Whole item/object

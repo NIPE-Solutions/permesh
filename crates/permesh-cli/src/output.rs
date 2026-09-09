@@ -74,6 +74,10 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
             }
         }
         writeln!(out, "\nSummary\n  {count} access evidence paths")?;
+    } else if report.command.starts_with("offboard_") {
+        crate::offboard::write(&mut out, result)?;
+    } else if matches!(report.command.as_str(), "snapshot_inspect" | "diff") {
+        crate::snapshot_command::write(&mut out, &report.command, result)?;
     } else if report.command.starts_with("identity_") {
         crate::identity_command::write(&mut out, result)?;
     } else if report.command == "admins" {
