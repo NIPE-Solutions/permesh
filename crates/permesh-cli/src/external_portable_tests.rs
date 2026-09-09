@@ -206,6 +206,7 @@ fn portable_approval_binds_security_context_and_ignores_unrelated_providers() ->
         .map_err(|e| e.message)?;
     config.organization.name = "Unrelated rename".into();
     config.providers.push(ProviderConfig {
+        inventory: None,
         id: "demo".into(),
         kind: ProviderKind::Demo,
         organizations: vec![],

@@ -48,6 +48,7 @@ pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outc
     };
     let providers = if demo {
         vec![ProviderConfig {
+            inventory: None,
             id: "demo".into(),
             kind: ProviderKind::Demo,
             customer_id: None,
@@ -144,6 +145,7 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         credentials: pairs(&args.credential)?,
     });
     config.providers.push(ProviderConfig {
+        inventory: None,
         id: id.clone(),
         kind,
         customer_id: args.customer_id.clone(),

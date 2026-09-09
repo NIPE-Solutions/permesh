@@ -11,6 +11,9 @@ pub async fn run(
     blocking: &crate::blocking::BlockingPool,
     cancellation: &crate::cancellation::Cancellation,
 ) -> Result<Outcome, AppError> {
+    if let Command::Identity { command } = &cli.command {
+        return crate::identity_command::run(cli, command, blocking, cancellation).await;
+    }
     match &cli.command {
         Command::Provider {
             command: ProviderCommand::Migrate(args),

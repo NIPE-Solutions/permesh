@@ -21,6 +21,8 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 | Understand accounts, identities, resources and paths | [Concepts](concepts.md) |
 | Find privileged accounts and unknown privilege | [Admins](admins.md) |
 | Review inactive, unmatched and non-human accounts | [Orphaned](orphaned.md) |
+| Review and save stable identity mappings | [Identity mapping](identity-mapping.md) |
+| Use a maintained identity roster | [Pinned identity inventory](identity-inventory.md) |
 | Process reports in scripts | [JSON schemas and exit codes](output-schema.md) |
 | Diagnose authentication or provider failures | [Troubleshooting](troubleshooting.md) |
 | Set up command completion | [Shell completion](completion.md) |

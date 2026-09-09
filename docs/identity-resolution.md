@@ -29,3 +29,7 @@ ID. Their primary address is directory-attested and used for exact lookup; email
 renames preserve identity IDs. Explicit cross-provider aliases should name that
 canonical ID. Directory account state does not establish employment or human
 identity. See [Google identity semantics](providers/google.md#identity-semantics).
+
+Use the [explicit identity mapping commands](identity-mapping.md) to inspect stable
+account evidence and review an exact mapping proposal before saving it. These
+current-main commands preserve the same conservative matching rules.

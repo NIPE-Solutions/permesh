@@ -86,6 +86,11 @@ pub enum Command {
     Admins,
     /// Review accounts not confidently associated with an active authoritative identity.
     Orphaned,
+    /// Inspect identity evidence and explicitly manage stable account mappings.
+    Identity {
+        #[command(subcommand)]
+        command: crate::identity_command::IdentityCommand,
+    },
     /// Print a static shell completion script; no workspace or provider access.
     Completion {
         #[arg(value_enum, conflicts_with = "json")]
