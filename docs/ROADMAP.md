@@ -86,9 +86,11 @@ for validation evidence and remaining prerequisites.
 
 ## Release and adoption gates
 
-- Qualify the exact candidate CLI with candidate provider installation, trust,
-  setup, approval, credentials and queries. Publish compatible artifacts and
-  catalog entries only after this gate; never replace existing release bytes.
+- The exact alpha.3 candidate passed signed-artifact verification, local provider
+  package/setup/trust/approval/pin checks, and limited authorized GitHub queries;
+  see [candidate evidence](releases/0.1.0-alpha.3.md). Public 0.2.0 guided
+  installation/update, publication and catalog adoption remain separate gates.
+  Never replace existing release bytes.
 - A local macOS ARM64 GitHub candidate passed authorized read-only health, status
   and stable-account JSON queries with explicit trust/approval. Visibility limits
   remained explicit. Exact tested hashes are retained; shared local build output

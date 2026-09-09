@@ -190,7 +190,7 @@ cargo test --workspace --locked --target aarch64-apple-darwin
 cargo build --release --locked --package permesh-cli --bin permesh --target aarch64-apple-darwin
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/smoke_candidate.py target/aarch64-apple-darwin/release/permesh
-python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1.0-alpha.2 --output candidate-output
+python3 scripts/package_candidate.py --target aarch64-apple-darwin --version 0.1.0-alpha.3 --output candidate-output
 ```
 
 Use `python` and `permesh.exe` on Windows. `candidate-output` must not already exist, and its parent path must be free of symlinks (use a canonical path if your temporary directory is aliased). The smoke helper uses an automatically removed synthetic workspace; it performs no live-provider or credential-store validation. Candidates include local invocation and uninstall instructions. Candidate executables remain without platform code signatures or notarization. Standalone candidate jobs create no provenance attestations; the downstream job in the separate attested workflow signs and verifies its same-run subjects. Candidate jobs alone do not authorize promotion: complete the alpha publication checks above. Stable native credential-store and live-provider qualification remains open.
@@ -232,3 +232,14 @@ Provider 0.2.0 candidates retain their separate versions and publication gates.
 - Review immutable archive names, signatures/provenance and catalog entries before
   authorized publication. Never overwrite alpha.2 or existing provider releases;
   do not describe source-only candidate setup as available through a public catalog.
+
+### Alpha.3 candidate qualification result
+
+The [alpha.3 candidate notes](releases/0.1.0-alpha.3.md) record exact source
+`add7a725745f5e05415b330e8d6be61fcaaf5d67`, successful attested run 34351503021,
+all 20 subjects verified through bundle and public lookup, original-file hashes,
+and the bounded packaged/live/desktop checks. No publication occurred. Public
+0.2.0 guided installation/update, staged release downloads and postpublication
+verification require separate authorized publication; full live/desktop and
+platform-signing prerequisites remain explicit. Preserve the original qualified
+bytes when promoting, even if later documentation commits exist on main.
