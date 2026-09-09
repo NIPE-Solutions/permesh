@@ -53,9 +53,6 @@ enum RecordLifecycle {
 }
 pub(crate) struct Observation {
     pub snapshot: Snapshot,
-    pub scope: String,
-    pub exported_at: String,
-    pub content_sha256: String,
 }
 pub(crate) fn metadata() -> Metadata {
     Metadata {
@@ -81,7 +78,6 @@ fn text(value: &str) -> bool {
 fn decode(
     id: &str,
     bytes: &[u8],
-    content_sha256: String,
     max_age: u64,
     now: OffsetDateTime,
 ) -> Result<Observation, AppError> {
@@ -149,14 +145,7 @@ fn decode(
     snapshot
         .validate()
         .map_err(|_| error("Inventory observations violate the identity contract"))?;
-    Ok(Observation {
-        snapshot,
-        scope: document.scope,
-        exported_at: exported
-            .format(&Rfc3339)
-            .map_err(|_| error("Cannot format inventory export time"))?,
-        content_sha256,
-    })
+    Ok(Observation { snapshot })
 }
 pub(crate) fn observe(
     provider: &ProviderConfig,
@@ -231,7 +220,7 @@ fn observe_at(
             "Inventory digest differs from inventory.sha256; review the file and update its pin explicitly",
         ));
     }
-    decode(&provider.id, &bytes, actual, settings.max_age_seconds, now)
+    decode(&provider.id, &bytes, settings.max_age_seconds, now)
 }
 #[cfg(test)]
 #[path = "inventory_tests.rs"]

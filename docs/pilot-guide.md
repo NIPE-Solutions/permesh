@@ -14,12 +14,11 @@ features. Check [release limitations](releases/0.1.0-alpha.2.md),
 [provider availability](providers.md) and the [roadmap](ROADMAP.md) before
 choosing an exact CLI/provider pair. Do not combine arbitrary candidate binaries.
 
-Identity mapping commands, identity inventory import, snapshots/diffs and the
-planned offboarding workflow belong to the access-review development program.
-Their source guides are not a promise that a published binary contains them.
-Only evaluate a candidate feature after its implementation and tests are ready;
-record the exact revision. See [mapping](identity-mapping.md),
-[inventory](identity-inventory.md) and [snapshot](snapshots.md) contracts.
+Identity mapping commands and identity inventory import are source candidates in
+this development slice. Their guides do not promise that a published binary contains
+them. Evaluate a candidate only after its tests pass and record the exact revision;
+see [mapping](identity-mapping.md) and [inventory](identity-inventory.md). Snapshot,
+diff and offboarding workflows remain later work in the [roadmap](ROADMAP.md).
 
 ## Start offline
 
@@ -69,9 +68,9 @@ observed and what could not be checked. Suspension, group removal, sessions,
 tokens, ownership and retention are different concerns; Permesh does not change
 them for you.
 
-The candidate [snapshot workflow](snapshots.md) can make this comparison
-repeatable when qualified: explicit snapshot creation before and after, followed
-by offline comparison. Missing data after a partial collection is inconclusive;
+The planned snapshot workflow in the [roadmap](ROADMAP.md) is intended to make
+this comparison repeatable after implementation and qualification: explicit snapshot
+creation before and after, followed by offline comparison. Missing data after a partial collection is inconclusive;
 absence in a comparable successful collection means no longer observed in that
 scope, not proof of universal revocation. Do not present planned offboarding
 assessment/verification commands as available in the published CLI.

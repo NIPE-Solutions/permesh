@@ -74,6 +74,8 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
             }
         }
         writeln!(out, "\nSummary\n  {count} access evidence paths")?;
+    } else if report.command.starts_with("identity_") {
+        crate::identity_command::write(&mut out, result)?;
     } else if report.command == "admins" {
         crate::admins_output::write_admins(&mut out, result, dot)?;
     } else if report.command == "orphaned" {
