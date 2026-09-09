@@ -11,8 +11,33 @@ pub async fn run(
     blocking: &crate::blocking::BlockingPool,
     cancellation: &crate::cancellation::Cancellation,
 ) -> Result<Outcome, AppError> {
+    if let Command::Provider {
+        command: ProviderCommand::Dev { command },
+    } = &cli.command
+    {
+        return crate::provider_development::run(command, blocking, cancellation).await;
+    }
+    if let Command::Resource(args) = &cli.command {
+        return crate::resource_command::run(cli, args, blocking, cancellation).await;
+    }
+    if let Command::Policy { command } = &cli.command {
+        return crate::policy_command::run(cli, command, blocking, cancellation).await;
+    }
     if let Command::Identity { command } = &cli.command {
         return crate::identity_command::run(cli, command, blocking, cancellation).await;
+    }
+    if let Command::Offboard { command } = &cli.command {
+        return crate::offboard::run(cli, command, blocking, cancellation).await;
+    }
+    if let Command::Snapshot { command } = &cli.command {
+        return crate::snapshot_command::run(cli, command, blocking, cancellation).await;
+    }
+    if let Command::Diff { before, after } = &cli.command {
+        let before = before.clone();
+        let after = after.clone();
+        return blocking
+            .run(move || crate::snapshot_command::compare(&before, &after))
+            .await?;
     }
     match &cli.command {
         Command::Provider {

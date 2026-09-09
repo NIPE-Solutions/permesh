@@ -1,0 +1,53 @@
+{
+  "format": "permesh_snapshot",
+  "format_version": 1,
+  "producer_version": "fixture-1",
+  "started_at": "2026-09-09T00:00:00Z",
+  "completed_at": "2026-09-09T00:00:00Z",
+  "identity": {
+    "authorities": [],
+    "bindings": []
+  },
+  "providers": [
+    {
+      "instance": "fixture",
+      "provider_type": "fixture",
+      "provider_version": null,
+      "executable_sha256": null,
+      "capabilities": [
+        "accounts"
+      ],
+      "context_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "configured_scope": {},
+      "started_at": "2026-09-09T00:00:00Z",
+      "completed_at": "2026-09-09T00:00:00Z",
+      "state": "complete",
+      "limitations": [],
+      "data": {
+        "provider": "fixture",
+        "identities": [],
+        "accounts": [
+          {
+            "key": {
+              "provider": "fixture",
+              "id": "account-1"
+            },
+            "login": "synthetic-bot",
+            "kind": "bot",
+            "affiliation": "internal",
+            "status": "active",
+            "verified_emails": []
+          }
+        ],
+        "resources": [],
+        "groups": [],
+        "memberships": [],
+        "grants": [],
+        "limitations": [],
+        "complete": true
+      },
+      "failure_code": null,
+      "source_observation": null
+    }
+  ]
+}

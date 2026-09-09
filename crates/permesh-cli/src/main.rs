@@ -2,6 +2,7 @@
 mod admins_output;
 mod app;
 mod args;
+mod artifact;
 mod auth;
 mod aws_profile;
 mod blocking;
@@ -20,13 +21,17 @@ mod guided_add;
 mod guided_prompt;
 mod identity_command;
 mod inventory;
+mod offboard;
 mod orphaned_output;
 mod output;
+mod policy_command;
+mod provider_development;
 mod provider_diagnostics;
 mod provider_migration;
 mod provider_operation;
 mod remote_secrets;
 mod report;
+mod resource_command;
 mod review_scope;
 mod schema1_control;
 mod schema2;
@@ -34,6 +39,7 @@ mod setup;
 mod setup_output;
 mod setup_prompt;
 mod setup_workspace;
+mod snapshot_command;
 mod workspace;
 use clap::Parser;
 use error::AppError;
@@ -97,7 +103,7 @@ async fn main() -> ExitCode {
             biased;
             signal=tokio::signal::ctrl_c()=>{
                 cancellation.cancel();
-                let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor { .. } | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Identity { .. } | args::Command::Provider { command: args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) | args::ProviderCommand::Add(_) });
+                let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor { .. } | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Snapshot { .. } | args::Command::Offboard { .. } | args::Command::Resource(_) | args::Command::Policy { .. } | args::Command::Identity { .. } | args::Command::Provider { command: args::ProviderCommand::Dev { .. } | args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) | args::ProviderCommand::Add(_) });
                 if drains {
                     let result = operation.await;
                     if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json, schema_version); }

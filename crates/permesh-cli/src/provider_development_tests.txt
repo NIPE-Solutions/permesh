@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+use super::*;
+#[tokio::test]
+async fn synthetic_mapping_is_bounded_and_partial_is_not_complete() {
+    for partial in [false, true] {
+        let snapshot = Example {
+            instance: "test-main".into(),
+            partial,
+        }
+        .discover()
+        .await
+        .unwrap();
+        assert_eq!(snapshot.accounts.len(), 1);
+        assert_eq!(snapshot.complete, !partial);
+        permesh_provider_sdk::validate_snapshot(&snapshot).unwrap();
+        let mut duplicate = snapshot.clone();
+        duplicate.accounts.push(snapshot.accounts[0].clone());
+        assert!(permesh_provider_sdk::validate_snapshot(&duplicate).is_err());
+    }
+    Boundary::setup().validate().unwrap();
+}
+#[tokio::test]
+async fn shared_runtime_and_decoder_agree_without_credential_reflection() {
+    use tokio::io::AsyncWriteExt;
+    let input=serde_json::json!({"protocol_version":1,"id":"handshake","method":"handshake","instance":"test-main","operation":"discover"}).to_string()+"\n"+
+        &serde_json::json!({"protocol_version":1,"id":"discover","method":"discover","configuration":{},"credentials":{"token":"SYNTHETIC_PRIVATE_SENTINEL"}}).to_string()+"\n";
+    let (mut sender, reader) = tokio::io::duplex(8192);
+    sender.write_all(input.as_bytes()).await.unwrap();
+    let mut output = Vec::new();
+    run(reader, &mut output).await.unwrap();
+    drop(sender);
+    assert!(!String::from_utf8_lossy(&output).contains("SYNTHETIC_PRIVATE_SENTINEL"));
+    let metadata = Boundary::metadata();
+    let mut decoder = permesh_provider_protocol::negotiated::DiscoveryDecoder::new(
+        &metadata.kind,
+        "test-main",
+        Some(&metadata.capabilities),
+    )
+    .unwrap();
+    for frame in output.split_inclusive(|byte| *byte == b'\n') {
+        decoder.push_frame(frame).unwrap();
+    }
+    assert_eq!(decoder.finish().unwrap().accounts.len(), 1);
+}
+
+#[tokio::test]
+async fn setup_and_health_use_the_existing_operation_contracts() {
+    use tokio::io::AsyncWriteExt;
+    for operation in ["describe", "check"] {
+        let handshake = if operation == "describe" {
+            serde_json::json!({"protocol":3,"id":"handshake","method":"handshake","instance":"test-main"})
+        } else {
+            serde_json::json!({"protocol_version":1,"id":"handshake","method":"handshake","instance":"test-main","operation":"check"})
+        };
+        let request = if operation == "describe" {
+            serde_json::json!({"protocol":3,"id":"describe","method":"describe"})
+        } else {
+            serde_json::json!({"protocol_version":1,"id":"check","method":"check","configuration":{},"credentials":{"token":"SYNTHETIC_PRIVATE_SENTINEL"}})
+        };
+        let input = format!("{handshake}\n{request}\n");
+        let (mut sender, reader) = tokio::io::duplex(8192);
+        sender.write_all(input.as_bytes()).await.unwrap();
+        let mut output = Vec::new();
+        run(reader, &mut output).await.unwrap();
+        drop(sender);
+        assert!(!String::from_utf8_lossy(&output).contains("SYNTHETIC_PRIVATE_SENTINEL"));
+        let metadata = Boundary::metadata();
+        if operation == "describe" {
+            let mut decoder = permesh_provider_protocol::SetupDecoder::new(
+                &metadata.kind,
+                "test-main",
+                Some(&metadata.capabilities),
+            )
+            .unwrap();
+            for frame in output.split_inclusive(|byte| *byte == b'\n') {
+                decoder.push_frame(frame).unwrap();
+            }
+            decoder.finish().unwrap().validate().unwrap();
+        } else {
+            let mut decoder = permesh_provider_protocol::negotiated::HealthDecoder::new(
+                &metadata.kind,
+                "test-main",
+                Some(&metadata.capabilities),
+            )
+            .unwrap();
+            for frame in output.split_inclusive(|byte| *byte == b'\n') {
+                decoder.push_frame(frame).unwrap();
+            }
+            assert!(!decoder.finish().unwrap().limitations.is_empty());
+        }
+    }
+}

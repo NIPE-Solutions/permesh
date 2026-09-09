@@ -7,6 +7,17 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 - Add explicitly selected temporary AWS shared-credentials profiles with
   account/role-bound provider settings; no automatic credential chain or helper execution.
 
+- Add native provider scaffolding and offline discovery/health/setup transcript
+  validation. Neither operation executes, installs or trusts generated code.
+- Add resource-centric inspection and focused local review policies. Policy findings
+  use exit 6; incomplete and failed collections retain precedence without hiding findings.
+
+- Add explicit private snapshots, offline inspection and source-scoped diffs with
+  independent format version 1. Changed visibility, failed collection and older
+  exports never imply revoked access. Existing provider wire schemas are unchanged.
+- Add read-only departure assessment, target-scoped advisory plans and repeatable
+  verification with JSON/HTML reports. Evidence freshness, ownership dependencies
+  and unsupported checks remain explicit; no remote mutation commands are added.
 - Add host-owned, explicitly approved exact credential reads from 1Password
   Connect and separately dispatched Vault/OpenBao KV v2 stores. Configuration
   remains offline; remote auth status is configured/unverified. Whole item/object

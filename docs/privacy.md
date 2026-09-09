@@ -42,6 +42,13 @@ store. Answer files must contain nonsecret settings and references; arbitrary
 text fields are not a secret vault. The trusted binary still runs as your user
 and can access resources independently of the host-supplied protocol context.
 
+
+Explicit snapshots contain sensitive access metadata and identity mappings. They
+are saved only by a requested export, using private files where the platform
+supports them. No copy is sent to the project or added to Git. Offline inspection
+and comparison make no network requests. Delete local exports and backups according
+to your organization's retention needs; Permesh has no central copy to delete.
+See [snapshot storage and comparison](snapshots.md).
 ## Explicit remote credential reads
 
 An approved provider operation may first contact a separately configured
