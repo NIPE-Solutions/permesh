@@ -139,6 +139,8 @@ at that later source revision
 exercised review queries, snapshots/diffs, advisory plans and verification,
 HTML output, private artifact modes and policy findings exit 6. These are local
 source checks, not claims about every PR head, platform or published artifact.
+The combined public source candidate `48d8089` subsequently passed all 503 Rust
+tests, strict Clippy, formatting, 37 Python tests and the 101-document link check.
 The split PRs retain their own CI gates. Identity tools and remote credential
 sources have reached main; remaining snapshot/offboard, policy, tooling and AWS
 profile slices must retain combined regression coverage as they are integrated.
