@@ -198,3 +198,35 @@ Use `python` and `permesh.exe` on Windows. `candidate-output` must not already e
 Keep cargo-dist deferred while releases use manual promotion of these bounded, reviewed artifacts. Reevaluate it when adding installers or package-manager distribution; do not grow this helper into a release framework.
 
 For the manual same-run provenance workflow, public verification commands, and remaining platform-signing prerequisites, see [artifact attestations](artifact-attestations.md).
+
+## Next access-review candidate checklist
+
+The access-review source program is unpublished. Its local source version still
+matches alpha.2; do not name or upload new bytes as an existing published asset.
+CI may produce isolated trial archives using that source version. Select a new
+prerelease version before release qualification; never promote trial builds as
+alpha.2. No next version, release date or catalog publication is implied here.
+
+- Integrate and validate the exact intended source revision, including identity,
+  inventory, snapshot/offboard, resource/policy, contributor tooling, remote
+  credentials and temporary AWS-profile slices. Re-run combined regressions;
+  earlier local 503-test and synthetic-demo results are supporting evidence,
+  not qualification of a later release commit.
+- Review independent access JSON, control output, snapshot, diff and advisory
+  plan/report versions and their migration notes. New commands and local
+  artifacts do not implicitly change provider wire contracts or stabilize the SDK.
+- Build compatible CLI and provider candidates for all supported native targets.
+  Verify checksums, dependency inventories, license notices and attestations
+  against exact source revisions and build workflows. Qualify GitLab, Entra and
+  Identity Center separately from the original four providers; binary count is
+  not package or live-acceptance evidence.
+- Exercise the exact packaged installation, native trust, declarative setup,
+  scoped approval, explicit credentials and read-only queries together. Verify
+  negotiated metadata and portable exact-version target pins survive catalog
+  selection; missing or incompatible entries must fail before credential delivery.
+- Record actual live/API, desktop credential-store and signing prerequisites in
+  the [delivery gap map](audits/architecture-hardening-backlog.md#access-review-delivery-evidence-and-remaining-gates).
+  Keep unsupported or untested combinations explicit in release notes.
+- Review immutable archive names, signatures/provenance and catalog entries before
+  authorized publication. Never overwrite alpha.2 or existing provider releases;
+  do not describe source-only candidate setup as available through a public catalog.

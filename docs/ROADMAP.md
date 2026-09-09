@@ -1,9 +1,13 @@
 # Roadmap
 
 Source readiness and published artifacts are separate. CLI 0.1.0-alpha.2 and
-GitHub provider 0.1.0 remain the published releases. All four official providers
-have unpublished 0.2.0 source candidates; offline qualification is recorded in
-[provider PR 13](https://github.com/NIPE-Solutions/permesh-providers/pull/13).
+GitHub provider 0.1.0 remain the published releases. The provider repository now
+contains seven unpublished 0.2.0 candidate binaries: GitHub, Google Workspace,
+Cloudflare, AWS IAM, GitLab, Entra and AWS Identity Center. The original four
+completed earlier offline qualification in [provider PR 13](https://github.com/NIPE-Solutions/permesh-providers/pull/13);
+the combined seven-provider source subsequently passed its own five-target trial
+package checks. See the [exact delivery evidence](audits/architecture-hardening-backlog.md#exact-trial-artifact-evidence).
+This document describes current source separately from published releases.
 Nothing here declares the SDK or protocol stable.
 
 ## Implemented foundation
@@ -19,8 +23,9 @@ Nothing here declares the SDK or protocol stable.
 - Negotiated v1 discovery/health in the host and official emitters. Verified
   package compatibility propagates to guided setup; advanced setup/migration
   has an explicit selector. Existing legacy metadata remains unchanged.
-- Official GitHub, Google, Cloudflare and AWS adapters in the separate provider
-  repository. Only demo remains bundled. Legacy Google/GitHub configurations
+- Official provider sources in the separate provider repository, including the
+  three additional candidates listed above. Demo and pinned identity inventories
+  are local built-ins. Legacy Google/GitHub configurations
   remain readable for explicit migration, with execution blocked before secrets.
 - Cross-platform CI, dependency audits, native archives and notices, checksums,
   target-bound dependency inventories and CLI provenance qualification.
@@ -28,9 +33,10 @@ Nothing here declares the SDK or protocol stable.
 ## Hardening source status
 
 - **Enterprise networking:** approved proxy/custom CA context and `network_v1`
-  negotiation are implemented. GitHub, Google and Cloudflare adapters apply it
-  to their HTTP clients, including Google refresh. AWS transport, host browser
-  networking, custom endpoints and authenticated proxies remain unsupported.
+  negotiation are implemented. GitHub, Google, Cloudflare, GitLab, Entra and Identity Center candidates apply
+  it to their HTTP transport, including Google refresh. GitLab supports an
+  explicitly approved HTTPS origin. AWS IAM, host browser networking, arbitrary
+  endpoint overrides and authenticated proxies remain unsupported.
 - **Mixed-platform teams:** explicit target-to-digest maps and guided `--portable`
   exact-version setup are implemented. Each machine selects its reviewed native
   digest and establishes local trust and approval; scalar pins remain compatible.
@@ -48,13 +54,45 @@ See the [contract review](audits/hardening-contract-review.md) and
 limitations and validation requirements. Source completion is distinct from
 artifact qualification, publication and live tenant acceptance.
 
+## Access-review candidate status
+
+The unpublished source program implements the following bounded workflows. Its
+PRs are integrated and checked separately; publication is a later decision.
+
+- `identity` lists evidence and proposes stable-account mappings. Exact proposal
+  approval binds the alias delta, source context and captured file revision.
+  Pinned JSON inventories are explicit authority inputs, not live directory APIs.
+- `snapshot create`, `snapshot inspect` and `diff` provide private,
+  versioned local artifacts and offline comparisons. Changed scope or failed
+  collection never proves access removal.
+- `offboard assess`, `offboard plan` and `offboard verify` produce read-only
+  JSON/HTML evidence and advisory work. No provider mutation occurs; stale,
+  unmapped or incomplete evidence remains unresolved.
+- `resource` exposes source grants and paths; `policy check` evaluates bounded
+  local rules, scoped exceptions and declared ownership assertions. Unknown
+  evidence is not clean, and findings use exit 6.
+- `provider dev scaffold` generates a native workspace starter; `provider dev validate`
+  checks offline transcripts. Neither executes or qualifies arbitrary binaries.
+- Approved host-owned exact reads support 1Password Connect and separately
+  dispatched Vault/OpenBao KV v2. Explicit temporary AWS profiles read one
+  selected shared-credentials file/profile and bind account, region and caller
+  role; there is no ambient chain, interactive SSO login or automatic refresh.
+
+See the [implementation and qualification gap map](audits/architecture-hardening-backlog.md#access-review-implementation-program)
+for validation evidence and remaining prerequisites.
+
 ## Release and adoption gates
 
 - Qualify the exact candidate CLI with candidate provider installation, trust,
   setup, approval, credentials and queries. Publish compatible artifacts and
   catalog entries only after this gate; never replace existing release bytes.
-- Complete broader live GitHub acceptance and live Google directory/browser,
-  Cloudflare and AWS checks with least-privilege credentials. Mock tests prove
+- A local macOS ARM64 GitHub candidate passed authorized read-only health, status
+  and stable-account JSON queries with explicit trust/approval. Visibility limits
+  remained explicit. Exact tested hashes are retained; shared local build output
+  does not prove reproducible full-source provenance or release qualification.
+  Complete broader GitHub acceptance and live Google directory/browser,
+  Cloudflare, AWS IAM, GitLab, Entra and Identity Center checks with explicitly
+  authorized least-privilege credentials. Mock tests prove
   behavior against fixtures, not real tenant permissions or API visibility.
 - Complete remaining Windows terminal and interactive desktop credential-store
   acceptance. CI unit tests do not substitute for platform credential UX checks.

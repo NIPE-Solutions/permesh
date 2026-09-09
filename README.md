@@ -100,6 +100,30 @@ cargo install --path crates/permesh-cli --locked
 Then run the demo commands above in a new directory. Installation instructions
 cover checksums and build provenance; platform signing remains a release limitation.
 
+## Review changes and departures
+
+Current source builds also support an explicit local review workflow:
+
+```bash
+permesh snapshot create --output before.json
+# Later, collect another observation of the same reviewed scope.
+permesh snapshot create --output after.json
+permesh diff before.json after.json
+
+permesh offboard plan alice@example.com --output departure.plan.json
+permesh offboard verify departure.plan.json --html verification.html
+```
+
+Try this with the demo first. Departure plans require an unambiguous canonical
+identity; real accounts may need [reviewed mappings](docs/identity-mapping.md).
+Permesh records what remains visible and what it cannot verify. These commands
+perform no offboarding actions, and a missing observation is never proof of revoked
+access. Snapshots and reports stay local and contain sensitive metadata.
+
+Read the [snapshot guide](docs/snapshots.md), [departure workflow](docs/offboarding.md)
+and [resource/policy examples](docs/resource-policies.md). These commands are
+**unreleased** and are absent from the published `0.1.0-alpha.2` binary.
+
 ## Connect GitHub
 
 In a separate directory from the demo:
@@ -130,8 +154,8 @@ bytes, not publisher signatures. [Setup and automation details](docs/provider-se
 
 ## Available providers
 
-Only the offline demo is bundled. Real integrations are independently distributed
-from the [official provider repository](https://github.com/NIPE-Solutions/permesh-providers).
+The CLI includes the offline demo and, in current source, a pinned local identity
+inventory reader. Service integrations are independently distributed from the [official provider repository](https://github.com/NIPE-Solutions/permesh-providers).
 
 | Provider | What it helps you inspect | Availability |
 | --- | --- | --- |
@@ -139,6 +163,9 @@ from the [official provider repository](https://github.com/NIPE-Solutions/permes
 | Google Workspace | Directory identities and lifecycle for identity-authority checks | **Source candidate:** 0.2.0, unpublished |
 | Cloudflare | Account members, groups and scoped role assignments | **Source candidate:** 0.2.0, unpublished |
 | AWS IAM | Users, roles, groups and policy attachments | **Source candidate:** 0.2.0, unpublished |
+| GitLab | Scoped group/project membership and native access levels | **Source candidate:** 0.2.0, unpublished |
+| Microsoft Entra ID | Tenant-bound directory identities, groups and membership observations | **Source candidate:** 0.2.0, unpublished |
+| AWS Identity Center | Directory identities and scoped permission-set assignments | **Source candidate:** 0.2.0, unpublished |
 
 An implemented provider is not automatically a qualified release. AWS attachments
 and Cloudflare assignments do not establish effective privilege. Review
@@ -151,7 +178,7 @@ without changing Permesh core.
 - **Local processing.** No persistent access database, automatic uploads, or hidden
   update checks. Explicit install/update commands contact public GitHub artifacts.
 - **Reviewable configuration.** One `permesh.yaml` describes providers and identity
-  mappings. Tokens stay in environment variables or the OS keychain.
+  mappings. Credential values remain outside shared configuration.
 - **Useful in a terminal and a pipeline.** Human output explains access paths;
   versioned JSON exposes evidence, limitations, and completeness.
 - **Read-only by design.** Inspect and review access; use the provider’s own tools

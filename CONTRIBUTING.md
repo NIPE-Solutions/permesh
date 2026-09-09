@@ -1,15 +1,16 @@
 # Contributing
 
-Permesh is pre-release. Start with [product scope](docs/PRODUCT.md), [architecture](docs/ARCHITECTURE.md), and [security model](docs/SECURITY_MODEL.md). The current slice is the demo and GitHub observed-access CLI. Do not add mutation APIs, telemetry, persistent access storage, or executable workspace hooks.
+Permesh is pre-release. Start with [product scope](docs/PRODUCT.md), [architecture](docs/ARCHITECTURE.md), and [security model](docs/SECURITY_MODEL.md). Current source includes local access queries, explicit review artifacts and policies, and native external-provider integration. Check the [roadmap](docs/ROADMAP.md) for source and release status. Do not add mutation APIs, telemetry, persistent access storage, or executable workspace hooks.
 
 Use stable Rust; the workspace declares its minimum version in Cargo.toml. Install rustfmt and clippy with rustup. From the repository root run:
 
 ```sh
 cargo build --workspace --all-targets --locked
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --locked
 python3 -m unittest discover -s examples/external-provider -p 'test_*.py'
+python3 scripts/check_docs.py
 ```
 
 After dependency installation, Rust tests can run with `--offline`. Tests use synthetic fixtures and local mock servers; do not require real tokens or an unlocked keychain. Keep credentials, personal account data, and local workspace configuration out of commits and test snapshots. Changes to credentials, paths, parsing, pagination, subprocesses, and output need adversarial regression coverage.

@@ -28,3 +28,21 @@ Offline external transcript validation rejects duplicate JSON keys, unknown fiel
 
 Explicit instance proxy/CA settings use [approved network context](networking.md);
 provider environments stay sanitized and unsupported transports fail closed.
+
+
+## Untrusted local review artifacts
+
+Snapshot files are independent versioned data contracts, not trusted program input.
+The reader rejects unsupported versions, duplicate and unknown fields, invalid
+references, contradictory completeness, missing inventory provenance and bounded
+size/depth violations. Scope digests detect differences in recorded context; they
+are not digital signatures and cannot authenticate an artifact's author. A local
+attacker able to rewrite a report can fabricate its assertions. Keep originals in
+reviewed storage when chain of custody matters.
+
+Export writes use a temporary file in the destination directory and explicit
+atomic persistence, refuse overwrite by default and reject symlink destinations.
+Unix temporary files have mode 0600; Windows relies on the destination directory's
+ACL. Remaining same-user filesystem races are not a sandbox guarantee. Cancellation
+checks before persistence prevent already-cancelled exports; completed writes are
+not rolled back when cancellation arrives afterward.

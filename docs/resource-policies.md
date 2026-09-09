@@ -1,6 +1,6 @@
 # Resource inspection and local review policies
 
-These current-main commands run read-only discovery by default. `--snapshot FILE` instead reads an explicitly chosen [saved snapshot](snapshots.md) offline, without a workspace or provider credentials. Neither command saves an artifact or mutates provider access. Saved evidence is historical; policies evaluate that observation window, not current remote authorization.
+These unpublished access-review candidate commands run read-only discovery by default. `--snapshot FILE` instead reads an explicitly chosen [saved snapshot](snapshots.md) offline, without a workspace or provider credentials. Neither command saves an artifact or mutates provider access. Saved evidence is historical; policies evaluate that observation window, not current remote authorization.
 
 ## Resource-first inspection
 
