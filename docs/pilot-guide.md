@@ -71,8 +71,8 @@ them for you.
 The candidate [snapshot workflow](snapshots.md) makes this comparison repeatable:
 explicit snapshot creation before and after, followed by offline comparison. Missing data after a partial collection is inconclusive;
 absence in a comparable successful collection means no longer observed in that
-scope, not proof of universal revocation. Do not present planned offboarding
-assessment/verification commands as available in the published CLI.
+scope, not proof of universal revocation. Offboarding assessment and verification are source-candidate commands; they are
+not available in the published CLI.
 
 ## Troubleshoot and close the pilot
 

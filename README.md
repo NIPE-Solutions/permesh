@@ -100,6 +100,30 @@ cargo install --path crates/permesh-cli --locked
 Then run the demo commands above in a new directory. Installation instructions
 cover checksums and build provenance; platform signing remains a release limitation.
 
+## Review changes and departures
+
+Current source builds also support an explicit local review workflow:
+
+```bash
+permesh snapshot create --output before.json
+# Later, collect another observation of the same reviewed scope.
+permesh snapshot create --output after.json
+permesh diff before.json after.json
+
+permesh offboard plan alice@example.com --output departure.plan.json
+permesh offboard verify departure.plan.json --html verification.html
+```
+
+Try this with the demo first. Departure plans require an unambiguous canonical
+identity; real accounts may need [reviewed mappings](docs/identity-mapping.md).
+Permesh records what remains visible and what it cannot verify. These commands
+perform no offboarding actions, and a missing observation is never proof of revoked
+access. Snapshots and reports stay local and contain sensitive metadata.
+
+Read the [snapshot guide](docs/snapshots.md), [departure workflow](docs/offboarding.md)
+and [resource/policy examples](docs/resource-policies.md). These commands are
+**unreleased** and are absent from the published `0.1.0-alpha.2` binary.
+
 ## Connect GitHub
 
 In a separate directory from the demo:
