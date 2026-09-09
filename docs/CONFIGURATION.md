@@ -102,3 +102,8 @@ automatic workspace rewrite or protocol fallback.
 
 Explicit instance proxy/CA settings use [approved network context](networking.md);
 provider environments stay sanitized and unsupported transports fail closed.
+
+Mixed-platform teams may replace an external scalar `sha256` with an explicit
+`sha256_by_target` map. Exactly one is required; missing native entries fail
+closed. See [team workflows](team-workflows.md) for portable guided setup and
+approval/update semantics.

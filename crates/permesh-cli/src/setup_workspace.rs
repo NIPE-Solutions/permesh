@@ -3,7 +3,7 @@ use crate::{args::Cli, error::AppError, report::Outcome};
 use permesh_config::{Config, ExternalConfig, IdentitySource, ProviderConfig, ProviderKind};
 use permesh_provider_external::trust::Registration;
 use permesh_provider_sdk::setup::ResolvedSetup;
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 pub struct Draft {
     path: PathBuf,
@@ -50,7 +50,17 @@ impl Draft {
         values: ResolvedSetup,
         authoritative: bool,
         discovery_protocol: permesh_config::DiscoveryProtocol,
+        target_pins: Option<BTreeMap<String, String>>,
     ) -> Result<CreatedInstance, AppError> {
+        if let Some(pins) = &target_pins {
+            let target = permesh_provider_sdk::target::native_target()
+                .ok_or_else(|| AppError::input("Portable setup is unsupported on this platform"))?;
+            if pins.len() < 2 || pins.get(target) != Some(&registration.sha256) {
+                return Err(AppError::input(
+                    "Portable setup requires at least two target pins and the exact trusted native digest",
+                ));
+            }
+        }
         self.config.providers.push(ProviderConfig {
             id: id.into(),
             kind: ProviderKind::External,
@@ -61,7 +71,8 @@ impl Draft {
                 network: None,
                 discovery_protocol,
                 provider: registration.id.clone(),
-                sha256: registration.sha256.clone(),
+                sha256: target_pins.is_none().then(|| registration.sha256.clone()),
+                sha256_by_target: target_pins,
                 configuration: values.configuration,
                 credentials: values.credentials,
             }),
@@ -119,7 +130,8 @@ mod tests {
                     &registration,
                     ResolvedSetup::default(),
                     false,
-                    permesh_config::DiscoveryProtocol::Legacy
+                    permesh_config::DiscoveryProtocol::Legacy,
+                    None,
                 )
                 .is_err_and(|e| e.message.contains("changed"))
         );
@@ -136,7 +148,8 @@ mod tests {
                     &registration,
                     values,
                     false,
-                    permesh_config::DiscoveryProtocol::Legacy
+                    permesh_config::DiscoveryProtocol::Legacy,
+                    None,
                 )
                 .is_err_and(|e| !e.message.contains("SENTINEL_PRIVATE"))
         );
@@ -178,7 +191,8 @@ mod tests {
                     &registration,
                     values,
                     false,
-                    permesh_config::DiscoveryProtocol::Legacy
+                    permesh_config::DiscoveryProtocol::Legacy,
+                    None,
                 )
                 .is_err()
         );

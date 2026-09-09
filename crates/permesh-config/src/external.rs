@@ -28,7 +28,18 @@ impl DiscoveryProtocol {
 #[serde(deny_unknown_fields)]
 pub struct ExternalConfig {
     pub provider: String,
-    pub sha256: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::network::present"
+    )]
+    pub sha256: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::pins::target_map"
+    )]
+    pub sha256_by_target: Option<BTreeMap<String, String>>,
     #[serde(default, skip_serializing_if = "DiscoveryProtocol::is_legacy")]
     pub discovery_protocol: DiscoveryProtocol,
     #[serde(default)]
@@ -88,16 +99,7 @@ pub(crate) fn validate(provider: &ProviderConfig) -> Result<()> {
             "external providers use external.configuration and external.credentials only",
         ));
     }
-    if external.sha256.len() != 64
-        || !external
-            .sha256
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-    {
-        return Err(invalid(
-            "external.sha256 must contain 64 lowercase hexadecimal characters",
-        ));
-    }
+    external.validate_pins()?;
     if let Some(network) = &external.network {
         if external.discovery_protocol != DiscoveryProtocol::NegotiatedV1 {
             return Err(invalid("external network requires negotiated_v1 discovery"));

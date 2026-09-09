@@ -8,13 +8,7 @@ use std::collections::BTreeSet;
 
 pub const MAX_CATALOG_BYTES: usize = 1024 * 1024;
 pub const MAX_ARCHIVE_BYTES: u64 = 128 * 1024 * 1024;
-pub const TARGETS: [&str; 5] = [
-    "x86_64-unknown-linux-gnu",
-    "aarch64-unknown-linux-gnu",
-    "x86_64-apple-darwin",
-    "aarch64-apple-darwin",
-    "x86_64-pc-windows-msvc",
-];
+pub use permesh_provider_sdk::target::{TARGETS, native_target};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -80,17 +74,6 @@ fn digest(value: &str) -> bool {
         && value
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-}
-
-pub fn native_target() -> Option<&'static str> {
-    match (std::env::consts::ARCH, std::env::consts::OS) {
-        ("x86_64", "linux") if cfg!(target_env = "gnu") => Some("x86_64-unknown-linux-gnu"),
-        ("aarch64", "linux") if cfg!(target_env = "gnu") => Some("aarch64-unknown-linux-gnu"),
-        ("x86_64", "macos") => Some("x86_64-apple-darwin"),
-        ("aarch64", "macos") => Some("aarch64-apple-darwin"),
-        ("x86_64", "windows") if cfg!(target_env = "msvc") => Some("x86_64-pc-windows-msvc"),
-        _ => None,
-    }
 }
 
 pub fn validate_request(provider: &str, version: Option<&str>) -> Result<(), DistributionError> {

@@ -18,10 +18,11 @@ negative tests, documentation and migration notes before it is complete.
 | 10. Stability review | P0 / 2–9 | Threat-model pass; schema/migration docs; team/contributor/README update; all-platform checks. | Format, clippy, tests, dependency checks and provider conformance pass; no stable claim while P0 items remain. | Planned |
 | Future | P3 | Identity Center/Organizations and native SSO auth design; Entra; developer mode; lock-state evaluation; snapshots/diffs/policies. | Separate proposals with concrete use cases and explicit security boundaries; no automatic feature expansion during hardening. | Deferred |
 
-Target-aware release pinning is P1 (H16): configuration currently pins one native
-executable digest. A reviewed target-to-digest map is a concrete reason to evaluate
-lock state; a single pin does not yet provide heterogeneous team reproducibility.
-Keep that schema/trust migration separate from guided add using current pins.
+Target-aware release pinning is P1 (H16): current source supports an explicit
+`sha256_by_target` alternative and guided `--portable` exact-version catalog
+selection. Scalar serialization remains unchanged. No lockfile is added;
+workspace maps bind executable identities, while trust and approval stay local.
+See ADR 0026 and team workflows for migration and cross-platform limitations.
 
 ## Validation and release gates
 

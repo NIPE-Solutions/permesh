@@ -198,3 +198,13 @@ The field is omitted for legacy releases, preserving their existing output.
 Negotiated packages list `protocols: [3]` for legacy setup only; discovery/health
 use the independently selected protocol-v1 envelope. No output contains resolved
 credentials.
+
+## Portable provider pins
+
+Existing scalar-pin control responses are unchanged. Portable external review
+adds `result.target_pins`, an output-owned object with `sha256_by_target`,
+`resolved_target` and `resolved_sha256`. Guided portable add includes those three
+fields directly in `result`; its existing `sha256` still identifies the native
+executable. The map uses target strings as keys and executable SHA-256 strings
+as values. Absence means the historical scalar-pin workflow. These fields do not
+imply that foreign artifacts were downloaded, verified locally or trusted.

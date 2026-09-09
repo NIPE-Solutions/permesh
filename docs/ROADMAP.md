@@ -31,9 +31,10 @@ Nothing here declares the SDK or protocol stable.
    feature negotiation and approval binding are implemented in the host. Qualify
    official adapter support; custom endpoints, AWS transport and host browser
    networking remain separate follow-ups. Child environments stay sanitized.
-2. **P1 — Mixed-platform teams:** reviewed target-to-digest release pins. Current
-   instance configuration binds one executable digest, so it is not yet a portable
-   pin for macOS, Linux and Windows administrators sharing one workspace.
+2. **P1 — Mixed-platform teams:** explicit target-to-digest maps and guided
+   `--portable` setup are implemented, preserving scalar pins. Each machine
+   selects its own reviewed digest and establishes local trust and approval.
+   Cross-platform qualification remains a merge gate.
 3. **P2 — Diagnostics and integrity:** clearer doctor/status stages and stable
    provider diagnostic codes; further executable-substitution tests and reduced
    verification/execution gaps. Document OS-level residual risk.

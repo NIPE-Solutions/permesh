@@ -100,7 +100,8 @@ pub(super) fn convert(
         network: None,
         discovery_protocol,
         provider: kind.name().into(),
-        sha256: sha256.into(),
+        sha256: Some(sha256.into()),
+        sha256_by_target: None,
         configuration,
         credentials: BTreeMap::from([("token".into(), token)]),
     });

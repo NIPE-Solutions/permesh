@@ -125,6 +125,11 @@ pub struct AddProvider {
     pub version: Option<String>,
     #[arg(
         long,
+        help = "Pin all available platforms of one official release for a shared workspace"
+    )]
+    pub portable: bool,
+    #[arg(
+        long,
         value_name = "FILE",
         help = "Provider declarative setup answers; nonsecret settings and credential references only"
     )]
@@ -149,8 +154,18 @@ pub struct AddProvider {
     pub token_ref: Option<String>,
     #[arg(long, help = "Registered external provider ID")]
     pub provider: Option<String>,
-    #[arg(long, help = "Pin the registered external executable SHA-256")]
+    #[arg(
+        long,
+        conflicts_with = "target_sha256",
+        help = "Pin the registered external executable SHA-256"
+    )]
     pub sha256: Option<String>,
+    #[arg(
+        long,
+        value_name = "TARGET=DIGEST",
+        help = "Reviewed external executable digest for a platform; repeat for team platforms"
+    )]
+    pub target_sha256: Vec<String>,
     #[arg(
         long,
         value_name = "KEY=VALUE",

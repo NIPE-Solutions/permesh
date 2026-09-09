@@ -101,9 +101,9 @@ fn create_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
         .map_err(|_| AppError::new(5, "Cannot finish writing workspace file"))
 }
 pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
-    if args.version.is_some() || args.answers.is_some() || args.accept_risk {
+    if args.version.is_some() || args.answers.is_some() || args.accept_risk || args.portable {
         return Err(AppError::input(
-            "--version, --answers and --accept-risk require provider add github, google, cloudflare or aws",
+            "--version, --answers, --accept-risk and --portable require provider add github, google, cloudflare or aws",
         ));
     }
     if args.provider_type != "external" {
@@ -131,10 +131,12 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
             .provider
             .clone()
             .ok_or_else(|| AppError::input("External providers require --provider"))?,
-        sha256: args
-            .sha256
-            .clone()
-            .ok_or_else(|| AppError::input("External providers require --sha256"))?,
+        sha256: args.sha256.clone(),
+        sha256_by_target: if args.target_sha256.is_empty() {
+            None
+        } else {
+            Some(pairs(&args.target_sha256)?)
+        },
         configuration: pairs(&args.setting)?
             .into_iter()
             .map(|(key, value)| (key, serde_json::Value::String(value)))
@@ -225,7 +227,7 @@ fn pairs(values: &[String]) -> Result<std::collections::BTreeMap<String, String>
             .ok_or_else(|| AppError::input("Expected NAME=VALUE"))?;
         if key.is_empty() || result.insert(key.to_owned(), value.to_owned()).is_some() {
             return Err(AppError::input(
-                "Setting and credential names must be nonempty and unique",
+                "Setting, credential and target names must be nonempty and unique",
             ));
         }
     }

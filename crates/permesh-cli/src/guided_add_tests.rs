@@ -107,7 +107,7 @@ impl Sandbox {
                 root: self.root.clone(),
                 interactive: true,
             },
-            ready(Ok(self.package.clone())),
+            ready(Ok(self.package.clone().into())),
             move |_| ready(Ok(decisions.next().unwrap())),
         )
         .await
@@ -230,8 +230,14 @@ async fn precancelled_onboarding_never_polls_fetch_or_creates_state() {
 }
 #[tokio::test]
 async fn workspace_changes_during_either_consent_are_preserved_without_approval() {
-    for change_at in [0, 1] {
-        let sandbox = Sandbox::new();
+    for (change_at, portable) in [(0, false), (1, false), (0, true), (1, true)] {
+        let mut sandbox = Sandbox::new();
+        sandbox.args.portable = portable;
+        let selection = if portable {
+            portable_selection(&sandbox)
+        } else {
+            sandbox.package.clone().into()
+        };
         let mut consent_count = 0;
         let error = run_with(
             &sandbox.cli,
@@ -242,7 +248,7 @@ async fn workspace_changes_during_either_consent_are_preserved_without_approval(
                 root: sandbox.root.clone(),
                 interactive: true,
             },
-            ready(Ok(sandbox.package.clone())),
+            ready(Ok(selection)),
             |_| {
                 if consent_count == change_at {
                     if change_at == 0 {
@@ -314,8 +320,13 @@ async fn exact_package_pin_cannot_be_replaced_by_selected_registration() {
     sandbox.run(vec![true, true]).await.unwrap();
     let config = permesh_config::Config::load(&sandbox.config).unwrap();
     assert_eq!(
-        config.providers[0].external.as_ref().unwrap().sha256,
-        sandbox.package.release.executable_sha256
+        config.providers[0]
+            .external
+            .as_ref()
+            .unwrap()
+            .sha256
+            .as_deref(),
+        Some(sandbox.package.release.executable_sha256.as_str())
     );
     assert!(registry.load_pinned("github", &other_hash).is_ok());
 }
@@ -333,7 +344,7 @@ async fn review_displays_actual_package_and_instance_credential_references() {
             root: sandbox.root.clone(),
             interactive: true,
         },
-        ready(Ok(sandbox.package.clone())),
+        ready(Ok(sandbox.package.clone().into())),
         |review| {
             reviews.push(review);
             ready(Ok(true))
@@ -351,8 +362,14 @@ async fn review_displays_actual_package_and_instance_credential_references() {
 
 #[tokio::test]
 async fn cancelling_either_consent_cannot_publish_later_trust_or_approval() {
-    for cancel_at in [0, 1] {
-        let sandbox = Sandbox::new();
+    for (cancel_at, portable) in [(0, false), (1, false), (0, true), (1, true)] {
+        let mut sandbox = Sandbox::new();
+        sandbox.args.portable = portable;
+        let selection = if portable {
+            portable_selection(&sandbox)
+        } else {
+            sandbox.package.clone().into()
+        };
         let cancel = Cancellation::new();
         let mut count = 0;
         let error = run_with(
@@ -364,7 +381,7 @@ async fn cancelling_either_consent_cannot_publish_later_trust_or_approval() {
                 root: sandbox.root.clone(),
                 interactive: true,
             },
-            ready(Ok(sandbox.package.clone())),
+            ready(Ok(selection)),
             |_| {
                 if count == cancel_at {
                     cancel.cancel();
@@ -461,7 +478,7 @@ async fn wrong_exact_version_is_rejected_before_trust_or_execution() {
             root: sandbox.root.clone(),
             interactive: true,
         },
-        ready(Ok(sandbox.package.clone())),
+        ready(Ok(sandbox.package.clone().into())),
         |_| {
             panic!("mismatched package reached consent");
             #[allow(unreachable_code)]
@@ -497,7 +514,7 @@ async fn default_trust_review_explains_scope_without_manual_hash_or_path_steps()
             root: sandbox.root.clone(),
             interactive: true,
         },
-        ready(Ok(sandbox.package.clone())),
+        ready(Ok(sandbox.package.clone().into())),
         |review| {
             reviews.push(review);
             ready(Ok(false))
@@ -624,4 +641,171 @@ fn assert_missing_approval(
             .verify(&sandbox.config, &config.providers[0].id, &fingerprint)
             .is_err()
     );
+}
+
+fn portable_selection(sandbox: &Sandbox) -> OfficialSelection {
+    let native = sandbox.package.release.target.clone();
+    let foreign = catalog::TARGETS
+        .iter()
+        .find(|target| **target != native)
+        .unwrap()
+        .to_string();
+    OfficialSelection {
+        native_package: sandbox.package.clone(),
+        target_pins: Some(std::collections::BTreeMap::from([
+            (native, sandbox.package.release.executable_sha256.clone()),
+            (foreign, "f".repeat(64)),
+        ])),
+    }
+}
+#[tokio::test]
+async fn portable_guided_setup_commits_all_pins_but_trusts_only_native_and_displays_selection() {
+    let mut sandbox = Sandbox::new();
+    sandbox.args.portable = true;
+    let selection = portable_selection(&sandbox);
+    let pins = selection.target_pins.clone().unwrap();
+    let mut reviews = vec![];
+    let result = run_with(
+        &sandbox.cli,
+        &sandbox.args,
+        &BlockingPool::new(),
+        &Cancellation::new(),
+        Environment {
+            root: sandbox.root.clone(),
+            interactive: true,
+        },
+        ready(Ok(selection)),
+        |review| {
+            reviews.push(review);
+            ready(Ok(true))
+        },
+    )
+    .await
+    .unwrap();
+    let config = permesh_config::Config::load(&sandbox.config).unwrap();
+    let external = config.providers[0].external.as_ref().unwrap();
+    assert!(external.sha256.is_none());
+    assert_eq!(external.sha256_by_target.as_ref(), Some(&pins));
+    assert_eq!(
+        external.credentials["token"],
+        "env://PERMESH_GUIDED_FIXTURE_UNAVAILABLE_TOKEN"
+    );
+    assert_eq!(
+        result.report.result["sha256_by_target"],
+        serde_json::json!(pins)
+    );
+    assert_eq!(
+        result.report.result["resolved_target"],
+        sandbox.package.release.target
+    );
+    assert_eq!(
+        result.report.result["resolved_sha256"],
+        sandbox.package.release.executable_sha256
+    );
+    assert_eq!(result.report.result["approved"], true);
+    assert!(reviews[1].contains("Portable target SHA-256 pins"));
+    assert!(reviews[1].contains("Only this native binary is installed and trusted"));
+    for (target, digest) in &pins {
+        assert!(reviews[1].contains(target));
+        assert!(reviews[1].contains(digest));
+    }
+    let registry = Registry::new(sandbox.root.clone()).unwrap();
+    assert!(registry.load_pinned("github", &"f".repeat(64)).is_err());
+    let access = WorkspaceAccess {
+        root: sandbox.root.clone(),
+    };
+    let (_, _, fingerprint) = access
+        .reviewed(&config, &sandbox.config, "github-main")
+        .unwrap();
+    let approvals = permesh_provider_external::approvals::ApprovalStore::new(
+        sandbox.root.parent().unwrap().join("workspace-approvals"),
+    )
+    .unwrap();
+    assert!(
+        approvals
+            .verify(&sandbox.config, "github-main", &fingerprint)
+            .is_ok()
+    );
+}
+#[tokio::test]
+async fn portable_rejects_missing_or_wrong_native_pin_before_trust_or_execution() {
+    for mutation in 0..4 {
+        let mut sandbox = Sandbox::new();
+        sandbox.args.portable = true;
+        let original = fs::read(&sandbox.config).unwrap();
+        let mut selection = portable_selection(&sandbox);
+        match mutation {
+            0 => selection.target_pins = None,
+            1 => {
+                selection
+                    .target_pins
+                    .as_mut()
+                    .unwrap()
+                    .insert(sandbox.package.release.target.clone(), "e".repeat(64));
+            }
+            2 => {
+                selection
+                    .target_pins
+                    .as_mut()
+                    .unwrap()
+                    .retain(|target, _| *target == sandbox.package.release.target);
+            }
+            _ => {
+                selection
+                    .target_pins
+                    .as_mut()
+                    .unwrap()
+                    .insert("unknown-target".into(), "f".repeat(64));
+            }
+        }
+        assert!(
+            run_with(
+                &sandbox.cli,
+                &sandbox.args,
+                &BlockingPool::new(),
+                &Cancellation::new(),
+                Environment {
+                    root: sandbox.root.clone(),
+                    interactive: true
+                },
+                ready(Ok(selection)),
+                |_| async { panic!("invalid portable selection reached consent") }
+            )
+            .await
+            .is_err()
+        );
+        assert!(!sandbox.root.exists());
+        assert_eq!(fs::read(&sandbox.config).unwrap(), original);
+    }
+}
+#[tokio::test]
+async fn portable_decline_and_setup_failure_retain_explicit_continuation() {
+    for fail_setup in [false, true] {
+        let mut sandbox = Sandbox::new();
+        sandbox.args.portable = true;
+        if fail_setup {
+            fs::write(&sandbox.answers, "version: 1\nanswers: {unknown: value}\n").unwrap();
+        }
+        let original = fs::read(&sandbox.config).unwrap();
+        let result = run_with(
+            &sandbox.cli,
+            &sandbox.args,
+            &BlockingPool::new(),
+            &Cancellation::new(),
+            Environment {
+                root: sandbox.root.clone(),
+                interactive: true,
+            },
+            ready(Ok(portable_selection(&sandbox))),
+            |_| ready(Ok(fail_setup)),
+        )
+        .await;
+        let text = match result {
+            Ok(outcome) => outcome.report.result["next"].as_str().unwrap().to_owned(),
+            Err(error) => error.message,
+        };
+        assert!(text.contains("--portable"));
+        assert!(text.contains("--version 1.0.0"));
+        assert_eq!(fs::read(&sandbox.config).unwrap(), original);
+    }
 }

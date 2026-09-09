@@ -93,6 +93,7 @@ pub(crate) struct TrustedSetup {
     pub registration: Registration,
     pub executable: PathBuf,
     pub discovery_protocol: permesh_config::DiscoveryProtocol,
+    pub target_pins: Option<BTreeMap<String, String>>,
 }
 pub(crate) enum SetupOutcome {
     Described(Outcome),
@@ -170,6 +171,7 @@ pub async fn run(
             registration,
             executable,
             discovery_protocol: args.discovery_protocol.into(),
+            target_pins: None,
         },
     )
     .await?
@@ -192,6 +194,7 @@ pub(crate) async fn execute(
         registration,
         executable,
         discovery_protocol,
+        target_pins,
     } = trusted;
     if args.authoritative && !registration.capabilities.contains(&Capability::Identities) {
         return Err(AppError::input(
@@ -262,6 +265,7 @@ pub(crate) async fn execute(
             values,
             args.authoritative,
             discovery_protocol,
+            target_pins,
         )
         .map(SetupOutcome::Created)
 }
