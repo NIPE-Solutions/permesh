@@ -27,6 +27,7 @@ mod policy_command;
 mod provider_diagnostics;
 mod provider_migration;
 mod provider_operation;
+mod remote_secrets;
 mod report;
 mod resource_command;
 mod review_scope;

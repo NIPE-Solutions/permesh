@@ -52,7 +52,7 @@ pub async fn run(
         let prepared = tokio::select! {
             biased;
             () = cancellation.cancelled() => return Err(AppError::new(130, "Cancelled")),
-            result = within_deadline(PROVIDER_TIMEOUT, pool.run(move || crate::external_workspace::prepare(&config, &path, &provider)), "External credential preparation exceeded the 120-second deadline") => result???,
+            result = within_deadline(PROVIDER_TIMEOUT, crate::external_workspace::prepare_async(&config, &path, &provider, pool, cancellation), "External credential preparation exceeded the 120-second deadline") => result??,
         };
         let (executable, registration, invocation) = prepared;
         // The supervisor owns its deadlines. Never drop it before process cleanup finishes.

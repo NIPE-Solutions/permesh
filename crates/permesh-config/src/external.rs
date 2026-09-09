@@ -52,6 +52,12 @@ pub struct ExternalConfig {
         deserialize_with = "crate::network::present"
     )]
     pub network: Option<crate::NetworkConfig>,
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "crate::credential_resolvers::resolver_map"
+    )]
+    pub credential_resolvers: BTreeMap<String, crate::CredentialResolver>,
 }
 
 fn identifier(value: &str) -> bool {
@@ -122,8 +128,9 @@ pub(crate) fn validate(provider: &ProviderConfig) -> Result<()> {
         if !identifier(name) {
             return Err(invalid("invalid external credential name"));
         }
-        let reference = SecretRef::parse(reference)
-            .map_err(|_| invalid("external credentials require env or keychain references"))?;
+        let reference = SecretRef::parse(reference).map_err(|_| {
+            invalid("external credentials require explicit local or configured remote references")
+        })?;
         if let SecretRef::Keychain { service, account } = reference
             && (service != provider.id || account != *name)
         {
@@ -132,5 +139,6 @@ pub(crate) fn validate(provider: &ProviderConfig) -> Result<()> {
             ));
         }
     }
+    crate::credential_resolvers::validate(provider)?;
     Ok(())
 }

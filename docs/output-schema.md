@@ -25,6 +25,18 @@ Common `command` values include `init`, `provider_add`, `provider_migrate`, `pro
 
 `providers` is sorted by instance ID. Each entry has `id`, `kind`, `state` (`connected`, `partial`, `failed`), curated `message`, and `limitations` array. `complete` describes completion within supported adapter scope. Even true does not certify exhaustive effective authorization. Failures never appear as empty successful provider snapshots.
 
+For `auth_status` only, remote-backed instances may have state `configured`.
+This means their declaration was inspected; remote credential availability and
+provider authentication remain unverified. No remote store or bootstrap credential
+was accessed. `complete: true` and exit 0 indicate this inspection completed with
+no missing direct local credential slots, not successful remote authentication.
+
+`external_review` adds `credential_resolvers` only when configured. Entries have
+an independent `schema_version: 1`, backend, origin, bootstrap reference, selected
+field and backend-specific exact locator/version fields. Optional network review
+contains proxy/bypass settings and CA path/digest, never PEM or resolved secrets.
+Legacy configurations omit this field and retain their existing output.
+
 ## User result
 
 - `identity`: null for an uncorrelated account lookup, otherwise `{id, kind, affiliation, status, verified_emails}`.

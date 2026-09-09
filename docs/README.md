@@ -38,12 +38,13 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 - [GitHub](providers/github.md) and [Google Workspace](providers/google.md).
 - [Official provider catalog and guides](https://github.com/NIPE-Solutions/permesh-providers): Cloudflare, AWS, release status and contributions.
 - [Networking](networking.md): explicit proxies and additional certificate authorities.
+- [Remote credentials](remote-credentials.md): reviewed exact reads from Connect, Vault or OpenBao.
 
 ## Use Permesh as a team
 
 - [Team workflows](team-workflows.md): shared Git configuration, local trust and portable pins.
 - [Configuration](CONFIGURATION.md): strict schema, workspace discovery and identity sources.
-- [Secret storage](secrets.md): environment references, keychain storage, rotation and removal.
+- [Secret storage](secrets.md): environment/keychain references, explicit remote reads, rotation and removal.
 - [Privacy](privacy.md), [security](security.md) and [threat model](threat-model.md).
 - [GitHub migration](github-migration.md), [Google migration](google-migration.md) and [domain/schema migration](migrations/domain-schema-2.md).
 
