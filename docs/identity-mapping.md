@@ -35,4 +35,4 @@ Removal can clean up an old binding even when its account or canonical target is
 
 Changes use existing `identity.aliases` semantics and invalidate relevant external execution approvals. Review and explicitly approve those provider instances again before querying; these commands never refresh approvals automatically.
 
-JSON results use the existing control envelope with `identity_review_version: 1`; mapping proposals additionally use `proposal_version: 1`. The `applied` flag distinguishes a proposal from a saved local edit. Identity inventory import is a separate, not-yet-implemented slice.
+JSON results use the existing control envelope with `identity_review_version: 1`; mapping proposals additionally use `proposal_version: 1`. The `applied` flag distinguishes a proposal from a saved local edit. Current-source [pinned local JSON inventories](identity-inventory.md) provide an explicit file-backed source; configuring an inventory does not automatically make it authoritative.

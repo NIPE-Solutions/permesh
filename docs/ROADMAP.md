@@ -65,18 +65,56 @@ artifact qualification, publication and live tenant acceptance.
   external package is published, Google users need a reviewed native build or
   must remain on the existing published CLI. The migration guide states this gap.
 
-## Later, separate work
+## Future integrations: separate from the active program
 
-- AWS Identity Center/Organizations and native short-lived authentication,
-  including reviewed profile/SSO behavior; current IAM attachments are evidence,
-  not effective authorization.
-- More identity authorities such as Entra, then additional providers driven by
-  concrete use cases and qualification, not provider-count targets.
-- CLI self-update and package managers; provider updates already exist.
-- Developer provider mode, conformance tooling, deterministic config composition,
-  snapshots/diffs and local policies. No mutation features in this milestone.
-- A standards SBOM generator; the current dependency inventory is not an
-  SPDX/CycloneDX SBOM.
+The following Phase 6 priorities are provisional. Reorder them using consenting
+pilot requests, available qualification tenants and maintenance capacity. Each
+first slice needs explicit scope, permissions, stable IDs, pagination/failure
+fixtures and live-acceptance criteria before being advertised as supported.
+Entra, GitLab, AWS authentication/Identity Center, 1Password and OpenBao/Vault KV
+belong to the active program, not this future list.
 
-No collaboration server, remote credential vault, analytics or remediation is
-needed to finish the discovery foundation.
+| Priority | Integration and first slice | Value and boundary |
+| --- | --- | --- |
+| 1 | Authentik / Keycloak: separate identity, group and role adapters | Self-hosted identity sources; IdP state is not complete downstream access. |
+| 1 | LDAP / Active Directory: explicit directory/schema adapter | Existing directory inventory; LDAP transport does not define lifecycle semantics. |
+| 1 | Okta: identity and application assignments | Another authority; assignment does not establish every downstream permission. |
+| 1 | HR rosters: one explicitly scoped employment source | Lifecycle evidence; keep employment, account state and service identities separate. |
+| 2 | Slack: membership, roles and supported invitations | Collaboration review; qualify each API/plan and make no universal SCIM promise. |
+| 2 | Atlassian: one organization/product/project scope | Distinguish membership, product access, project permissions and ownership. |
+| 2 | Azure RBAC: scoped resource role assignments | Resource authorization evidence, separate from Entra directory roles. |
+| 2 | GCP IAM: scoped resource policies and bindings | Preserve hierarchy, conditions, denies and visibility limits. |
+| 2 | Kubernetes: namespace/cluster roles and bindings | RBAC inventory does not cover all authentication, admission or external authorization. |
+| 3 | Tailscale: supported user/device and access metadata | Network review; listings alone do not prove effective connectivity. |
+| 3 | Proxmox: users, groups, roles and ACLs | Preserve native realms and inheritance rather than flattening permissions. |
+| 3 | PostgreSQL: roles, membership, privileges and ownership | Separate membership from effective privileges, RLS and session behavior. |
+| 3 | Generic SCIM: a bounded user/group adapter | Interoperability; SCIM is not universal permission discovery. |
+| 3 | Baton import: investigate one versioned output fixture | Reuse only after mapping and testing provenance, scope and semantics; compatibility is unproven. |
+
+Future secret resolution has its own ordered backlog:
+
+1. SOPS with age or an explicitly selected KMS for encrypted Git-managed inputs.
+2. AWS Secrets Manager, Azure Key Vault and Google Secret Manager, prioritized by
+   actual pilot environments and retrieving only the configured field.
+3. Bitwarden Secrets Manager, Infisical and Doppler according to demand. Bitwarden
+   Password Manager and Vaultwarden are distinct, separately qualified targets.
+4. An explicitly trusted external credential helper only when a concrete need
+   cannot use a safer native resolver contract; no arbitrary shell execution.
+
+A secret-store access-audit provider is separate from credential resolution. It
+should collect permission metadata without reading secret values where possible;
+potential access, logged access and proof of disclosure are different claims.
+
+## Future remediation: design only
+
+[ADR 0028](adr/0028-separate-opt-in-remediation.md) defines separate opt-in write
+capabilities, exact reviewed plans, protected targets, fresh preflight and
+independent verification. No remote mutation implementation or hidden write mode
+in inspection commands is part of this program.
+
+## Other deferred delivery work
+
+CLI self-update/package managers and a standards SBOM generator remain separate
+qualification projects. The current dependency inventory is not an
+SPDX/CycloneDX SBOM. A collaboration server, remote credential vault or analytics
+backend is not required for local read-only review.
