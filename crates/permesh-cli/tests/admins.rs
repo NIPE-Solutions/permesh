@@ -78,6 +78,7 @@ fn failed_provider_does_not_hide_known_admin_and_all_failed_is_not_empty_success
     let path = d.path().join("permesh.yaml");
     let mut c = permesh_config::Config::load(&path).unwrap();
     c.providers.push(permesh_config::ProviderConfig {
+        inventory: None,
         id: "github-main".into(),
         kind: permesh_config::ProviderKind::Github,
         external: None,

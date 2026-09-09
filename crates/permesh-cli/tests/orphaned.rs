@@ -67,6 +67,7 @@ fn unavailable_authority_makes_all_accounts_unassessed() {
     let path = dir.path().join("permesh.yaml");
     let mut config = permesh_config::Config::load(&path).unwrap();
     config.providers.push(permesh_config::ProviderConfig {
+        inventory: None,
         id: "google-main".into(),
         kind: permesh_config::ProviderKind::Google,
         organizations: vec![],

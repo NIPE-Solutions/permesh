@@ -62,6 +62,7 @@ impl Draft {
             }
         }
         self.config.providers.push(ProviderConfig {
+            inventory: None,
             id: id.into(),
             kind: ProviderKind::External,
             organizations: vec![],

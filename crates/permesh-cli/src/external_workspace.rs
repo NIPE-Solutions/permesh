@@ -552,6 +552,7 @@ mod tests {
             .map_err(|e| e.message)?;
         config.organization.name = "Renamed".into();
         config.providers.push(ProviderConfig {
+            inventory: None,
             id: "demo".into(),
             kind: ProviderKind::Demo,
             organizations: vec![],
@@ -629,6 +630,7 @@ mod tests {
     fn mixed_aliases_and_unrelated_authority_do_not_invalidate_selected_approval() -> TestResult {
         let (_temporary, access, mut config, path) = setup(&[Capability::Identities])?;
         config.providers.push(ProviderConfig {
+            inventory: None,
             id: "demo".into(),
             kind: ProviderKind::Demo,
             organizations: vec![],
