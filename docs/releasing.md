@@ -201,11 +201,13 @@ For the manual same-run provenance workflow, public verification commands, and r
 
 ## Next access-review candidate checklist
 
-The access-review source program is unpublished. Its local source version still
-matches alpha.2; do not name or upload new bytes as an existing published asset.
-CI may produce isolated trial archives using that source version. Select a new
-prerelease version before release qualification; never promote trial builds as
-alpha.2. No next version, release date or catalog publication is implied here.
+The access-review source program targets **0.1.0-alpha.3**, an unpublished
+candidate. See the [candidate release notes](releases/0.1.0-alpha.3.md).
+Historical trial archives carrying alpha.2 cannot be promoted as alpha.3 or
+replace published alpha.2 bytes. Build alpha.3 from its exact reviewed merged
+revision. Apply the same-run provenance, bundle, staging and public verification
+requirements above to alpha.3; publication remains a separate authorized action.
+Provider 0.2.0 candidates retain their separate versions and publication gates.
 
 - Integrate and validate the exact intended source revision, including identity,
   inventory, snapshot/offboard, resource/policy, contributor tooling, remote
