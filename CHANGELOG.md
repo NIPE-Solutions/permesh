@@ -6,6 +6,9 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 - Add native provider scaffolding and offline discovery/health/setup transcript
   validation. Neither operation executes, installs or trusts generated code.
+- Add reviewed stable-account identity mapping commands and an explicitly pinned,
+  bounded JSON identity inventory. Contradictory evidence stays ambiguous; inventory
+  lifecycle does not imply employment or verified email ownership.
 
 - Recheck trusted executable pins immediately before launch and stop already
   cancelled operations before spawning. Path-based OS race limitations remain.

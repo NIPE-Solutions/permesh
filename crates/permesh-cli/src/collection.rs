@@ -11,6 +11,7 @@ const MAX_CONCURRENT_PROVIDERS: usize = 4;
 pub fn kind(provider: &ProviderConfig) -> &'static str {
     match provider.kind {
         ProviderKind::Demo => "demo",
+        ProviderKind::Inventory => "inventory",
         ProviderKind::Github => "github",
         ProviderKind::Google => "google",
         ProviderKind::External => "external",
@@ -30,6 +31,7 @@ pub fn legacy_message(provider: &ProviderConfig) -> String {
 pub fn metadata(provider: &ProviderConfig) -> Result<Metadata, AppError> {
     Ok(match provider.kind {
         ProviderKind::Demo => permesh_provider_demo::provider_metadata(),
+        ProviderKind::Inventory => crate::inventory::metadata(),
         ProviderKind::Github | ProviderKind::Google => {
             return Err(AppError::input(legacy_message(provider)));
         }
@@ -38,6 +40,10 @@ pub fn metadata(provider: &ProviderConfig) -> Result<Metadata, AppError> {
 }
 pub fn build(provider: &ProviderConfig) -> Result<Arc<dyn Provider>, ProviderError> {
     match provider.kind {
+        ProviderKind::Inventory => Err(ProviderError::new(
+            "inventory",
+            "Inventory requires its explicit workspace-relative data reader",
+        )),
         ProviderKind::External => Err(ProviderError::new(
             "external",
             "External providers require workspace approval",
@@ -203,6 +209,7 @@ mod legacy_tests {
     fn legacy_build_rejects_before_even_parsing_a_credential_reference() {
         for kind in [ProviderKind::Github, ProviderKind::Google] {
             let provider = ProviderConfig {
+                inventory: None,
                 id: "legacy".into(),
                 kind,
                 organizations: vec!["acme".into()],

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
 mod data;
+mod inventory;
+pub use inventory::InventoryConfig;
 mod external;
 mod network;
 mod pins;
@@ -64,11 +66,19 @@ pub struct ProviderConfig {
     pub auth: Option<AuthConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external: Option<ExternalConfig>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::network::present"
+    )]
+    pub inventory: Option<InventoryConfig>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderKind {
     Demo,
+    /// Explicit host-local pinned identity inventory; never executable.
+    Inventory,
     /// Legacy configuration accepted only for explicit migration; no bundled execution.
     Github,
     Google,
@@ -146,6 +156,7 @@ impl Config {
                 return Err(invalid("duplicate provider id"));
             }
             external::validate(provider)?;
+            inventory::validate(provider)?;
             let mut orgs = BTreeSet::new();
             for org in &provider.organizations {
                 if !valid_id(org) || org.contains('_') || org.starts_with('-') || org.ends_with('-')
@@ -211,7 +222,10 @@ impl Config {
             }
             if !matches!(
                 provider.kind,
-                ProviderKind::Demo | ProviderKind::Google | ProviderKind::External
+                ProviderKind::Demo
+                    | ProviderKind::Google
+                    | ProviderKind::External
+                    | ProviderKind::Inventory
             ) {
                 return Err(invalid(
                     "identity source provider lacks identity-source capability",

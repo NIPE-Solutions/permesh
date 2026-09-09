@@ -27,7 +27,21 @@ pub async fn run(
         );
     }
     let id = provider.id.clone();
-    let observation = if provider.kind == ProviderKind::External {
+    let observation = if provider.kind == ProviderKind::Inventory {
+        let path = path.to_owned();
+        let observed = tokio::select! {
+            biased;
+            () = cancellation.cancelled() => return Err(AppError::new(130, "Cancelled")),
+            result = within_deadline(PROVIDER_TIMEOUT, pool.run(move || crate::inventory::observe(&provider, &path)), "Inventory read exceeded the 120-second deadline") => result???,
+        };
+        if !discovery && !observed.snapshot.complete {
+            return Err(AppError::new(
+                3,
+                "Inventory is stale or explicitly incomplete; review and pin a fresh complete export before authority assessment",
+            ));
+        }
+        ("Pinned local inventory read; declared lifecycle does not establish employment or absence outside its scope".into(), observed.snapshot.limitations.clone(), discovery.then_some(observed.snapshot))
+    } else if provider.kind == ProviderKind::External {
         let protocol = provider
             .external
             .as_ref()

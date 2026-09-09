@@ -17,6 +17,9 @@ pub async fn run(
     {
         return crate::provider_development::run(command, blocking, cancellation).await;
     }
+    if let Command::Identity { command } = &cli.command {
+        return crate::identity_command::run(cli, command, blocking, cancellation).await;
+    }
     match &cli.command {
         Command::Provider {
             command: ProviderCommand::Migrate(args),

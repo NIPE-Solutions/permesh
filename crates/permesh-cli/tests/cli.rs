@@ -81,6 +81,7 @@ fn partial_failure_keeps_demo_access_and_marks_incomplete() {
     let p = d.path().join("permesh.yaml");
     let mut c = permesh_config::Config::load(&p).unwrap();
     c.providers.push(permesh_config::ProviderConfig {
+        inventory: None,
         id: "github-main".into(),
         kind: permesh_config::ProviderKind::Github,
         external: None,
@@ -114,6 +115,7 @@ fn mixed_auth_status_is_partial_and_env_login_does_not_write() {
     let path = d.path().join("permesh.yaml");
     let mut config = permesh_config::Config::load(&path).unwrap();
     config.providers.push(permesh_config::ProviderConfig {
+        inventory: None,
         id: "github-main".into(),
         kind: permesh_config::ProviderKind::Github,
         external: None,

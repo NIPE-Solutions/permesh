@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 mod admins;
 mod identity;
+pub mod identity_review;
 mod model;
 mod orphaned;
 mod path_budget;

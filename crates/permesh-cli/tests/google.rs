@@ -16,6 +16,7 @@ fn legacy_google_remains_parseable_and_does_not_hide_demo_observations() {
     let path = dir.path().join("permesh.yaml");
     let mut config = permesh_config::Config::load(&path).unwrap();
     config.providers.push(permesh_config::ProviderConfig {
+        inventory: None,
         id: "google-main".into(),
         kind: permesh_config::ProviderKind::Google,
         organizations: vec![],
