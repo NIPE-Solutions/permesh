@@ -108,6 +108,12 @@ pub(super) fn verify(plan: &Plan, current: &Artifact, mode: Mode) -> Result<Repo
             reason: GapReason::AdditionalAccountsObserved,
         });
     }
+    let correlated_accounts: BTreeSet<_> = result
+        .assessment
+        .accounts
+        .iter()
+        .map(|a| (&a.key.provider, &a.key.id))
+        .collect();
     let mut comparable = BTreeMap::new();
     for source in &plan.assessment.sources {
         let old = &source.capture;
@@ -122,6 +128,18 @@ pub(super) fn verify(plan: &Plan, current: &Artifact, mode: Mode) -> Result<Repo
             }
             Some(n) if !artifact::diff::comparable(old, n) => Some(GapReason::ContextChanged),
             Some(n) if !artifact::diff::ordered(old, n) => Some(GapReason::CaptureNotOrdered),
+            // A target-filtered assessment can omit a still-present native account
+            // when its correlation evidence changes. That is not account deletion.
+            Some(n)
+                if n.data.as_ref().is_some_and(|data| {
+                    data.accounts.iter().any(|account| {
+                        let key = (&account.key.provider, &account.key.id);
+                        old_accounts.contains(&key) && !correlated_accounts.contains(&key)
+                    })
+                }) =>
+            {
+                Some(GapReason::AccountCorrelationChanged)
+            }
             _ => None,
         };
         if let Some(reason) = reason {

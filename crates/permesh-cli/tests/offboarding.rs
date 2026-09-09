@@ -839,3 +839,107 @@ fn inventory_export_age_bounds_plan_lifetime_and_imported_steps_are_validated() 
         assert!(!String::from_utf8_lossy(&output.stdout).contains("REMOTE_SECRET"));
     }
 }
+
+#[test]
+fn correlation_loss_never_claims_present_accounts_or_paths_disappeared() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut before = fixture();
+    before["providers"].as_array_mut().unwrap().pop(); // Compare complete sources.
+    before["identity"]["bindings"] = json!([]);
+    before["providers"][0]["data"]["identities"][0]["verified_emails"] =
+        json!(["person@example.test"]);
+    before["providers"][1]["data"]["accounts"][0]["verified_emails"] =
+        json!(["person@example.test"]);
+    save(dir.path(), "before.json", &before);
+    result(
+        run(
+            dir.path(),
+            &[
+                "offboard",
+                "plan",
+                "contractor-7",
+                "--snapshot",
+                "before.json",
+                "--output",
+                "plan.json",
+                "--json",
+            ],
+        ),
+        0,
+    );
+    for scenario in ["email_removed", "identity_reassigned", "account_deleted"] {
+        let mut after = before.clone();
+        let now = time::OffsetDateTime::now_utc() - time::Duration::minutes(1);
+        let start = now
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        let end = (now + time::Duration::seconds(1))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        after["started_at"] = start.clone().into();
+        after["completed_at"] = end.clone().into();
+        for provider in after["providers"].as_array_mut().unwrap() {
+            provider["started_at"] = start.clone().into();
+            provider["completed_at"] = end.clone().into();
+        }
+        if scenario == "account_deleted" {
+            let data = &mut after["providers"][1]["data"];
+            data["accounts"]
+                .as_array_mut()
+                .unwrap()
+                .retain(|a| a["key"]["id"] != "42");
+            data["memberships"] = json!([]);
+            data["grants"]
+                .as_array_mut()
+                .unwrap()
+                .retain(|g| g["subject"]["kind"] == "group");
+        } else if scenario == "identity_reassigned" {
+            after["providers"][0]["data"]["identities"].as_array_mut().unwrap().push(json!({"id":"different-person","kind":"human","affiliation":"internal","status":"active","verified_emails":["different@example.test"]}));
+            after["providers"][1]["data"]["accounts"][0]["verified_emails"] =
+                json!(["different@example.test"]);
+        } else {
+            after["providers"][1]["data"]["accounts"][0]["verified_emails"] = json!([]);
+        }
+        save(dir.path(), "after.json", &after);
+        let verified = result(
+            run(
+                dir.path(),
+                &[
+                    "offboard",
+                    "verify",
+                    "plan.json",
+                    "--snapshot",
+                    "after.json",
+                    "--json",
+                ],
+            ),
+            if scenario == "account_deleted" { 0 } else { 4 },
+        );
+        let checks = verified["checks"].as_array().unwrap();
+        assert!(checks.iter().any(|c| c["native_id"] == "42"));
+        assert!(checks.iter().any(|c| c["native_id"] == "direct"));
+        assert!(checks.iter().any(|c| c["native_id"] == "inherited"));
+        assert!(checks.iter().any(|c| c["native_id"] == "team"));
+        if scenario == "account_deleted" {
+            assert!(checks.iter().all(|c| c["state"] == "no_longer_observed"));
+        } else {
+            assert!(
+                checks.iter().all(|c| c["state"] == "cannot_verify"),
+                "{scenario}: {checks:?}"
+            );
+            assert_eq!(verified["complete"], false);
+            assert!(
+                verified["gaps"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|g| g["provider"] == "github"
+                        && g["reason"] == "account_correlation_changed")
+            );
+            assert_eq!(
+                after["providers"][1]["data"]["grants"],
+                before["providers"][1]["data"]["grants"]
+            );
+        }
+    }
+}
