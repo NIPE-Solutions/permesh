@@ -69,6 +69,7 @@ impl Draft {
             customer_id: None,
             auth: None,
             external: Some(ExternalConfig {
+                credential_resolvers: Default::default(),
                 network: None,
                 discovery_protocol,
                 provider: registration.id.clone(),

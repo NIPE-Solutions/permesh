@@ -64,6 +64,49 @@ fn trust_failure(error: permesh_provider_external::ExternalError) -> AppError {
     failure(error).diagnostic(code)
 }
 
+struct PreparedContext {
+    executable: PathBuf,
+    registration: Registration,
+    external: ExternalConfig,
+    network: Option<permesh_provider_sdk::network::NetworkContext>,
+    resolvers: BTreeMap<String, crate::remote_secrets::Prepared>,
+}
+impl PreparedContext {
+    fn finish(
+        self,
+        credentials: BTreeMap<String, permesh_secrets::Secret>,
+    ) -> Result<(PathBuf, Registration, Invocation), AppError> {
+        let invocation = Invocation::new(self.external.configuration, credentials)
+            .map_err(failure)?
+            .with_executable_pin(&self.registration.sha256)
+            .map_err(failure)?;
+        let invocation = if let Some(network) = self.network {
+            invocation.with_network(network).map_err(failure)?
+        } else {
+            invocation
+        };
+        Ok((self.executable, self.registration, invocation))
+    }
+}
+fn resolver_contexts(
+    external: &ExternalConfig,
+    path: &Path,
+    instance: &str,
+) -> Result<BTreeMap<String, crate::remote_secrets::Prepared>, AppError> {
+    external
+        .credential_resolvers
+        .iter()
+        .map(|(name, resolver)| {
+            let network = resolver
+                .network()
+                .map(|settings| network::load(settings, path))
+                .transpose()?;
+            let prepared =
+                crate::remote_secrets::Prepared::new(resolver, instance, network.as_ref())?;
+            Ok((name.clone(), prepared))
+        })
+        .collect()
+}
 impl WorkspaceAccess {
     fn approvals(&self) -> Result<ApprovalStore, AppError> {
         let parent = self
@@ -118,6 +161,8 @@ impl WorkspaceAccess {
             network::load(settings, &path)
                 .map_err(|error| error.diagnostic(Code::NetworkContextInvalid))?;
         }
+        // Validate every approved resolver transport before any bootstrap can be touched.
+        let _ = resolver_contexts(external_config(provider)?, &path, id)?;
         // Only reviewed inputs that affect this instance belong in its approval.
         // Keep relevant identity mappings/authority because they change how its
         // observations are interpreted, even though they are not sent to the child.
@@ -173,6 +218,16 @@ impl WorkspaceAccess {
         // A negotiated context must be visible before the user approves it.
         if external.discovery_protocol == permesh_config::DiscoveryProtocol::NegotiatedV1 {
             result["discovery_protocol"] = serde_json::json!("negotiated_v1");
+        }
+        if !external.credential_resolvers.is_empty() {
+            result["credential_resolvers"] = serde_json::to_value(
+                external
+                    .credential_resolvers
+                    .iter()
+                    .map(|(name, resolver)| (name, ResolverReview::from(resolver)))
+                    .collect::<BTreeMap<_, _>>(),
+            )
+            .map_err(|_| AppError::input("Cannot format credential resolver review"))?;
         }
         if let Some(network) = &external.network {
             result["network"] = serde_json::to_value(network::NetworkReview::from(network))
@@ -241,15 +296,13 @@ impl WorkspaceAccess {
             .map_err(|_| approval_required())?;
         Ok((executable, registration))
     }
-    fn prepare(
+    fn prepare_context(
         &self,
         config: &Config,
         path: &Path,
         provider: &ProviderConfig,
-    ) -> Result<(PathBuf, Registration, Invocation), AppError> {
+    ) -> Result<PreparedContext, AppError> {
         let actual = selected(config, &provider.id)?;
-        // Bind the selected invocation to the same selected configuration being
-        // fingerprinted, even if a caller accidentally passes a stale clone.
         if serde_json::to_value(actual)
             .map_err(|_| AppError::input("Cannot validate provider configuration"))?
             != serde_json::to_value(provider)
@@ -258,36 +311,41 @@ impl WorkspaceAccess {
             return Err(approval_required());
         }
         let (executable, registration) = self.authorize(config, path, &provider.id)?;
-        // This is deliberately the first credential-resolution point. Invalid,
-        // cloned, revoked, or edited workspaces cannot touch env/keychain values.
         let external = external_config(actual)?;
+        let path = workspace_path(path)?;
         let network = external
             .network
             .as_ref()
             .map(|settings| {
-                network::load(settings, &workspace_path(path)?)
-                    .map_err(|error| error.diagnostic(Code::NetworkContextInvalid))
+                network::load(settings, &path)
+                    .map_err(|e| e.diagnostic(Code::NetworkContextInvalid))
             })
             .transpose()?;
+        let resolvers = resolver_contexts(external, &path, &provider.id)?;
+        Ok(PreparedContext {
+            executable,
+            registration,
+            external: external.clone(),
+            network,
+            resolvers,
+        })
+    }
+    #[cfg(test)]
+    fn prepare(
+        &self,
+        config: &Config,
+        path: &Path,
+        provider: &ProviderConfig,
+    ) -> Result<(PathBuf, Registration, Invocation), AppError> {
+        let context = self.prepare_context(config, path, provider)?;
         let mut credentials = BTreeMap::new();
-        for (name, value) in &external.credentials {
-            let reference = SecretRef::parse(value).map_err(|_| {
-                AppError::input("Invalid external credential reference")
-                    .diagnostic(Code::InvalidConfiguration)
-            })?;
-            let secret = SecretResolver.resolve(&reference).map_err(|_| AppError::new(3,"External credential unavailable; set its configured environment variable or use auth login for the named slot").diagnostic(Code::CredentialUnavailable))?;
+        for (name, value) in &context.external.credentials {
+            let reference = SecretRef::parse(value)
+                .map_err(|_| AppError::input("Invalid external credential reference"))?;
+            let secret=SecretResolver.resolve(&reference).map_err(|_|AppError::new(3,"External credential unavailable; set its configured environment variable or use auth login for the named slot").diagnostic(Code::CredentialUnavailable))?;
             credentials.insert(name.clone(), secret);
         }
-        let invocation = Invocation::new(external.configuration.clone(), credentials)
-            .map_err(failure)?
-            .with_executable_pin(&registration.sha256)
-            .map_err(failure)?;
-        let invocation = if let Some(network) = network {
-            invocation.with_network(network).map_err(failure)?
-        } else {
-            invocation
-        };
-        Ok((executable, registration, invocation))
+        context.finish(credentials)
     }
 }
 
@@ -315,15 +373,70 @@ pub(crate) fn revoke(path: &Path, id: &str) -> Result<Outcome, AppError> {
     }
     .revoke(path, id)
 }
-pub(crate) fn prepare(
+pub(crate) async fn prepare_async(
     config: &Config,
     path: &Path,
     provider: &ProviderConfig,
+    pool: &crate::blocking::BlockingPool,
+    cancel: &crate::cancellation::Cancellation,
 ) -> Result<(PathBuf, Registration, Invocation), AppError> {
-    WorkspaceAccess {
-        root: storage_root()?,
+    if cancel.is_cancelled() {
+        return Err(AppError::new(130, "Cancelled"));
     }
-    .prepare(config, path, provider)
+    let config = config.clone();
+    let path = path.to_owned();
+    let provider = provider.clone();
+    let context = pool
+        .run(move || {
+            WorkspaceAccess {
+                root: storage_root()?,
+            }
+            .prepare_context(&config, &path, &provider)
+        })
+        .await??;
+    let mut credentials = BTreeMap::new();
+    let mut expiries = Vec::new();
+    for (name, value) in &context.external.credentials {
+        if cancel.is_cancelled() {
+            return Err(AppError::new(130, "Cancelled"));
+        }
+        let reference = SecretRef::parse(value)
+            .map_err(|_| AppError::input("Invalid external credential reference"))?;
+        let secret = if let SecretRef::Remote { name, .. } = &reference {
+            let resolver = context
+                .resolvers
+                .get(name)
+                .ok_or_else(|| AppError::input("Missing approved credential resolver"))?
+                .clone();
+            let resolved = resolver.resolve(pool, cancel).await?;
+            if resolved.version == 0 {
+                return Err(AppError::new(
+                    3,
+                    "Remote credential version metadata is invalid",
+                ));
+            }
+            if let Some(expiry) = resolved.expires_at {
+                expiries.push(expiry);
+            }
+            resolved.secret
+        } else {
+            pool.run(move||SecretResolver.resolve(&reference)).await?.map_err(|_|AppError::new(3,"External credential unavailable; set its explicit environment or keychain reference").diagnostic(Code::CredentialUnavailable))?
+        };
+        credentials.insert(name.clone(), secret);
+    }
+    if cancel.is_cancelled() {
+        return Err(AppError::new(130, "Cancelled"));
+    }
+    if expiries
+        .iter()
+        .any(|expiry| *expiry <= time::OffsetDateTime::now_utc())
+    {
+        return Err(
+            AppError::new(3, "Remote credential expired before provider invocation")
+                .diagnostic(Code::CredentialUnavailable),
+        );
+    }
+    context.finish(credentials)
 }
 /// Verify binary and the provider-scoped workspace approval without resolving credentials.
 pub(crate) fn authorize(
@@ -371,6 +484,62 @@ mod tests {
             "version":1,"organization":{"name":"test"},"providers":[{"id":"instance","type":"external","external":{"provider":"fixture","sha256":sha256,"configuration":{"endpoint":"example"},"credentials":{"token":"env://PERMESH_APPROVAL_TEST_UNAVAILABLE_CREDENTIAL_193756"}}}]
         }))?;
         Ok((temporary, WorkspaceAccess { root }, config, path))
+    }
+    #[test]
+    fn remote_resolvers_are_reviewed_and_approved_before_bootstrap_and_changes_invalidate()
+    -> TestResult {
+        let (_temporary, access, mut config, path) = setup(&[])?;
+        let external = config.providers[0].external.as_mut().ok_or("external")?;
+        external
+            .credentials
+            .insert("token".into(), "vault://named".into());
+        external.credential_resolvers.insert("named".into(),serde_json::from_value(serde_json::json!({"version":1,"type":"vault_kv2","origin":"https://unreachable.invalid","mount":"secret","path":"providers/api","field":"token","bootstrap":"env://PERMESH_ABSENT_BOOTSTRAP_937812"}))?);
+        let missing = access
+            .prepare_context(&config, &path, &config.providers[0])
+            .err()
+            .ok_or("approval should be required")?;
+        assert_eq!(missing.diagnostic, Some(Code::ApprovalMissingOrStale));
+        let review = access
+            .review(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        assert_eq!(
+            review.report.result["credential_resolvers"]["named"]["origin"],
+            "https://unreachable.invalid"
+        );
+        assert_eq!(
+            review.report.result["credential_resolvers"]["named"]["bootstrap_reference"],
+            "env://PERMESH_ABSENT_BOOTSTRAP_937812"
+        );
+        let fingerprint = review.report.result["fingerprint"]
+            .as_str()
+            .ok_or("fingerprint")?;
+        access
+            .approve(&config, &path, "instance", fingerprint, true)
+            .map_err(|e| e.message)?;
+        // Preparing the reviewed transport does not read the deliberately absent bootstrap.
+        let ready = access
+            .prepare_context(&config, &path, &config.providers[0])
+            .map_err(|e| e.message)?;
+        assert_eq!(ready.resolvers.len(), 1);
+        for field in ["origin", "path", "field", "bootstrap", "secret_version"] {
+            let mut changed = config.clone();
+            let ext = changed.providers[0].external.as_mut().ok_or("external")?;
+            let mut declaration = serde_json::to_value(&ext.credential_resolvers["named"])?;
+            declaration[field] = match field {
+                "origin" => serde_json::json!("https://another.invalid"),
+                "secret_version" => serde_json::json!(2),
+                "bootstrap" => serde_json::json!("env://OTHER_BOOTSTRAP"),
+                _ => serde_json::json!("different"),
+            };
+            ext.credential_resolvers
+                .insert("named".into(), serde_json::from_value(declaration)?);
+            let stale = access
+                .prepare_context(&changed, &path, &changed.providers[0])
+                .err()
+                .ok_or("changed resolver needs approval")?;
+            assert_eq!(stale.diagnostic, Some(Code::ApprovalMissingOrStale));
+        }
+        Ok(())
     }
     #[test]
     fn network_ca_pin_is_reviewed_and_rechecked_before_secret_resolution() -> TestResult {
@@ -721,5 +890,81 @@ mod tests {
     }
     mod portable {
         include!("external_portable_tests.rs");
+    }
+}
+
+/// Versioned CLI review fields independent of configuration serialization.
+#[derive(serde::Serialize)]
+struct ResolverReview<'a> {
+    schema_version: u32,
+    backend: &'static str,
+    origin: &'a str,
+    bootstrap_reference: &'a str,
+    field: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vault: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    item: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mount: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    secret_version: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    network: Option<network::NetworkReview<'a>>,
+}
+impl<'a> From<&'a permesh_config::CredentialResolver> for ResolverReview<'a> {
+    fn from(value: &'a permesh_config::CredentialResolver) -> Self {
+        use permesh_config::CredentialResolver::*;
+        let (backend, vault, item, mount, path, secret_version) = match value {
+            OnePasswordConnect { vault, item, .. } => (
+                "1password_connect",
+                Some(vault.as_str()),
+                Some(item.as_str()),
+                None,
+                None,
+                None,
+            ),
+            VaultKv2 {
+                mount,
+                path,
+                secret_version,
+                ..
+            } => (
+                "vault_kv2",
+                None,
+                None,
+                Some(mount.as_str()),
+                Some(path.as_str()),
+                *secret_version,
+            ),
+            OpenBaoKv2 {
+                mount,
+                path,
+                secret_version,
+                ..
+            } => (
+                "openbao_kv2",
+                None,
+                None,
+                Some(mount.as_str()),
+                Some(path.as_str()),
+                *secret_version,
+            ),
+        };
+        Self {
+            schema_version: 1,
+            backend,
+            origin: value.origin(),
+            bootstrap_reference: value.bootstrap(),
+            field: value.field(),
+            vault,
+            item,
+            mount,
+            path,
+            secret_version,
+            network: value.network().map(network::NetworkReview::from),
+        }
     }
 }

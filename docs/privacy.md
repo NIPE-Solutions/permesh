@@ -2,7 +2,7 @@
 
 Permesh is designed to run locally without a backend, account registration, telemetry, background update checks, remote configuration, or persistent access database. Demo data is synthetic. Configured real providers require network requests to their APIs; those providers can log the token identity, request metadata, client IP address, and timing according to their own policies.
 
-Configuration stores provider settings and secret references. Environment and native credential stores hold secret values outside shared YAML. During collection, resolved credentials and access metadata exist in process memory. Redacted formatting and zeroization reduce accidental disclosure; they do not protect against a compromised operating system, debugger, swap, crash dump, or malicious dependency.
+Configuration stores provider settings and secret references. Environment, native credential stores and explicitly selected remote stores hold secret values outside shared YAML. During collection, resolved credentials and access metadata exist in process memory. Redacted formatting and zeroization reduce accidental disclosure; they do not protect against a compromised operating system, debugger, swap, crash dump, or malicious dependency.
 
 Human and JSON results can include identities, memberships, repository names, permissions, and access paths. Treat them as sensitive organizational data. Permesh does not provide a report vault or retention service. Shell redirection, terminal scrollback, CI logging, screen recording, backups, and downstream tools determine who can read saved output and how long it remains available. File export is future functionality; stdout is under the caller's control.
 
@@ -41,3 +41,25 @@ and references in the workspace. Setup does not read or write the credential
 store. Answer files must contain nonsecret settings and references; arbitrary
 text fields are not a secret vault. The trusted binary still runs as your user
 and can access resources independently of the host-supplied protocol context.
+
+## Explicit remote credential reads
+
+An approved provider operation may first contact a separately configured
+1Password Connect, Vault KV v2 or OpenBao KV v2 HTTPS origin. The host issues an
+exact read-only GET after checking native executable trust, workspace approval and
+resolver network settings. Review discloses the origin, item/path, field,
+bootstrap reference and any explicit proxy or pinned CA settings. Redirects,
+ambient proxy inheritance, secret enumeration and fallback destinations are not
+allowed. Store operators can log token identity, the exact read locator, network
+metadata and timing under their own policies.
+
+Connect returns the whole selected item and KV v2 the whole object at the selected
+path; unrelated fields therefore temporarily reach host memory. Only the exact
+selected string is delivered to the approved provider. Bootstrap values remain
+host-side, with full-token reflection rejected before delivery. Owned response
+buffers and decoded secret strings are zeroizing; dependency and OS copies remain
+outside that guarantee. Raw responses, resolved values and bootstrap tokens do not
+enter CLI reports or approval records. There is no global secret cache or remote
+store mutation. Configuration, listing and remote auth status do not contact the
+store or resolve its bootstrap. See [remote credential contracts and qualification
+limits](remote-credentials.md).

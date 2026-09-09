@@ -78,6 +78,48 @@ pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<
                 }
                 writeln!(out)?;
             }
+            if let Some(resolvers) = result["credential_resolvers"].as_object() {
+                writeln!(out, "Remote credential resolvers")?;
+                for (name, resolver) in resolvers {
+                    writeln!(out, "  {}", safe(name))?;
+                    for (key, label) in [
+                        ("backend", "Backend"),
+                        ("origin", "HTTPS origin"),
+                        ("vault", "Vault ID"),
+                        ("item", "Item ID"),
+                        ("mount", "KV mount"),
+                        ("path", "KV path"),
+                        ("field", "Exact field"),
+                        ("bootstrap_reference", "Bootstrap reference"),
+                    ] {
+                        if let Some(value) = resolver[key].as_str() {
+                            writeln!(out, "    {label}: {}", safe(value))?;
+                        }
+                    }
+                    if let Some(version) = resolver["secret_version"].as_u64() {
+                        writeln!(out, "    Secret version: {version}")?;
+                    }
+                    if let Some(proxy) = resolver["network"]["https_proxy"].as_str() {
+                        writeln!(out, "    HTTPS proxy: {}", safe(proxy))?;
+                    }
+                    if let Some(entries) = resolver["network"]["no_proxy"].as_array() {
+                        for entry in entries {
+                            if let Some(value) = entry.as_str() {
+                                writeln!(out, "    Proxy bypass: {}", safe(value))?;
+                            }
+                        }
+                    }
+                    for (key, label) in [("path", "CA file"), ("sha256", "CA SHA-256")] {
+                        if let Some(value) = resolver["network"]["ca_bundle"][key].as_str() {
+                            writeln!(out, "    {label}: {}", safe(value))?;
+                        }
+                    }
+                }
+                writeln!(
+                    out,
+                    "  Whole item or KV object is fetched; only the exact field is delivered.\n"
+                )?;
+            }
             if !result["network"].is_null() {
                 writeln!(out, "Network settings")?;
                 let formatted =
