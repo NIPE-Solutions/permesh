@@ -45,3 +45,50 @@ returning data. Missing lifecycle/evidence dimensions, cycles, cross-instance
 parents, unknown fields and unnegotiated records fail closed. Structured diagnostic
 codes are validated but not displayed: syntactic restrictions alone cannot prove
 that provider-controlled text is not a secret.
+
+## Explicit networking and shared pins
+
+Network policy is instance-scoped approved input, never inherited shell state.
+The host validates bounded proxy/bypass syntax and reads a workspace-relative,
+digest-pinned public CA bundle before credential resolution. It delivers checked
+bytes rather than a mutable path. The negotiated `network_v1` feature must be
+acknowledged before invocation data is sent; unsupported peers never trigger a
+direct-network fallback. TLS consumers parse certificate DER, retain hostname
+verification and augment existing trusted roots. A configured proxy or CA changes
+the network trust boundary and belongs in the same configuration review as
+credential references. Approved native code is still capable of ignoring policy;
+transport configuration is not a sandbox.
+
+A portable `sha256_by_target` map is shared configuration, not a trust record.
+The running CLI selects one exact native digest; missing entries fail before
+credentials, and mutable registry selection does not override it. The complete
+map and selected target/digest bind instance approval. Guided catalog grouping
+uses one exact version with consistent protocol/capability metadata. Only the
+native artifact is downloaded and locally trusted. Catalog metadata does not
+verify a foreign executable on behalf of other administrators or authenticate a
+publisher signature. Updating packages does not update workspace pins.
+
+Synthetic coverage includes unknown/duplicate protocol features, missing feature
+acknowledgement, credential withholding, CA substitution and path escape,
+malformed/private-key PEM, real TLS trust/hostname rejection, proxy bypass,
+foreign/native pin changes, missing native targets, catalog contract disagreement,
+and configuration changes during consent. Actual tenant permissions, enterprise
+proxy deployments and release artifacts still require separate qualification.
+
+## Verification immediately before launch
+
+Production CLI entrypoints pass the verified registration digest into a final
+protected-path, private-file and bounded native-byte hash check immediately before
+spawn. This catches deterministic replacement between preparation and launch,
+including credential-store delays. Setup/auth descriptions and expert discovery
+use the same pinned launch boundary. Host-only digest metadata is excluded from
+wire input. Already-observed cancellation prevents child creation; cancellation
+arriving after the final poll remains subject to normal process cleanup.
+
+Path-based spawning still leaves an OS-level race after verification. Rehashing
+is not atomic executable-handle binding and cannot defeat a hostile same-user
+process. Symlink/reparse/path checks, protected storage and explicit trust reduce
+other attack surfaces but do not justify a stronger claim. The synchronous hash
+is bounded by the existing executable-size limit; filesystem IO itself cannot be
+cancelled. Tests should prove deterministic prelaunch substitution rejection and
+absence of startup side effects, not claim to prove impossible race freedom.

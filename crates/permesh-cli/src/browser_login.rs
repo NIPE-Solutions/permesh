@@ -124,7 +124,16 @@ pub(crate) async fn run(
     let instance = id.to_owned();
     let authorized = blocking.run(move || external_workspace::authorize(&owned, &file, &instance));
     let (executable, registration) = tokio::select! {biased;()=cancel.cancelled()=>return Err(failure(FlowError::Cancelled)),result=authorized=>result??};
-    let spec=permesh_provider_external::host::describe_auth(&executable,&registration.id,id,&registration.capabilities,cancel.cancelled()).await.map_err(|_|if cancel.is_cancelled(){failure(FlowError::Cancelled)}else{AppError::input("This approved provider did not return a valid browser authentication declaration. Check provider browser-login support.")})?;
+    let spec = permesh_provider_external::host::describe_auth_pinned(
+        &executable,
+        &registration.id,
+        id,
+        &registration.capabilities,
+        &registration.sha256,
+        cancel.cancelled(),
+    )
+    .await
+    .map_err(crate::external::failure)?;
     let settings = settings(config, id, &spec)?;
     let secret = if let Some(reference) = settings.client_secret {
         let resolve = blocking.run(move || SecretResolver.resolve(&reference));

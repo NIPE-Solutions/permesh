@@ -2,6 +2,7 @@
 use crate::{
     error::AppError,
     external::{failure, storage_root},
+    provider_diagnostics::Code,
     report::Outcome,
 };
 use permesh_config::{Config, ExternalConfig, ProviderConfig, ProviderKind};
@@ -29,17 +30,20 @@ fn workspace_path(path: &Path) -> Result<PathBuf, AppError> {
 }
 fn external_config(provider: &ProviderConfig) -> Result<&ExternalConfig, AppError> {
     if provider.kind != ProviderKind::External {
-        return Err(AppError::input(
-            "This action requires an external provider instance",
-        ));
+        return Err(
+            AppError::input("This action requires an external provider instance")
+                .diagnostic(Code::InvalidConfiguration),
+        );
     }
-    provider
-        .external
-        .as_ref()
-        .ok_or_else(|| AppError::input("External provider configuration is missing"))
+    provider.external.as_ref().ok_or_else(|| {
+        AppError::input("External provider configuration is missing")
+            .diagnostic(Code::InvalidConfiguration)
+    })
 }
 fn selected<'a>(config: &'a Config, id: &str) -> Result<&'a ProviderConfig, AppError> {
-    config.validate()?;
+    config
+        .validate()
+        .map_err(|error| AppError::from(error).diagnostic(Code::InvalidConfiguration))?;
     config
         .providers
         .iter()
@@ -49,30 +53,42 @@ fn selected<'a>(config: &'a Config, id: &str) -> Result<&'a ProviderConfig, AppE
 fn approval_required() -> AppError {
     AppError::input(
         "Workspace external provider approval is missing or stale; run permesh provider external review, then approve its fingerprint with --accept-risk",
-    )
+    ).diagnostic(Code::ApprovalMissingOrStale)
 }
+fn trust_failure(error: permesh_provider_external::ExternalError) -> AppError {
+    let code = if matches!(error, permesh_provider_external::ExternalError::Storage) {
+        Code::StorageUnavailable
+    } else {
+        Code::BinaryUntrustedOrChanged
+    };
+    failure(error).diagnostic(code)
+}
+
 impl WorkspaceAccess {
     fn approvals(&self) -> Result<ApprovalStore, AppError> {
         let parent = self
             .root
             .parent()
             .ok_or_else(|| AppError::input("Cannot locate workspace approval storage"))?;
-        ApprovalStore::new(parent.join("workspace-approvals")).map_err(failure)
+        ApprovalStore::new(parent.join("workspace-approvals"))
+            .map_err(|error| failure(error).diagnostic(Code::StorageUnavailable))
     }
     fn registration(
         &self,
         provider: &ProviderConfig,
     ) -> Result<(Registry, Registration), AppError> {
         let external = external_config(provider)?;
-        let digest = external.digest_for_target(permesh_provider_sdk::target::native_target())?;
-        let registry = Registry::new(self.root.clone()).map_err(failure)?;
+        let digest = external
+            .digest_for_target(permesh_provider_sdk::target::native_target())
+            .map_err(|error| AppError::from(error).diagnostic(Code::TargetPinUnavailable))?;
+        let registry = Registry::new(self.root.clone()).map_err(trust_failure)?;
         let registration = registry
             .load_pinned(&external.provider, digest)
-            .map_err(failure)?;
+            .map_err(trust_failure)?;
         if registration.sha256 != digest {
             return Err(AppError::input(
                 "External provider digest pin does not match its local registration; review and update the explicit pin",
-            ));
+            ).diagnostic(Code::BinaryUntrustedOrChanged));
         }
         Ok((registry, registration))
     }
@@ -93,12 +109,14 @@ impl WorkspaceAccess {
         {
             return Err(AppError::input(
                 "External identity sources require the registered identities capability",
-            ));
+            )
+            .diagnostic(Code::InvalidConfiguration));
         }
-        let executable = registry.verify(&registration).map_err(failure)?;
+        let executable = registry.verify(&registration).map_err(trust_failure)?;
         let path = workspace_path(path)?;
         if let Some(settings) = &external_config(provider)?.network {
-            network::load(settings, &path)?;
+            network::load(settings, &path)
+                .map_err(|error| error.diagnostic(Code::NetworkContextInvalid))?;
         }
         // Only reviewed inputs that affect this instance belong in its approval.
         // Keep relevant identity mappings/authority because they change how its
@@ -246,17 +264,24 @@ impl WorkspaceAccess {
         let network = external
             .network
             .as_ref()
-            .map(|settings| network::load(settings, &workspace_path(path)?))
+            .map(|settings| {
+                network::load(settings, &workspace_path(path)?)
+                    .map_err(|error| error.diagnostic(Code::NetworkContextInvalid))
+            })
             .transpose()?;
         let mut credentials = BTreeMap::new();
         for (name, value) in &external.credentials {
-            let reference = SecretRef::parse(value)
-                .map_err(|_| AppError::input("Invalid external credential reference"))?;
-            let secret = SecretResolver.resolve(&reference).map_err(|_| AppError::new(3,"External credential unavailable; set its configured environment variable or use auth login for the named slot"))?;
+            let reference = SecretRef::parse(value).map_err(|_| {
+                AppError::input("Invalid external credential reference")
+                    .diagnostic(Code::InvalidConfiguration)
+            })?;
+            let secret = SecretResolver.resolve(&reference).map_err(|_| AppError::new(3,"External credential unavailable; set its configured environment variable or use auth login for the named slot").diagnostic(Code::CredentialUnavailable))?;
             credentials.insert(name.clone(), secret);
         }
-        let invocation =
-            Invocation::new(external.configuration.clone(), credentials).map_err(failure)?;
+        let invocation = Invocation::new(external.configuration.clone(), credentials)
+            .map_err(failure)?
+            .with_executable_pin(&registration.sha256)
+            .map_err(failure)?;
         let invocation = if let Some(network) = network {
             invocation.with_network(network).map_err(failure)?
         } else {
@@ -372,6 +397,7 @@ mod tests {
             .err()
             .ok_or("expected no approval")?;
         assert!(error.message.contains("approval"));
+        assert_eq!(error.diagnostic, Some(Code::ApprovalMissingOrStale));
         let review = access
             .review(&config, &path, "instance")
             .map_err(|e| e.message)?;
@@ -389,12 +415,17 @@ mod tests {
             .err()
             .ok_or("expected missing credential")?;
         assert!(credential_error.message.contains("credential unavailable"));
+        assert_eq!(
+            credential_error.diagnostic,
+            Some(Code::CredentialUnavailable)
+        );
         std::fs::write(&ca_path, pem.replace("YWJj", "ZGVm"))?;
         let changed = access
             .prepare(&config, &path, &config.providers[0])
             .err()
             .ok_or("expected pin rejection")?;
         assert!(changed.message.contains("CA bundle"));
+        assert_eq!(changed.diagnostic, Some(Code::NetworkContextInvalid));
         assert!(!changed.message.contains("credential unavailable"));
         assert!(access.review(&config, &path, "instance").is_err());
         std::fs::write(&ca_path, pem)?;

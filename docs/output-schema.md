@@ -208,3 +208,24 @@ fields directly in `result`; its existing `sha256` still identifies the native
 executable. The map uses target strings as keys and executable SHA-256 strings
 as values. Absence means the historical scalar-pin workflow. These fields do not
 imply that foreign artifacts were downloaded, verified locally or trusted.
+
+## Detailed doctor diagnostics
+
+`doctor --details --json` adds `result.diagnostics_version: 1` and sorted
+`result.diagnostics` rows with `instance`, `stage`, `code`, `message` and `next`.
+Stages and codes are finite CLI-owned values. Messages and remediation are
+curated locally and never contain arbitrary provider error payloads. Default
+doctor/status results keep their existing shape. Diagnostic rows represent the
+first known failure or completed health result, not a claim that subsequent
+stages ran or that effective access was verified.
+
+Initial codes are `check_ok`, `visibility_limited`, `invalid_configuration`,
+`migration_required`, `target_pin_unavailable`, `binary_untrusted_or_changed`,
+`storage_unavailable`, `approval_missing_or_stale`, `network_context_invalid`,
+`credential_unavailable`, `executable_changed`, `spawn_failed`,
+`network_feature_unsupported`, `protocol_invalid`, `provider_failed`,
+`deadline_exceeded`, `diagnostic_limit_exceeded`, `cleanup_failed` and `cancelled`.
+Cancellation/internal failures may terminate the command before a detailed report
+is returned. Numeric exits remain the command-level outcome contract. Consumers
+should tolerate future additive codes and must not infer a remote authentication
+failure from a generic protocol or timeout code.

@@ -25,26 +25,28 @@ Nothing here declares the SDK or protocol stable.
 - Cross-platform CI, dependency audits, native archives and notices, checksums,
   target-bound dependency inventories and CLI provenance qualification.
 
-## Next hardening slices
+## Hardening source status
 
-1. **P1 — Enterprise networking:** explicit proxy/custom CA context, provider
-   feature negotiation and approval binding are implemented in the host. Qualify
-   official adapter support; custom endpoints, AWS transport and host browser
-   networking remain separate follow-ups. Child environments stay sanitized.
-2. **P1 — Mixed-platform teams:** explicit target-to-digest maps and guided
-   `--portable` setup are implemented, preserving scalar pins. Each machine
-   selects its own reviewed digest and establishes local trust and approval.
-   Cross-platform qualification remains a merge gate.
-3. **P2 — Diagnostics and integrity:** clearer doctor/status stages and stable
-   provider diagnostic codes; further executable-substitution tests and reduced
-   verification/execution gaps. Document OS-level residual risk.
-4. **P0 — Final contract review:** review protocol/SDK, config, output schemas,
-   setup/auth operation negotiation and provider conformance together. Complete
-   the threat-model pass before declaring stability. The number of supported
-   operations must not drive protocol version increments.
+- **Enterprise networking:** approved proxy/custom CA context and `network_v1`
+  negotiation are implemented. GitHub, Google and Cloudflare adapters apply it
+  to their HTTP clients, including Google refresh. AWS transport, host browser
+  networking, custom endpoints and authenticated proxies remain unsupported.
+- **Mixed-platform teams:** explicit target-to-digest maps and guided `--portable`
+  exact-version setup are implemented. Each machine selects its reviewed native
+  digest and establishes local trust and approval; scalar pins remain compatible.
+- **Diagnostics and integrity:** optional `doctor --details` reports curated
+  stages from the existing health pass. All CLI launch paths recheck the trusted
+  executable pin before spawn and observe pre-cancellation. This narrows the
+  verification gap; it does not eliminate hostile same-user path races.
+- **Contract review:** independent domain/wire/output boundaries, evidence
+  semantics, feature negotiation and trust behavior have been reviewed together.
+  Protocol v1 remains draft. Setup/auth retain frozen legacy descriptions; future
+  compatible operations must not increment the protocol version.
 
-See the [architecture backlog](audits/architecture-hardening-backlog.md) for
-acceptance criteria and historical implementation evidence.
+See the [contract review](audits/hardening-contract-review.md) and
+[architecture backlog](audits/architecture-hardening-backlog.md) for scope,
+limitations and validation requirements. Source completion is distinct from
+artifact qualification, publication and live tenant acceptance.
 
 ## Release and adoption gates
 

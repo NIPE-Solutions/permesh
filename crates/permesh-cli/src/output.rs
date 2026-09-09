@@ -139,6 +139,20 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
             }
         }
     }
+    if let Some(rows) = result["diagnostics"].as_array() {
+        writeln!(out, "\nDiagnostic details")?;
+        for row in rows {
+            writeln!(
+                out,
+                "  {} [{} / {}]\n    {}\n    Next: {}",
+                safe(field(row, "instance")),
+                safe(field(row, "stage")),
+                safe(field(row, "code")),
+                safe(field(row, "message")),
+                safe(field(row, "next"))
+            )?;
+        }
+    }
     if !report.complete {
         writeln!(
             out,

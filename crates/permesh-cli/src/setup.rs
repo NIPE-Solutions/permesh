@@ -202,21 +202,16 @@ pub(crate) async fn execute(
         ));
     }
     // Await the supervisor even on cancellation; never drop its cleanup future.
-    let spec = host::describe(
+    let spec = host::describe_pinned(
         &executable,
         &registration.id,
         &id,
         &registration.capabilities,
+        &registration.sha256,
         cancellation.cancelled(),
     )
     .await
-    .map_err(|e| {
-        if matches!(e, permesh_provider_external::ExternalError::Cleanup) {
-            AppError::new(5, "External setup process cleanup failed")
-        } else {
-            failure(e)
-        }
-    })?;
+    .map_err(failure)?;
     if args.describe {
         // SetupSpec is an SDK-owned, independently versioned public boundary
         // contract; schema 1 deliberately embeds it rather than storage serde.

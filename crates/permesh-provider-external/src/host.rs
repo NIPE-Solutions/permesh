@@ -21,6 +21,10 @@ use tokio::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
+#[path = "host_pinned.rs"]
+mod pinned;
+pub use pinned::{describe_auth_pinned, describe_pinned, discover_pinned};
+
 const STDERR_LIMIT: usize = 64 * 1024;
 #[derive(Clone, Copy)]
 struct Deadlines {
@@ -108,6 +112,7 @@ async fn discover_with_deadlines(
             invocation: None,
             method: "discover",
             contract: Contract::Legacy(1),
+            expected_pin: None,
         },
         cancellation,
         deadlines,
@@ -184,6 +189,7 @@ async fn describe_with_deadlines(
             invocation: None,
             method: "describe",
             contract: Contract::Legacy(3),
+            expected_pin: None,
         },
         cancellation,
         deadlines,
@@ -210,6 +216,7 @@ pub async fn describe_auth(
             invocation: None,
             method: "describe_auth",
             contract: Contract::Legacy(4),
+            expected_pin: None,
         },
         cancellation,
         Deadlines::default(),
@@ -231,6 +238,7 @@ struct Exchange<'a, D> {
     invocation: Option<&'a Invocation>,
     method: &'static str,
     contract: Contract,
+    expected_pin: Option<&'a str>,
 }
 
 /// Discover using draft2; credentials are delivered only after identity/capability validation.
@@ -273,6 +281,7 @@ async fn configured_discovery(
             invocation: Some(invocation),
             method: "discover",
             contract: Contract::Legacy(2),
+            expected_pin: None,
         },
         cancellation,
         deadlines,
@@ -299,6 +308,7 @@ pub async fn check_configured(
             invocation: Some(invocation),
             method: "check",
             contract: Contract::Legacy(2),
+            expected_pin: None,
         },
         cancellation,
         Deadlines::default(),
@@ -375,6 +385,7 @@ async fn negotiated_discovery(
             invocation: Some(invocation),
             method: "discover",
             contract: Contract::Negotiated,
+            expected_pin: None,
         },
         cancellation,
         deadlines,
@@ -411,6 +422,7 @@ pub async fn check_negotiated(
             invocation: Some(invocation),
             method: "check",
             contract: Contract::Negotiated,
+            expected_pin: None,
         },
         cancellation,
         Deadlines::default(),
@@ -426,6 +438,12 @@ async fn supervise<D: Decoder>(
     cancellation: impl Future<Output = ()>,
     deadlines: Deadlines,
 ) -> Result<D::Output, ExternalError> {
+    tokio::pin!(cancellation);
+    tokio::select! {
+        biased;
+        () = &mut cancellation => return Err(ExternalError::Cancelled),
+        () = std::future::ready(()) => {},
+    }
     if let Some(invocation) = exchange_spec.invocation {
         invocation.validate_contract(exchange_spec.contract)?;
     }
@@ -444,6 +462,7 @@ async fn supervise_inner<D: Decoder>(
     cancellation: impl Future<Output = ()>,
     deadlines: Deadlines,
 ) -> Result<D::Output, ExternalError> {
+    tokio::pin!(cancellation);
     let contract = exchange_spec.contract;
     if !executable.is_absolute() {
         return Err(ExternalError::Input);
@@ -469,6 +488,21 @@ async fn supervise_inner<D: Decoder>(
     command.wrap(process_wrap::tokio::ProcessGroup::leader());
     #[cfg(windows)]
     command.wrap(process_wrap::tokio::JobObject);
+    let expected_pin = exchange_spec.expected_pin.or_else(|| {
+        exchange_spec
+            .invocation
+            .and_then(Invocation::executable_pin)
+    });
+    if let Some(expected) = expected_pin {
+        crate::trust::verify_executable_pin(executable, expected)?;
+    }
+    // The ready alternate guarantees this final cancellation poll cannot suspend.
+    // No asynchronous handoff separates the final hash, this poll and spawn.
+    tokio::select! {
+        biased;
+        () = &mut cancellation => return Err(ExternalError::Cancelled),
+        () = std::future::ready(()) => {},
+    }
     let mut child = Supervised(
         command.spawn().map_err(|error| {
             #[cfg(test)]
@@ -534,7 +568,6 @@ async fn supervise_inner<D: Decoder>(
             Ok(snapshot)
         };
         tokio::pin!(operation);
-        tokio::pin!(cancellation);
         tokio::select! {
             biased;
             () = &mut cancellation => Err(ExternalError::Cancelled),
@@ -656,6 +689,7 @@ async fn exchange<D: Decoder>(
         invocation,
         method,
         contract,
+        expected_pin: _,
     } = spec;
     let mut frame = Zeroizing::new(Vec::new());
     let mut chunk = [0u8; 8192];

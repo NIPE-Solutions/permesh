@@ -44,7 +44,7 @@ domain field needs an explicit mapping decision; it must not appear in an old
 wire draft merely because a domain struct gains a serde field. Existing
 providers do not need to change their bytes or configuration for this extraction.
 
-## Negotiated negotiated protocol 1
+## Negotiated protocol 1
 
 Protocol versions describe wire compatibility. Capabilities describe supported
 records and operations. Negotiated protocol 1 now carries

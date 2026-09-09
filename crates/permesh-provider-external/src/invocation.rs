@@ -37,10 +37,14 @@ impl Serialize for Contract {
     }
 }
 
+/// Bounded operation inputs. CLI callers must attach the verified registration
+/// digest with `with_executable_pin` for the final managed-file launch check.
+/// Unpinned low-level callers retain the historical path-based behavior.
 pub struct Invocation {
     configuration: BTreeMap<String, Value>,
     credentials: BTreeMap<String, Secret>,
     network: Option<NetworkContext>,
+    executable_pin: Option<String>,
 }
 impl fmt::Debug for Invocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -77,7 +81,20 @@ impl Invocation {
             configuration,
             credentials,
             network: None,
+            executable_pin: None,
         })
+    }
+    /// Bind the managed executable digest for a final pre-launch integrity check.
+    /// This host-only metadata is never included in provider protocol requests.
+    pub fn with_executable_pin(mut self, expected: &str) -> Result<Self, ExternalError> {
+        if !crate::trust::valid_digest(expected) {
+            return Err(ExternalError::Input);
+        }
+        self.executable_pin = Some(expected.to_owned());
+        Ok(self)
+    }
+    pub(crate) fn executable_pin(&self) -> Option<&str> {
+        self.executable_pin.as_deref()
     }
     /// Attach validated, explicit network policy to negotiated operations only.
     pub fn with_network(mut self, network: NetworkContext) -> Result<Self, ExternalError> {
@@ -282,6 +299,25 @@ mod tests {
             assert_eq!(request["credentials"]["token"], "SENTINEL");
         }
         assert_eq!(format!("{invocation:?}"), "Invocation([REDACTED])");
+    }
+    #[test]
+    fn executable_pin_is_validated_and_never_changes_wire_bytes_or_debug() {
+        for invalid in ["", "A", &"A".repeat(64), &"g".repeat(64), &"a".repeat(63)] {
+            assert!(invocation("SENTINEL").with_executable_pin(invalid).is_err());
+        }
+        let plain = invocation("SENTINEL");
+        let pinned = invocation("SENTINEL")
+            .with_executable_pin(&"a".repeat(64))
+            .unwrap();
+        for contract in [Contract::Legacy(2), Contract::Negotiated] {
+            for operation in ["check", "discover"] {
+                assert_eq!(
+                    plain.request(operation, contract).unwrap(),
+                    pinned.request(operation, contract).unwrap()
+                );
+            }
+        }
+        assert_eq!(format!("{pinned:?}"), "Invocation([REDACTED])");
     }
     #[test]
     fn configured_requests_reject_unsupported_versions_and_methods() {

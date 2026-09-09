@@ -28,6 +28,9 @@ fn hang() -> ! {
     }
 }
 fn main() {
+    if marker("record-startup").exists() {
+        fs::write(marker("started"), "started before reading stdin").unwrap();
+    }
     let args: Vec<_> = std::env::args_os().collect();
     if args.get(1).is_some_and(|arg| arg == "--capture-input") {
         io::copy(&mut io::stdin().lock(), &mut io::stdout().lock()).unwrap();

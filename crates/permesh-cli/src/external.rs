@@ -94,6 +94,7 @@ pub(crate) fn failure(error: ExternalError) -> AppError {
     let code = match error {
         ExternalError::Input | ExternalError::Trust | ExternalError::Storage => 2,
         ExternalError::Cancelled => 130,
+        ExternalError::Cleanup => 5,
         _ => 3,
     };
     AppError::new(code, error.to_string())
@@ -210,11 +211,12 @@ pub async fn run(
             .await?;
             let snapshot = {
                 let cancellation = tokio::sync::Notify::new();
-                let discover = host::discover(
+                let discover = host::discover_pinned(
                     &executable,
                     &registration.id,
                     &instance,
                     &registration.capabilities,
+                    &registration.sha256,
                     cancellation.notified(),
                 );
                 tokio::pin!(discover);

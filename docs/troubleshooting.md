@@ -20,3 +20,29 @@ Start with `permesh doctor`. It validates the loaded schema and secret reference
 `-v` adds a curated UTC observation window. It never enables raw headers or payload logging. `--json` produces a schema-versioned object suitable for CI. `--color never`, `NO_COLOR`, and `TERM=dumb` suppress styling; `TERM=dumb` also uses ASCII structural separators. Redirected output has no animations or ANSI by default.
 
 When filing a bug, remove identities, resource names, provider configuration and credentials. Provide tool version, OS, exit code and a minimal synthetic reproduction. Do not post raw access exports publicly.
+
+## Detailed doctor output
+
+Run `permesh doctor --details` for a curated explanation of each provider's
+first observed failure and the next local action. Use `--json` with it for
+versioned stage/code rows. This uses the same approved health check as ordinary
+doctor; it does not enumerate access or run a second provider probe.
+
+A missing native target pin stops before local credential access. Missing or
+changed binary trust requires inspecting and trusting the intended installation.
+A missing/stale approval requires reviewing and approving that instance's current
+fingerprint. Network validation failures require reviewing proxy settings and
+pinned CA bytes. Credential failures require configuring the declared environment
+reference or keychain slot. Permesh does not check secrets before approving an
+external execution context merely to improve a diagnostic report.
+
+A final launch-integrity failure means the executable no longer passes the
+trusted pin/path checks immediately before spawn. Investigate its installation
+before trusting it again. A protocol failure does not necessarily mean expired
+credentials: the host deliberately withholds raw remote errors. Check the
+configured discovery contract and compatible provider version. Network feature
+negotiation never falls back to direct connections.
+
+A successful health row does not prove complete discovery visibility. Review
+provider limitations and run the relevant query. Cleanup failure uses exit 5;
+investigate any remaining provider processes before retrying.

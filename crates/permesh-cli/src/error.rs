@@ -4,13 +4,20 @@ use serde::Serialize;
 pub struct AppError {
     pub code: u8,
     pub message: String,
+    #[serde(skip)]
+    pub diagnostic: Option<crate::provider_diagnostics::Code>,
 }
 impl AppError {
     pub fn new(code: u8, message: impl Into<String>) -> Self {
         Self {
             code,
             message: message.into(),
+            diagnostic: None,
         }
+    }
+    pub(crate) fn diagnostic(mut self, code: crate::provider_diagnostics::Code) -> Self {
+        self.diagnostic = Some(code);
+        self
     }
     pub fn input(message: impl Into<String>) -> Self {
         Self::new(2, message)
