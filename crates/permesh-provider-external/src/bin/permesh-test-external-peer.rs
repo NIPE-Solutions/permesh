@@ -47,7 +47,12 @@ fn main() {
     let request: serde_json::Value = serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap();
     let instance = request["instance"].as_str().unwrap();
     if request["protocol_version"] == 1 {
-        negotiated_peer(instance, request["operation"].as_str().unwrap(), &mut lines);
+        negotiated_peer(
+            instance,
+            request["operation"].as_str().unwrap(),
+            request.get("features"),
+            &mut lines,
+        );
         return;
     }
     if request["protocol"] == 4 {
@@ -476,6 +481,7 @@ fn describe_peer(instance: &str, lines: &mut impl Iterator<Item = io::Result<Str
 fn negotiated_peer(
     instance: &str,
     operation: &str,
+    features: Option<&serde_json::Value>,
     lines: &mut impl Iterator<Item = io::Result<String>>,
 ) {
     use serde_json::json;
@@ -518,6 +524,20 @@ fn negotiated_peer(
             .remove("protocol_version");
         handshake["protocol"] = json!(1);
     }
+    if instance.starts_with("network-") {
+        assert_eq!(features, Some(&json!(["network_v1"])));
+        match instance {
+            "network-ok" => handshake["features"] = json!(["network_v1"]),
+            "network-null" => handshake["features"] = json!(null),
+            "network-empty" => handshake["features"] = json!([]),
+            "network-duplicate" => handshake["features"] = json!(["network_v1", "network_v1"]),
+            "network-unknown" => handshake["features"] = json!(["unknown"]),
+            "network-unsupported" => {}
+            _ => panic!("unknown fixture"),
+        }
+    } else {
+        assert!(features.is_none());
+    }
     emit(handshake);
     let Some(Ok(line)) = lines.next() else {
         return;
@@ -529,7 +549,18 @@ fn negotiated_peer(
         fs::write(marker("delivered"), "operation received").unwrap();
         return;
     }
+    if instance.starts_with("network-") && instance != "network-ok" {
+        fs::write(marker("delivered"), "operation received").unwrap();
+        return;
+    }
     let request: serde_json::Value = serde_json::from_str(&line).unwrap();
+    if instance == "network-ok" {
+        assert_eq!(request["network"]["https_proxy"], "http://127.0.0.1:3128");
+        assert_eq!(request["network"]["no_proxy"], json!(["example.invalid"]));
+        fs::write(marker("delivered"), "network operation received").unwrap();
+    } else {
+        assert!(request.get("network").is_none());
+    }
     assert_eq!(request["protocol_version"], 1);
     assert!(request.get("protocol").is_none());
     assert_eq!(request["method"], operation);

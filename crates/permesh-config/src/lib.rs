@@ -2,8 +2,10 @@
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
 mod data;
 mod external;
+mod network;
 pub use data::{load_setup_answers, parse_setup_value};
 pub use external::{DiscoveryProtocol, ExternalConfig};
+pub use network::{CaBundle, NetworkConfig};
 use permesh_secrets::SecretRef;
 use serde::{Deserialize, Serialize};
 use std::{

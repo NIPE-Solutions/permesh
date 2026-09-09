@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! Private, bounded operation inputs. Resolved credentials are never ordinary serde values.
 use crate::ExternalError;
+use permesh_provider_sdk::network::NetworkContext;
 use permesh_secrets::Secret;
 use serde::{Serialize, Serializer, ser::SerializeMap};
 use serde_json::Value;
@@ -39,6 +40,7 @@ impl Serialize for Contract {
 pub struct Invocation {
     configuration: BTreeMap<String, Value>,
     credentials: BTreeMap<String, Secret>,
+    network: Option<NetworkContext>,
 }
 impl fmt::Debug for Invocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -74,7 +76,29 @@ impl Invocation {
         Ok(Self {
             configuration,
             credentials,
+            network: None,
         })
+    }
+    /// Attach validated, explicit network policy to negotiated operations only.
+    pub fn with_network(mut self, network: NetworkContext) -> Result<Self, ExternalError> {
+        network.validate().map_err(|_| ExternalError::Input)?;
+        self.network = Some(network);
+        Ok(self)
+    }
+    pub(crate) fn required_features(
+        &self,
+    ) -> &'static [permesh_provider_protocol::negotiated::Feature] {
+        if self.network.is_some() {
+            &[permesh_provider_protocol::negotiated::Feature::NetworkV1]
+        } else {
+            &[]
+        }
+    }
+    pub(crate) fn validate_contract(&self, contract: Contract) -> Result<(), ExternalError> {
+        if self.network.is_some() && !matches!(contract, Contract::Negotiated) {
+            return Err(ExternalError::Input);
+        }
+        Ok(())
     }
     pub(crate) fn request(
         &self,
@@ -86,6 +110,7 @@ impl Invocation {
         {
             return Err(ExternalError::Input);
         }
+        self.validate_contract(contract)?;
         #[derive(Serialize)]
         struct Request<'a> {
             #[serde(flatten)]
@@ -94,6 +119,8 @@ impl Invocation {
             method: &'static str,
             configuration: &'a BTreeMap<String, Value>,
             credentials: BorrowedCredentials<'a>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            network: Option<&'a NetworkContext>,
         }
         // Reserve the entire bound before any secret is written so reallocations
         // cannot leave old plaintext allocations behind. Drop zeroizes the buffer.
@@ -112,6 +139,7 @@ impl Invocation {
                 method,
                 configuration: &self.configuration,
                 credentials: BorrowedCredentials(&self.credentials),
+                network: self.network.as_ref(),
             },
         )
         .map_err(|_| ExternalError::Input)?;
@@ -225,6 +253,35 @@ mod tests {
             assert_eq!(request["id"], method);
             assert_eq!(request["credentials"]["token"], "SENTINEL-private");
         }
+    }
+    #[test]
+    fn network_context_is_validated_and_cannot_enter_legacy_requests() {
+        assert!(
+            invocation("SENTINEL")
+                .with_network(NetworkContext::default())
+                .is_err()
+        );
+        let context = NetworkContext {
+            https_proxy: Some("http://127.0.0.1:3128".into()),
+            no_proxy: vec![],
+            ca_bundle_pem: None,
+        };
+        let invocation = invocation("SENTINEL")
+            .with_network(context.clone())
+            .unwrap();
+        assert_eq!(
+            invocation.required_features(),
+            &[permesh_provider_protocol::negotiated::Feature::NetworkV1]
+        );
+        for method in ["check", "discover"] {
+            assert!(invocation.request(method, Contract::Legacy(2)).is_err());
+            let request: Value =
+                serde_json::from_slice(&invocation.request(method, Contract::Negotiated).unwrap())
+                    .unwrap();
+            assert_eq!(request["network"], serde_json::to_value(&context).unwrap());
+            assert_eq!(request["credentials"]["token"], "SENTINEL");
+        }
+        assert_eq!(format!("{invocation:?}"), "Invocation([REDACTED])");
     }
     #[test]
     fn configured_requests_reject_unsupported_versions_and_methods() {

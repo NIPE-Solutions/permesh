@@ -88,3 +88,14 @@ See [migration mappings](../migrations/domain-schema-2.md). Native provider SDK
 updates must explicitly adopt and qualify the negotiated records rather than
 silently dropping new semantics into a legacy projection. Official provider pins
 and published artifacts are not changed by host support.
+
+## Optional network feature
+
+Negotiated v1 requests may include `features: ["network_v1"]` when an approved
+network context is required. The provider acknowledges exactly that list in its
+handshake. Missing, null, duplicate, unknown or unsolicited feature lists fail
+closed. Existing no-feature request/response fixtures stay byte-compatible.
+Only after agreement may an invocation include a validated `network` context.
+Operation names and discovery record capabilities do not imply network support.
+See [network context](../networking.md). Old providers reject the optional request;
+the host does not downgrade or send credentials after rejection.

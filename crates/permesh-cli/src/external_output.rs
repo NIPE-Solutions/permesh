@@ -44,6 +44,15 @@ pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<
                 }
                 writeln!(out)?;
             }
+            if !result["network"].is_null() {
+                writeln!(out, "Network settings")?;
+                let formatted =
+                    serde_json::to_string_pretty(&result["network"]).map_err(io::Error::other)?;
+                for line in formatted.lines() {
+                    writeln!(out, "  {}", safe(line))?;
+                }
+                writeln!(out)?;
+            }
             writeln!(
                 out,
                 "To approve after review (use the same --config FILE if supplied):\n  permesh provider external approve {} --fingerprint {} --accept-risk\n",

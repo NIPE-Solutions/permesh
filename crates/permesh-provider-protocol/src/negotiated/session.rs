@@ -15,6 +15,7 @@ struct Session {
     expected: Option<Vec<Capability>>,
     capabilities: Option<Vec<Capability>>,
     operation: Operation,
+    required_features: Vec<super::Feature>,
     total: usize,
     completed: bool,
     error: Option<ProtocolError>,
@@ -25,6 +26,7 @@ impl Session {
         instance: &str,
         capabilities: Option<&[Capability]>,
         operation: Operation,
+        required_features: &[super::Feature],
     ) -> Result<Self, ProtocolError> {
         if !valid_name(provider) || !valid_name(instance) {
             return Err(ProtocolError::Provider);
@@ -32,11 +34,13 @@ impl Session {
         if capabilities.is_some_and(has_duplicates) {
             return Err(ProtocolError::Capability);
         }
+        super::validate_features(required_features)?;
         Ok(Self {
             provider: provider.to_owned(),
             expected: capabilities.map(<[Capability]>::to_vec),
             capabilities: None,
             operation,
+            required_features: required_features.to_vec(),
             total: 0,
             completed: false,
             error: None,
@@ -70,6 +74,7 @@ impl Session {
                     capabilities,
                     draft,
                     operations,
+                    features,
                 } => {
                     if provider != self.provider {
                         return Err(ProtocolError::Provider);
@@ -99,6 +104,14 @@ impl Session {
                         })
                     {
                         return Err(ProtocolError::Capability);
+                    }
+                    if features.as_ref().is_some_and(Vec::is_empty) {
+                        return Err(ProtocolError::Features);
+                    }
+                    let features = features.unwrap_or_default();
+                    super::validate_features(&features)?;
+                    if features != self.required_features {
+                        return Err(ProtocolError::Features);
                     }
                     self.capabilities = Some(capabilities);
                     Ok(None)
@@ -147,8 +160,24 @@ impl DiscoveryDecoder {
         instance: &str,
         capabilities: Option<&[Capability]>,
     ) -> Result<Self, ProtocolError> {
+        Self::with_required_features(provider, instance, capabilities, &[])
+    }
+    /// Require exactly these features before returning `Progress::Handshake`.
+    /// The default constructor accepts no unsolicited features.
+    pub fn with_required_features(
+        provider: &str,
+        instance: &str,
+        capabilities: Option<&[Capability]>,
+        features: &[super::Feature],
+    ) -> Result<Self, ProtocolError> {
         Ok(Self {
-            session: Session::new(provider, instance, capabilities, Operation::Discover)?,
+            session: Session::new(
+                provider,
+                instance,
+                capabilities,
+                Operation::Discover,
+                features,
+            )?,
             snapshot: Snapshot::new(instance),
             count: 0,
         })
@@ -245,8 +274,18 @@ impl HealthDecoder {
         instance: &str,
         capabilities: Option<&[Capability]>,
     ) -> Result<Self, ProtocolError> {
+        Self::with_required_features(provider, instance, capabilities, &[])
+    }
+    /// Require exactly these features before returning `Progress::Handshake`.
+    /// The default constructor accepts no unsolicited features.
+    pub fn with_required_features(
+        provider: &str,
+        instance: &str,
+        capabilities: Option<&[Capability]>,
+        features: &[super::Feature],
+    ) -> Result<Self, ProtocolError> {
         Ok(Self {
-            session: Session::new(provider, instance, capabilities, Operation::Check)?,
+            session: Session::new(provider, instance, capabilities, Operation::Check, features)?,
             health: None,
         })
     }

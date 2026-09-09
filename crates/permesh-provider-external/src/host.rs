@@ -354,10 +354,19 @@ async fn negotiated_discovery(
     cancellation: impl Future<Output = ()>,
     deadlines: Deadlines,
 ) -> Result<Snapshot, ExternalError> {
-    let decoder = negotiated::DiscoveryDecoder::new(provider, instance, Some(capabilities))
-        .map_err(|_| ExternalError::Input)?;
-    let handshake = negotiated::handshake_request(instance, negotiated::Operation::Discover)
-        .map_err(|_| ExternalError::Input)?;
+    let decoder = negotiated::DiscoveryDecoder::with_required_features(
+        provider,
+        instance,
+        Some(capabilities),
+        invocation.required_features(),
+    )
+    .map_err(|_| ExternalError::Input)?;
+    let handshake = negotiated::handshake_request_with_features(
+        instance,
+        negotiated::Operation::Discover,
+        invocation.required_features(),
+    )
+    .map_err(|_| ExternalError::Input)?;
     supervise(
         executable,
         Exchange {
@@ -381,10 +390,19 @@ pub async fn check_negotiated(
     invocation: &Invocation,
     cancellation: impl Future<Output = ()>,
 ) -> Result<Health, ExternalError> {
-    let decoder = negotiated::HealthDecoder::new(provider, instance, Some(capabilities))
-        .map_err(|_| ExternalError::Input)?;
-    let handshake = negotiated::handshake_request(instance, negotiated::Operation::Check)
-        .map_err(|_| ExternalError::Input)?;
+    let decoder = negotiated::HealthDecoder::with_required_features(
+        provider,
+        instance,
+        Some(capabilities),
+        invocation.required_features(),
+    )
+    .map_err(|_| ExternalError::Input)?;
+    let handshake = negotiated::handshake_request_with_features(
+        instance,
+        negotiated::Operation::Check,
+        invocation.required_features(),
+    )
+    .map_err(|_| ExternalError::Input)?;
     supervise(
         executable,
         Exchange {
@@ -408,6 +426,9 @@ async fn supervise<D: Decoder>(
     cancellation: impl Future<Output = ()>,
     deadlines: Deadlines,
 ) -> Result<D::Output, ExternalError> {
+    if let Some(invocation) = exchange_spec.invocation {
+        invocation.validate_contract(exchange_spec.contract)?;
+    }
     Box::pin(supervise_inner(
         executable,
         exchange_spec,
@@ -612,6 +633,16 @@ fn terminate(child: &mut dyn ChildWrapper) -> Result<(), ExternalError> {
     }
 }
 
+fn protocol_failure(negotiated: bool, invocation: Option<&Invocation>) -> ExternalError {
+    if !negotiated
+        && invocation.is_some_and(|invocation| !invocation.required_features().is_empty())
+    {
+        ExternalError::NetworkNegotiation
+    } else {
+        ExternalError::Protocol
+    }
+}
+
 async fn exchange<D: Decoder>(
     stdin: &mut Option<ChildStdin>,
     mut stdout: impl AsyncRead + Unpin,
@@ -633,12 +664,12 @@ async fn exchange<D: Decoder>(
         handshake_deadline,
         stdin
             .as_mut()
-            .ok_or(ExternalError::Protocol)?
+            .ok_or(protocol_failure(negotiated, invocation))?
             .write_all(&handshake),
     )
     .await
     .map_err(|_| ExternalError::Timeout)?
-    .map_err(|_| ExternalError::Protocol)?;
+    .map_err(|_| protocol_failure(negotiated, invocation))?;
     loop {
         let read_limit = chunk
             .len()
@@ -650,29 +681,36 @@ async fn exchange<D: Decoder>(
                 .await
                 .map_err(|_| ExternalError::Timeout)?
         }
-        .map_err(|_| ExternalError::Protocol)?;
+        .map_err(|_| protocol_failure(negotiated, invocation))?;
         *total += length;
         if *total > MAX_TRANSCRIPT_BYTES {
-            return Err(ExternalError::Protocol);
+            return Err(protocol_failure(negotiated, invocation));
         }
         if length == 0 {
             if !frame.is_empty() {
-                return Err(ExternalError::Protocol);
+                return Err(protocol_failure(negotiated, invocation));
             }
-            return decoder.finish().map_err(|_| ExternalError::Protocol);
+            return decoder
+                .finish()
+                .map_err(|_| protocol_failure(negotiated, invocation));
         }
         for byte in &chunk[..length] {
             if frame.len() == MAX_FRAME_BYTES {
-                return Err(ExternalError::Protocol);
+                return Err(protocol_failure(negotiated, invocation));
             }
             frame.push(*byte);
             if *byte == b'\n' {
                 if let Some(invocation) = invocation
-                    && invocation.rejects_reflection(&frame)?
+                    && invocation
+                        .rejects_reflection(&frame)
+                        .map_err(|_| protocol_failure(negotiated, Some(invocation)))?
                 {
-                    return Err(ExternalError::Protocol);
+                    return Err(protocol_failure(negotiated, Some(invocation)));
                 }
-                match decoder.push(&frame).map_err(|_| ExternalError::Protocol)? {
+                match decoder
+                    .push(&frame)
+                    .map_err(|_| protocol_failure(negotiated, invocation))?
+                {
                     Progress::Handshake => {
                         negotiated = true;
                         let request = match invocation {
@@ -690,10 +728,10 @@ async fn exchange<D: Decoder>(
                         };
                         stdin
                             .as_mut()
-                            .ok_or(ExternalError::Protocol)?
+                            .ok_or(protocol_failure(negotiated, invocation))?
                             .write_all(&request)
                             .await
-                            .map_err(|_| ExternalError::Protocol)?;
+                            .map_err(|_| protocol_failure(negotiated, invocation))?;
                     }
                     Progress::Complete => {
                         stdin.take();

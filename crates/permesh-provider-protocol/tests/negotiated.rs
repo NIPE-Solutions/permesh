@@ -365,3 +365,92 @@ fn negotiated_version_one_is_distinct_from_legacy_protocol_one() {
         Err(ProtocolError::Schema)
     );
 }
+
+#[test]
+fn network_feature_request_is_explicit_and_preserves_absent_feature_bytes() {
+    use negotiated::Feature::NetworkV1;
+    for operation in [Operation::Discover, Operation::Check] {
+        assert_eq!(
+            negotiated::handshake_request("work", operation).unwrap(),
+            negotiated::handshake_request_with_features("work", operation, &[]).unwrap()
+        );
+        let request: Value = serde_json::from_slice(
+            &negotiated::handshake_request_with_features("work", operation, &[NetworkV1]).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(request["features"], json!(["network_v1"]));
+        assert!(
+            negotiated::handshake_request_with_features("work", operation, &[NetworkV1, NetworkV1])
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn required_network_feature_is_exact_and_failure_is_irreversible() {
+    use negotiated::Feature::NetworkV1;
+    for features in [
+        None,
+        Some(Value::Null),
+        Some(json!([])),
+        Some(json!(["unknown"])),
+        Some(json!(["network_v1", "network_v1"])),
+        Some(json!(["network_v1", "unknown"])),
+        Some(json!([{"network_v1":null}])),
+        Some(json!("network_v1")),
+    ] {
+        let mut response = handshake();
+        if let Some(features) = features {
+            response["features"] = features;
+        }
+        let mut discovery =
+            DiscoveryDecoder::with_required_features("example", "work", Some(CAPS), &[NetworkV1])
+                .unwrap();
+        let mut health =
+            HealthDecoder::with_required_features("example", "work", Some(CAPS), &[NetworkV1])
+                .unwrap();
+        assert!(discovery.push_frame(&frame(response.clone())).is_err());
+        assert!(health.push_frame(&frame(response)).is_err());
+        let mut corrected = handshake();
+        corrected["features"] = json!(["network_v1"]);
+        assert!(discovery.push_frame(&frame(corrected.clone())).is_err());
+        assert!(health.push_frame(&frame(corrected)).is_err());
+        assert!(discovery.finish().is_err());
+        assert!(health.finish().is_err());
+    }
+}
+
+#[test]
+fn network_feature_success_is_opt_in_for_discovery_and_health() {
+    use negotiated::Feature::NetworkV1;
+    let mut response = handshake();
+    response["features"] = json!(["network_v1"]);
+    assert!(decoder().push_frame(&frame(response.clone())).is_err());
+    assert!(
+        HealthDecoder::new("example", "work", Some(CAPS))
+            .unwrap()
+            .push_frame(&frame(response.clone()))
+            .is_err()
+    );
+    let mut discovery =
+        DiscoveryDecoder::with_required_features("example", "work", Some(CAPS), &[NetworkV1])
+            .unwrap();
+    let mut health =
+        HealthDecoder::with_required_features("example", "work", Some(CAPS), &[NetworkV1]).unwrap();
+    assert_eq!(
+        discovery.push_frame(&frame(response.clone())),
+        Ok(Progress::Handshake)
+    );
+    assert_eq!(health.push_frame(&frame(response)), Ok(Progress::Handshake));
+    discovery.push_frame(&complete(0)).unwrap();
+    health
+        .push_frame(&frame(
+            json!({"protocol_version":1,"id":"check","event":"health","status":"ok","limitations":[]}),
+        ))
+        .unwrap();
+    assert!(discovery.finish().unwrap().complete);
+    assert!(health.finish().is_ok());
+    let mut empty = handshake();
+    empty["features"] = json!([]);
+    assert!(decoder().push_frame(&frame(empty)).is_err());
+}

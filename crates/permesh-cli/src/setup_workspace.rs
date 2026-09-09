@@ -58,6 +58,7 @@ impl Draft {
             customer_id: None,
             auth: None,
             external: Some(ExternalConfig {
+                network: None,
                 discovery_protocol,
                 provider: registration.id.clone(),
                 sha256: registration.sha256.clone(),

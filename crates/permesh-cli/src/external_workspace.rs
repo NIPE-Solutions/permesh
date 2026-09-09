@@ -17,6 +17,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[path = "external_network.rs"]
+mod network;
+
 pub(crate) struct WorkspaceAccess {
     pub root: PathBuf,
 }
@@ -93,6 +96,9 @@ impl WorkspaceAccess {
         }
         let executable = registry.verify(&registration).map_err(failure)?;
         let path = workspace_path(path)?;
+        if let Some(settings) = &external_config(provider)?.network {
+            network::load(settings, &path)?;
+        }
         // Only reviewed inputs that affect this instance belong in its approval.
         // Keep relevant identity mappings/authority because they change how its
         // observations are interpreted, even though they are not sent to the child.
@@ -141,6 +147,10 @@ impl WorkspaceAccess {
         // A negotiated context must be visible before the user approves it.
         if external.discovery_protocol == permesh_config::DiscoveryProtocol::NegotiatedV1 {
             result["discovery_protocol"] = serde_json::json!("negotiated_v1");
+        }
+        if let Some(network) = &external.network {
+            result["network"] = serde_json::to_value(network::NetworkReview::from(network))
+                .map_err(|_| AppError::input("Cannot format external network settings"))?;
         }
         Outcome::new("external_review", result)
     }
@@ -213,6 +223,11 @@ impl WorkspaceAccess {
         // This is deliberately the first credential-resolution point. Invalid,
         // cloned, revoked, or edited workspaces cannot touch env/keychain values.
         let external = external_config(actual)?;
+        let network = external
+            .network
+            .as_ref()
+            .map(|settings| network::load(settings, &workspace_path(path)?))
+            .transpose()?;
         let mut credentials = BTreeMap::new();
         for (name, value) in &external.credentials {
             let reference = SecretRef::parse(value)
@@ -222,6 +237,11 @@ impl WorkspaceAccess {
         }
         let invocation =
             Invocation::new(external.configuration.clone(), credentials).map_err(failure)?;
+        let invocation = if let Some(network) = network {
+            invocation.with_network(network).map_err(failure)?
+        } else {
+            invocation
+        };
         Ok((executable, registration, invocation))
     }
 }
@@ -306,6 +326,72 @@ mod tests {
             "version":1,"organization":{"name":"test"},"providers":[{"id":"instance","type":"external","external":{"provider":"fixture","sha256":sha256,"configuration":{"endpoint":"example"},"credentials":{"token":"env://PERMESH_APPROVAL_TEST_UNAVAILABLE_CREDENTIAL_193756"}}}]
         }))?;
         Ok((temporary, WorkspaceAccess { root }, config, path))
+    }
+    #[test]
+    fn network_ca_pin_is_reviewed_and_rechecked_before_secret_resolution() -> TestResult {
+        use sha2::{Digest, Sha256};
+        let (_temporary, access, mut config, path) = setup(&[])?;
+        let pem = "-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n";
+        let ca_path = path.with_file_name("ca.pem");
+        std::fs::write(&ca_path, pem)?;
+        let external = config.providers[0].external.as_mut().ok_or("external")?;
+        external.discovery_protocol = permesh_config::DiscoveryProtocol::NegotiatedV1;
+        external.network = Some(permesh_config::NetworkConfig {
+            https_proxy: Some("http://proxy.example:8080".into()),
+            no_proxy: vec!["example.test".into()],
+            ca_bundle: Some(permesh_config::CaBundle {
+                path: "ca.pem".into(),
+                sha256: Sha256::digest(pem.as_bytes())
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>(),
+            }),
+        });
+        let error = access
+            .prepare(&config, &path, &config.providers[0])
+            .err()
+            .ok_or("expected no approval")?;
+        assert!(error.message.contains("approval"));
+        let review = access
+            .review(&config, &path, "instance")
+            .map_err(|e| e.message)?;
+        let output = serde_json::to_string(&review.report.result)?;
+        assert!(output.contains("ca.pem"));
+        assert!(!output.contains("BEGIN CERTIFICATE"));
+        let fingerprint = review.report.result["fingerprint"]
+            .as_str()
+            .ok_or("fingerprint")?;
+        access
+            .approve(&config, &path, "instance", fingerprint, true)
+            .map_err(|e| e.message)?;
+        let credential_error = access
+            .prepare(&config, &path, &config.providers[0])
+            .err()
+            .ok_or("expected missing credential")?;
+        assert!(credential_error.message.contains("credential unavailable"));
+        std::fs::write(&ca_path, pem.replace("YWJj", "ZGVm"))?;
+        let changed = access
+            .prepare(&config, &path, &config.providers[0])
+            .err()
+            .ok_or("expected pin rejection")?;
+        assert!(changed.message.contains("CA bundle"));
+        assert!(!changed.message.contains("credential unavailable"));
+        assert!(access.review(&config, &path, "instance").is_err());
+        std::fs::write(&ca_path, pem)?;
+        config.providers[0]
+            .external
+            .as_mut()
+            .ok_or("external")?
+            .network
+            .as_mut()
+            .ok_or("network")?
+            .https_proxy = Some("http://other.example:8080".into());
+        let changed = access
+            .prepare(&config, &path, &config.providers[0])
+            .err()
+            .ok_or("expected stale approval")?;
+        assert!(changed.message.contains("approval"));
+        Ok(())
     }
     #[test]
     fn browser_authorization_requires_approval_but_never_resolves_credentials() -> TestResult {

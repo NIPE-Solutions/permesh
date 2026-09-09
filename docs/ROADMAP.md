@@ -27,9 +27,10 @@ Nothing here declares the SDK or protocol stable.
 
 ## Next hardening slices
 
-1. **P1 — Enterprise networking:** explicit proxy/custom CA/endpoint configuration,
-   provider support negotiation and approval binding. Keep child environments
-   sanitized; do not inherit arbitrary shell settings.
+1. **P1 — Enterprise networking:** explicit proxy/custom CA context, provider
+   feature negotiation and approval binding are implemented in the host. Qualify
+   official adapter support; custom endpoints, AWS transport and host browser
+   networking remain separate follow-ups. Child environments stay sanitized.
 2. **P1 — Mixed-platform teams:** reviewed target-to-digest release pins. Current
    instance configuration binds one executable digest, so it is not yet a portable
    pin for macOS, Linux and Windows administrators sharing one workspace.

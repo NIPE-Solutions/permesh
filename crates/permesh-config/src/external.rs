@@ -35,6 +35,12 @@ pub struct ExternalConfig {
     pub configuration: BTreeMap<String, Value>,
     #[serde(default)]
     pub credentials: BTreeMap<String, String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::network::present"
+    )]
+    pub network: Option<crate::NetworkConfig>,
 }
 
 fn identifier(value: &str) -> bool {
@@ -91,6 +97,12 @@ pub(crate) fn validate(provider: &ProviderConfig) -> Result<()> {
         return Err(invalid(
             "external.sha256 must contain 64 lowercase hexadecimal characters",
         ));
+    }
+    if let Some(network) = &external.network {
+        if external.discovery_protocol != DiscoveryProtocol::NegotiatedV1 {
+            return Err(invalid("external network requires negotiated_v1 discovery"));
+        }
+        network.validate()?;
     }
     let bytes = serde_json::to_vec(&external.configuration)
         .map_err(|_| invalid("external configuration must be JSON compatible"))?;

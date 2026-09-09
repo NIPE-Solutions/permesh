@@ -206,3 +206,6 @@ to change its capabilities. To reuse an already trusted older version, explicitl
 review the workspace pin and configuration; downloading it again is not required.
 `external remove ID` removes all retained trusted versions for that ID and makes
 affected workspace approvals unusable. It does not remove downloaded packages.
+
+Explicit instance proxy/CA settings use [approved network context](networking.md);
+provider environments stay sanitized and unsupported transports fail closed.

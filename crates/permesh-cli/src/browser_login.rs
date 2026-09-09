@@ -108,6 +108,17 @@ pub(crate) async fn run(
     blocking: &BlockingPool,
     cancel: &Cancellation,
 ) -> Result<Outcome, AppError> {
+    if config
+        .providers
+        .iter()
+        .find(|provider| provider.id == id)
+        .and_then(|provider| provider.external.as_ref())
+        .is_some_and(|external| external.network.is_some())
+    {
+        return Err(AppError::input(
+            "Browser login does not support explicit network settings; use an access-token or refresh-token authentication mode with an independently obtained credential",
+        ));
+    }
     let owned = config.clone();
     let file = path.to_owned();
     let instance = id.to_owned();
@@ -171,6 +182,27 @@ pub(crate) async fn run(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn explicit_network_rejects_browser_login_before_provider_or_secret_access() {
+        let config: Config = serde_json::from_value(serde_json::json!({"version":1,"organization":{"name":"test"},"providers":[{"id":"instance","type":"external","external":{"provider":"fixture","sha256":"a".repeat(64),"discovery_protocol":"negotiated_v1","network":{"https_proxy":"http://proxy.example:8080"},"credentials":{"client_secret":"env://PERMESH_BROWSER_NETWORK_UNAVAILABLE"}}}]})).unwrap();
+        let error = run(
+            &config,
+            Path::new("missing-workspace"),
+            "instance",
+            true,
+            &BlockingPool::new(),
+            &Cancellation::new(),
+        )
+        .await
+        .err()
+        .unwrap();
+        assert!(
+            error
+                .message
+                .contains("Browser login does not support explicit network")
+        );
+        assert!(error.message.contains("access-token or refresh-token"));
+    }
     #[test]
     fn output_destination_and_auth_mode_are_bound_to_instance_and_declaration() {
         let mut config:Config=serde_json::from_value(serde_json::json!({"version":1,"organization":{"name":"test"},"providers":[{"id":"instance","type":"external","external":{"provider":"fixture","sha256":"a".repeat(64),"configuration":{"client_id":"client","auth_mode":"refresh_token"},"credentials":{"refresh_token":"keychain://instance/refresh_token"}}}]})).unwrap();
