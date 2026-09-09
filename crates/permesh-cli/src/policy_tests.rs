@@ -221,3 +221,108 @@ fn policy_row_budget_fails_before_retaining_an_oversized_check() {
     );
     assert!(rows.is_empty());
 }
+
+async fn split_directory_and_access_fixture() -> Artifact {
+    let mut artifact = fixture().await;
+    let mut directory = artifact.providers[0].clone();
+    directory.instance = "directory".into();
+    directory.provider_type = "directory-fixture".into();
+    directory.capabilities = vec!["accounts".into(), "identities".into()];
+    let data = directory.data.as_mut().unwrap();
+    data.provider = "directory".into();
+    for account in &mut data.accounts {
+        account.key.provider = "directory".into();
+    }
+    data.resources.clear();
+    data.groups.clear();
+    data.memberships.clear();
+    data.grants.clear();
+    let access = artifact.providers[0].data.as_mut().unwrap();
+    for account in &access.accounts {
+        if let Some(identity) = data.identities.iter().find(|identity| {
+            identity
+                .verified_emails
+                .iter()
+                .any(|email| account.verified_emails.contains(email))
+        }) {
+            artifact.identity.bindings.push(crate::artifact::Binding {
+                identity: identity.id.clone(),
+                instance: "demo".into(),
+                account: account.key.id.clone(),
+            });
+        }
+    }
+    access.identities.clear();
+    artifact.providers[0]
+        .capabilities
+        .retain(|c| c != "identities");
+    artifact.identity.authorities = vec!["directory".into()];
+    artifact.providers.push(directory);
+    artifact.validate().unwrap();
+    artifact
+}
+
+#[tokio::test]
+async fn complete_directory_authority_does_not_require_its_own_access_grants() {
+    let artifact = split_directory_and_access_fixture().await;
+    let (result, code, complete) = evaluate(&policy(), &artifact, now()).unwrap();
+    assert_eq!(code, 6);
+    assert!(complete);
+    assert_eq!(result["not_evaluable"], 0);
+    assert!(result["findings"].as_u64().unwrap() > 0);
+}
+
+#[tokio::test]
+async fn directory_only_inventory_cannot_establish_access_policy_coverage() {
+    let mut artifact = split_directory_and_access_fixture().await;
+    artifact.providers.remove(0);
+    artifact.identity.bindings.clear();
+    let (result, code, complete) = evaluate(&policy(), &artifact, now()).unwrap();
+    assert_eq!(code, 4);
+    assert!(!complete);
+    assert_eq!(result["clean"], false);
+    assert!(result["not_evaluable"].as_u64().unwrap() > 0);
+}
+
+#[tokio::test]
+async fn failed_grant_source_and_partial_authority_still_prevent_complete_evaluation() {
+    for failed_access in [true, false] {
+        let mut artifact = split_directory_and_access_fixture().await;
+        if failed_access {
+            let source = &mut artifact.providers[0];
+            source.state = State::Failed;
+            source.data = None;
+            source.failure_code = Some(crate::artifact::FailureCode::ProviderCollectionFailed);
+        } else {
+            let directory = &mut artifact.providers[1];
+            directory.state = State::Partial;
+            directory.data.as_mut().unwrap().complete = false;
+        }
+        let (result, code, complete) = evaluate(&policy(), &artifact, now()).unwrap();
+        assert_eq!(code, 4);
+        assert!(!complete);
+        assert_eq!(result["clean"], false);
+        assert!(result["not_evaluable"].as_u64().unwrap() > 0);
+    }
+}
+
+#[tokio::test]
+async fn explicit_required_coverage_still_checks_directory_capabilities() {
+    let artifact = split_directory_and_access_fixture().await;
+    let mut policy: Policy = serde_json::from_value(json!({
+        "version":1,"rules":["required_coverage"],
+        "required_providers":[{"instance":"directory","capabilities":["identities","accounts"]}]
+    }))
+    .unwrap();
+    let (result, code, complete) = evaluate(&policy, &artifact, now()).unwrap();
+    assert_eq!(code, 0);
+    assert!(complete);
+    assert_eq!(result["clean"], true);
+    policy.required_providers[0]
+        .capabilities
+        .push("grants".into());
+    let (result, code, complete) = evaluate(&policy, &artifact, now()).unwrap();
+    assert_eq!(code, 4);
+    assert!(!complete);
+    assert_eq!(result["findings"], 1);
+}

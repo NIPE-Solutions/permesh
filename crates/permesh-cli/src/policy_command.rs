@@ -146,10 +146,9 @@ fn evaluate(
         .providers
         .iter()
         .filter(|p| {
-            p.capabilities
-                .iter()
-                .any(|c| matches!(c.as_str(), "accounts" | "grants" | "resources"))
-                || p.state == State::Failed
+            // Account inventories can be identity authorities without collecting access.
+            // A grant declaration selects access collectors; failed captures stay unresolved.
+            p.capabilities.iter().any(|c| c == "grants") || p.state == State::Failed
         })
         .collect();
     for rule in policy
