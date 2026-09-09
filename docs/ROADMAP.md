@@ -5,8 +5,9 @@ GitHub provider 0.1.0 remain the published releases. The provider repository now
 contains seven unpublished 0.2.0 candidate binaries: GitHub, Google Workspace,
 Cloudflare, AWS IAM, GitLab, Entra and AWS Identity Center. The original four
 completed earlier offline qualification in [provider PR 13](https://github.com/NIPE-Solutions/permesh-providers/pull/13);
-new candidates require their own exact-revision artifact gates. This document
-includes the access-review source/PR program, not only merged or released code.
+the combined seven-provider source subsequently passed its own five-target trial
+package checks. See the [exact delivery evidence](audits/architecture-hardening-backlog.md#exact-trial-artifact-evidence).
+This document describes current source separately from published releases.
 Nothing here declares the SDK or protocol stable.
 
 ## Implemented foundation
