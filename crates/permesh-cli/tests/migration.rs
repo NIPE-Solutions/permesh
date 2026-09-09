@@ -72,7 +72,7 @@ fn migration_preserves_identity_and_exact_references_without_execution_or_resolu
         assert!(migrated.auth.is_none() && migrated.organizations.is_empty());
         let external = migrated.external.as_ref().ok_or("missing external")?;
         assert_eq!(external.provider, "github");
-        assert_eq!(external.sha256, digest);
+        assert_eq!(external.sha256.as_deref(), Some(digest.as_str()));
         assert_eq!(
             external.configuration["organizations"],
             serde_json::json!(["Acme", "second-org"])
@@ -179,8 +179,9 @@ fn retained_pin_is_used_and_all_workspace_approvals_require_review() -> TestResu
             .external
             .as_ref()
             .ok_or("missing external")?
-            .sha256,
-        digest
+            .sha256
+            .as_deref(),
+        Some(digest.as_str())
     );
     assert_eq!(
         serde_json::to_value(&before.providers[2])?,

@@ -4,6 +4,11 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add optional target-specific external executable pins and guided `--portable`
+  setup for shared workspaces. Existing scalar pins remain supported; each
+  machine still requires local trust and approval.
+
+
 - Add explicit per-instance proxy/bypass and digest-pinned CA configuration for
   negotiated discovery/health. The host requires provider acknowledgement before
   credential delivery, preserves sanitized environments, and rejects unsupported

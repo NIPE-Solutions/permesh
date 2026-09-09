@@ -64,11 +64,12 @@ impl WorkspaceAccess {
         provider: &ProviderConfig,
     ) -> Result<(Registry, Registration), AppError> {
         let external = external_config(provider)?;
+        let digest = external.digest_for_target(permesh_provider_sdk::target::native_target())?;
         let registry = Registry::new(self.root.clone()).map_err(failure)?;
         let registration = registry
-            .load_pinned(&external.provider, &external.sha256)
+            .load_pinned(&external.provider, digest)
             .map_err(failure)?;
-        if registration.sha256 != external.sha256 {
+        if registration.sha256 != digest {
             return Err(AppError::input(
                 "External provider digest pin does not match its local registration; review and update the explicit pin",
             ));
@@ -116,13 +117,20 @@ impl WorkspaceAccess {
             .iter()
             .filter(|source| source.provider == id)
             .collect();
-        let context = serde_json::json!({
+        let mut context = serde_json::json!({
             "approval_context": "permesh-provider-context-v2",
             "workspace_schema": config.version,
             "provider": provider,
             "identity_sources": sources,
             "identity_aliases": aliases,
         });
+        if external_config(provider)?.sha256_by_target.is_some() {
+            // Resolve only from the running CLI target. Never derive it from a
+            // mutable selected registration or from a foreign map entry.
+            context["resolved_target"] =
+                serde_json::json!(permesh_provider_sdk::target::native_target());
+            context["resolved_sha256"] = serde_json::json!(registration.sha256);
+        }
         let fingerprint = fingerprint(&path, id, &context, &registration).map_err(failure)?;
         Ok((executable, registration, fingerprint))
     }
@@ -151,6 +159,18 @@ impl WorkspaceAccess {
         if let Some(network) = &external.network {
             result["network"] = serde_json::to_value(network::NetworkReview::from(network))
                 .map_err(|_| AppError::input("Cannot format external network settings"))?;
+        }
+        if let Some(pins) = &external.sha256_by_target {
+            let target = permesh_provider_sdk::target::native_target().ok_or_else(|| {
+                AppError::input("No supported native target for portable provider pins")
+            })?;
+            result["target_pins"] =
+                serde_json::to_value(crate::external_output::TargetPinsReview {
+                    sha256_by_target: pins,
+                    resolved_target: target,
+                    resolved_sha256: &registration.sha256,
+                })
+                .map_err(|_| AppError::input("Cannot format portable provider pins"))?;
         }
         Outcome::new("external_review", result)
     }
@@ -648,14 +668,14 @@ mod tests {
             .external
             .as_mut()
             .ok_or("external")?
-            .sha256 = "b".repeat(64);
+            .sha256 = Some("b".repeat(64));
         assert!(access.review(&config, &path, "instance").is_err());
         let reg = Registry::new(access.root.clone())?.load("fixture")?;
         config.providers[0]
             .external
             .as_mut()
             .ok_or("external")?
-            .sha256 = reg.sha256;
+            .sha256 = Some(reg.sha256);
         config
             .identity
             .sources
@@ -665,5 +685,8 @@ mod tests {
             });
         assert!(access.review(&config, &path, "instance").is_err());
         Ok(())
+    }
+    mod portable {
+        include!("external_portable_tests.rs");
     }
 }

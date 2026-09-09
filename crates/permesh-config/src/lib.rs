@@ -3,6 +3,7 @@
 mod data;
 mod external;
 mod network;
+mod pins;
 pub use data::{load_setup_answers, parse_setup_value};
 pub use external::{DiscoveryProtocol, ExternalConfig};
 pub use network::{CaBundle, NetworkConfig};

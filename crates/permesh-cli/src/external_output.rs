@@ -1,7 +1,19 @@
 // SPDX-License-Identifier: MIT
 use crate::output::{field, safe};
 use serde_json::Value;
-use std::io::{self, Write};
+use std::{
+    collections::BTreeMap,
+    io::{self, Write},
+};
+
+/// Review boundary owned by the CLI, independent of workspace storage serde.
+#[derive(serde::Serialize)]
+pub(crate) struct TargetPinsReview<'a> {
+    pub sha256_by_target: &'a BTreeMap<String, String>,
+    pub resolved_target: &'a str,
+    pub resolved_sha256: &'a str,
+}
+
 pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<()> {
     if let Some(storage) = result["storage"].as_str() {
         writeln!(out, "Local provider storage\n  {}\n", safe(storage))?;
@@ -15,6 +27,28 @@ pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<
                 safe(field(result, "instance"))
             )?;
             registration(out, &result["registration"])?;
+            if let Some(pins) = result["target_pins"].as_object() {
+                writeln!(
+                    out,
+                    "\nPortable executable pins\n  Selected target: {}\n  Selected SHA-256: {}",
+                    safe(field(&result["target_pins"], "resolved_target")),
+                    safe(field(&result["target_pins"], "resolved_sha256"))
+                )?;
+                if let Some(targets) = pins.get("sha256_by_target").and_then(Value::as_object) {
+                    for (target, digest) in targets {
+                        writeln!(
+                            out,
+                            "  {}: {}",
+                            safe(target),
+                            safe(digest.as_str().unwrap_or_default())
+                        )?;
+                    }
+                }
+                writeln!(
+                    out,
+                    "  Each target requires local binary trust and workspace approval."
+                )?;
+            }
             if result["discovery_protocol"] == "negotiated_v1" {
                 writeln!(
                     out,

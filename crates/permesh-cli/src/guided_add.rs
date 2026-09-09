@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! Official provider onboarding composes existing verified distribution and trust boundaries.
+use crate::distribution::{AcquisitionMode, OfficialSelection};
 use crate::{
     args::{AddProvider, Cli},
     blocking::BlockingPool,
@@ -33,6 +34,7 @@ fn setup_args(args: &AddProvider) -> Result<SetupArgs, AppError> {
         || args.token_ref.is_some()
         || args.provider.is_some()
         || args.sha256.is_some()
+        || !args.target_sha256.is_empty()
         || !args.setting.is_empty()
         || !args.credential.is_empty()
     {
@@ -51,10 +53,12 @@ fn setup_args(args: &AddProvider) -> Result<SetupArgs, AppError> {
         authoritative: args.authoritative,
     })
 }
-fn continuation(id: &str, package: &InstalledPackage) -> String {
+fn continuation(id: &str, package: &InstalledPackage, portable: bool) -> String {
     format!(
-        "permesh provider add {} --id {id} --version {}",
-        package.release.provider, package.release.version
+        "permesh provider add {} --id {id} --version {}{}",
+        package.release.provider,
+        package.release.version,
+        if portable { " --portable" } else { "" }
     )
 }
 fn annotate(mut error: AppError, next: &str) -> AppError {
@@ -75,18 +79,24 @@ pub async fn run(
         interactive,
     };
     let fetch = async {
-        crate::distribution::acquire(
+        let acquired = crate::distribution::acquire(
             &args.provider_type,
             args.version.as_deref(),
             false,
             false,
-            true,
+            AcquisitionMode::Setup {
+                portable: args.portable,
+            },
             pool,
             cancellation,
         )
-        .await?
-        .package
-        .ok_or_else(|| AppError::new(5, "Provider package was not installed"))
+        .await?;
+        Ok(OfficialSelection {
+            native_package: acquired
+                .package
+                .ok_or_else(|| AppError::new(5, "Provider package was not installed"))?,
+            target_pins: acquired.target_pins,
+        })
     };
     let consent_pool = pool.clone();
     let consent_cancel = cancellation.clone();
@@ -115,7 +125,7 @@ async fn run_with<F, C, R>(
     mut consent: C,
 ) -> Result<Outcome, AppError>
 where
-    F: Future<Output = Result<InstalledPackage, AppError>>,
+    F: Future<Output = Result<OfficialSelection, AppError>>,
     C: FnMut(String) -> R,
     R: Future<Output = Result<bool, AppError>>,
 {
@@ -129,12 +139,40 @@ where
     // Retain the captured workspace revision and parsed answers across download and consent.
     let prepared = setup::prepare(cli, &setup_args)?;
     let id = prepared.id.clone();
-    let package = tokio::select! {
+    let selection = tokio::select! {
         biased;
         ()=cancellation.cancelled()=>return Err(AppError::new(130,"Cancelled")),
         result=fetch=>result?,
     };
     cancelled(cancellation)?;
+    let OfficialSelection {
+        native_package: package,
+        target_pins,
+    } = selection;
+    if args.portable != target_pins.is_some() {
+        return Err(AppError::input(
+            "Portable setup requires an explicit complete target-pin selection",
+        ));
+    }
+    if let Some(pins) = &target_pins {
+        if pins.len() < 2
+            || pins.get(&package.release.target) != Some(&package.release.executable_sha256)
+        {
+            return Err(AppError::input(
+                "Portable setup requires at least two targets and the exact native package digest",
+            ));
+        }
+        let external = permesh_config::ExternalConfig {
+            provider: package.release.provider.clone(),
+            sha256: None,
+            sha256_by_target: Some(pins.clone()),
+            discovery_protocol: permesh_config::DiscoveryProtocol::Legacy,
+            network: None,
+            configuration: Default::default(),
+            credentials: Default::default(),
+        };
+        external.digest_for_target(Some(&package.release.target))?;
+    }
     let release = &package.release;
     release
         .validate()
@@ -151,7 +189,7 @@ where
             "Selected official package does not match the requested version/platform or does not support declarative setup",
         ));
     }
-    let next = continuation(&id, &package);
+    let next = continuation(&id, &package, args.portable);
     let capabilities = release
         .capabilities
         .iter()
@@ -196,7 +234,8 @@ SHA-256: {}",
     }
     cancelled(cancellation)?;
     // Bounded synchronous publication: no detached task can register code after cancellation returns.
-    let trusted = trust_package(env.root.clone(), &package).map_err(|e| annotate(e, &next))?;
+    let mut trusted = trust_package(env.root.clone(), &package).map_err(|e| annotate(e, &next))?;
+    trusted.target_pins = target_pins;
     cancelled(cancellation)?;
     let result = setup::execute(&setup_args, prepared, pool, cancellation, trusted)
         .await
@@ -243,6 +282,7 @@ fn trust_package(root: PathBuf, package: &InstalledPackage) -> Result<TrustedSet
         root: root.clone(),
         registration,
         executable,
+        target_pins: None,
         discovery_protocol: match release.discovery_protocol {
             catalog::DiscoveryProtocol::Legacy => permesh_config::DiscoveryProtocol::Legacy,
             catalog::DiscoveryProtocol::NegotiatedV1 => {
@@ -274,7 +314,7 @@ where
         .find(|p| p.id == *id)
         .and_then(|p| p.external.as_ref())
         .ok_or_else(|| AppError::new(5, "Created provider instance is missing"))?;
-    let review = format!(
+    let mut review = format!(
         "{} instance {id}\nWorkspace: {}\nSettings: {}\nCredential references: {}\nDiscovery protocol: {}\n\nApprove this instance's settings and named credential delivery to the trusted binary? Credentials have not been resolved or stored. Authentication remains a separate auth login command.",
         release.provider,
         crate::output::safe(&created.path.display().to_string()),
@@ -287,6 +327,10 @@ where
             permesh_config::DiscoveryProtocol::NegotiatedV1 => "negotiated-v1",
         }
     );
+    if let Some(pins) = &instance.sha256_by_target {
+        review.push_str(&format!("\n\nPortable target SHA-256 pins: {}\nSelected native target: {}\nSelected native SHA-256: {}\nOnly this native binary is installed and trusted. Teammates must trust their own target binary and approve their workspace.",
+            serde_json::to_string_pretty(pins).map_err(|_| AppError::new(5, "Cannot format target pins"))?, release.target, release.executable_sha256));
+    }
     cancelled(cancellation)?;
     let approve = consent(review).await?;
     cancelled(cancellation)?;
@@ -295,10 +339,14 @@ where
         let current = permesh_config::Config::load(&created.path)?;
         access.approve(&current, &created.path, id, &fingerprint, true)?;
     }
-    Outcome::new(
-        "provider_add",
-        serde_json::json!({"id":id,"provider":release.provider,"version":release.version.to_string(),"sha256":release.executable_sha256,"file":created.path,"configured":true,"approved":approve,"credentials_resolved":false,"configuration":instance.configuration,"credential_references":instance.credentials,"message":if approve {"Provider instance configured and approved. Authentication remains separate; no credentials were resolved or stored."}else{"Provider instance configured. Workspace execution approval declined; credentials remain unavailable to the provider until explicit approval."},"next":if approve {format!("permesh auth login {id}; permesh doctor")}else{format!("permesh provider external review {id}")}}),
-    )
+    let mut result = serde_json::json!({"id":id,"provider":release.provider,"version":release.version.to_string(),"sha256":release.executable_sha256,"file":created.path,"configured":true,"approved":approve,"credentials_resolved":false,"configuration":instance.configuration,"credential_references":instance.credentials,"message":if approve {"Provider instance configured and approved. Authentication remains separate; no credentials were resolved or stored."}else{"Provider instance configured. Workspace execution approval declined; credentials remain unavailable to the provider until explicit approval."},"next":if approve {format!("permesh auth login {id}; permesh doctor")}else{format!("permesh provider external review {id}")}});
+    if let Some(pins) = &instance.sha256_by_target {
+        result["sha256_by_target"] = serde_json::to_value(pins)
+            .map_err(|_| AppError::new(5, "Cannot format target pins"))?;
+        result["resolved_target"] = serde_json::json!(release.target);
+        result["resolved_sha256"] = serde_json::json!(release.executable_sha256);
+    }
+    Outcome::new("provider_add", result)
 }
 
 #[cfg(test)]
