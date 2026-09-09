@@ -44,6 +44,7 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 
 ## Build and extend
 
+- [Native scaffold and offline conformance](provider-development/tooling.md).
 - [Contribution guide](../CONTRIBUTING.md) and [provider development](provider-development.md).
 - [Normalization rules](provider-development/normalization.md) and [protocol compatibility](provider-protocol/versioning.md).
 - [Architecture](ARCHITECTURE.md), [domain model](DOMAIN_MODEL.md) and [provider model](PROVIDER_MODEL.md).

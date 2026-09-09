@@ -4,6 +4,9 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add native provider scaffolding and offline discovery/health/setup transcript
+  validation. Neither operation executes, installs or trusts generated code.
+
 - Recheck trusted executable pins immediately before launch and stop already
   cancelled operations before spawning. Path-based OS race limitations remain.
 - Add `doctor --details` with curated diagnostic stages and remediation while
