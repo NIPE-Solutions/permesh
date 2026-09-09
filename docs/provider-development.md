@@ -27,6 +27,8 @@ browser description exchanges remain separate. Read the
 [candidate adoption guide](https://github.com/NIPE-Solutions/permesh-providers/blob/main/docs/negotiated-v1.md)
 and use a compatible host. Protocol v1 is not yet declared stable.
 
+See the current-source [native scaffold and offline validation tools](provider-development/tooling.md) for an explicit workspace-member template and saved-transcript checks.
+
 ## Choose an implementation
 
 Rust adapters can use the shared SDK and the official native runtime. Other

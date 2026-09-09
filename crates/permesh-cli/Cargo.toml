@@ -21,6 +21,7 @@ permesh-core.workspace = true
 permesh-config.workspace = true
 permesh-secrets.workspace = true
 permesh-provider-sdk.workspace = true
+permesh-provider-protocol = { path = "../permesh-provider-protocol" }
 permesh-provider-external.workspace = true
 etcetera = "0.11"
 permesh-provider-demo.workspace = true
