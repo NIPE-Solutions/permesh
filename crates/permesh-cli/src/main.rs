@@ -23,10 +23,12 @@ mod inventory;
 mod offboard;
 mod orphaned_output;
 mod output;
+mod policy_command;
 mod provider_diagnostics;
 mod provider_migration;
 mod provider_operation;
 mod report;
+mod resource_command;
 mod review_scope;
 mod schema1_control;
 mod schema2;
@@ -98,7 +100,7 @@ async fn main() -> ExitCode {
             biased;
             signal=tokio::signal::ctrl_c()=>{
                 cancellation.cancel();
-                let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor { .. } | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Snapshot { .. } | args::Command::Offboard { .. } | args::Command::Identity { .. } | args::Command::Provider { command: args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) | args::ProviderCommand::Add(_) });
+                let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor { .. } | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Snapshot { .. } | args::Command::Offboard { .. } | args::Command::Resource(_) | args::Command::Policy { .. } | args::Command::Identity { .. } | args::Command::Provider { command: args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) | args::ProviderCommand::Add(_) });
                 if drains {
                     let result = operation.await;
                     if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json, schema_version); }
