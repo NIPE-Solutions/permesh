@@ -1,6 +1,10 @@
 # Host-owned remote credential reads
 
-Current-main source builds support three explicit resolver types: `1password_connect`, `vault_kv2`, and `openbao_kv2`. Published CLI `0.1.0-alpha.2` does not include this feature. This is a source candidate tested with synthetic protocol fixtures; no live Connect, Vault or OpenBao deployment/version has been qualified in this change. Do not infer OpenBao compatibility from the Vault label or claim arbitrary Vault-compatible products are supported.
+Published CLI `0.1.0-alpha.3` supports three explicit resolver types:
+`1password_connect`, `vault_kv2`, and `openbao_kv2`. This evaluation feature was
+tested with synthetic protocol fixtures; no live Connect, Vault or OpenBao
+deployment/version has been qualified. Do not infer OpenBao compatibility from
+the Vault label or claim arbitrary Vault-compatible products are supported.
 
 The host performs a read-only GET after executable trust and provider-specific workspace approval. It delivers only the selected string to the named provider credential slot. It never executes `op`, a shell command, a credential helper, or an arbitrary program to resolve a secret. These resolver declarations do not grant permission to modify a remote store.
 

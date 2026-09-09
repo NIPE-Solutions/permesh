@@ -25,8 +25,13 @@ remaining bundled implementation is removed; legacy parsing is retained solely
 for an explicit migration preserving IDs, authority, aliases and secret references.
 Requests fail before credentials for unmigrated instances. Demo remains bundled.
 
-This intentionally advances source ahead of Google package publication. The
-release catalog still lacks Google; docs identify the reviewed-build requirement
-until compatible artifacts pass live and distribution qualification. Keeping a
-second production adapter would prolong semantic drift and duplicate security
-maintenance. This change does not authorize publication or weaken trust gates.
+Google 0.2.0 is now a qualified, catalog-installable evaluation release, while
+broader live tenant qualification remains separate. Alpha.2 strict catalog
+parsing rejects the additive `discovery_protocol` field even for an explicitly
+requested older provider version; users must upgrade to alpha.3 before the new
+catalog is adopted. The CLI upgrade leaves installed pins unchanged. Keeping a
+legacy trust and approval record on disk does not make the approval valid under
+alpha.3's scoped fingerprint v2; each external provider needs a fresh review and
+explicit approval before execution. Keeping a second production adapter would
+prolong semantic drift and duplicate security
+maintenance. Release publication does not weaken trust or workspace approval gates.

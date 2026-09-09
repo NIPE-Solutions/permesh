@@ -1,6 +1,6 @@
 # Install Permesh
 
-Download an archive and its adjacent `.sha256` file from the [0.1.0-alpha.2 release](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.2). Choose your OS and CPU:
+Download an archive and its adjacent `.sha256` file from the [0.1.0-alpha.3 release](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.3). Choose your OS and CPU:
 
 | System | Target | Archive |
 | --- | --- | --- |
@@ -11,14 +11,14 @@ Download an archive and its adjacent `.sha256` file from the [0.1.0-alpha.2 rele
 | Windows x86_64 | x86_64-pc-windows-msvc | zip |
 
 These alpha binaries are for evaluation and have signed build provenance, but no
-platform code signatures or notarization. Read the [limitations](releases/0.1.0-alpha.2.md), particularly OS compatibility and credential storage.
+platform code signatures or notarization. Read the [limitations](releases/0.1.0-alpha.3.md), particularly OS compatibility and credential storage.
 
-The release is built from source commit `aad58397e139ed755fcf983da8e9f045e7e5a556` in
-[attested run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910). It includes five archives,
+The release is built from source commit `add7a725745f5e05415b330e8d6be61fcaaf5d67` in
+[attested run 34351503021](https://github.com/NIPE-Solutions/permesh/actions/runs/34351503021). It includes five archives,
 five dependency inventories, ten checksum files and `attestation-bundle.json`.
-The historical alpha.1 assets remain unchanged and are not retroactively attested.
+The historical alpha.1 and alpha.2 assets remain unchanged.
 
-Verify [alpha.2 provenance](#alpha2-release-provenance) before extracting or
+Verify [alpha.3 provenance](#alpha3-release-provenance) before extracting or
 running an executable, then check the adjacent checksum below.
 
 ## Verify before extracting
@@ -46,13 +46,13 @@ Compare the hash with the first field in the checksum file (case does not matter
 
 Extract into a new directory using `tar -xzf ARCHIVE.tar.gz` or PowerShell `Expand-Archive .\ARCHIVE.zip -DestinationPath .\permesh-alpha`. Each archive contains `permesh` (Windows: `permesh.exe`), `LICENSE`, `THIRD-PARTY-NOTICES.txt`, and `INSTALL.txt`.
 
-Run `./permesh --version` (Windows: `.\permesh.exe --version`) from that directory. The version must be `0.1.0-alpha.2` for this release. You may copy the executable into a user-owned directory already on your PATH; no administrator privileges are needed. Keep license and dependency notices when redistributing. OS download protections may prompt or block unsigned programs; verify the source and follow your organization's policy rather than disabling protections globally.
+Run `./permesh --version` (Windows: `.\permesh.exe --version`) from that directory. The version must be `0.1.0-alpha.3` for this release. You may copy the executable into a user-owned directory already on your PATH; no administrator privileges are needed. Keep license and dependency notices when redistributing. OS download protections may prompt or block unsigned programs; verify the source and follow your organization's policy rather than disabling protections globally.
 
 Try the [offline demo](getting-started.md#evaluate-offline), then configure providers explicitly. Installation itself does not fetch provider data or store credentials.
 
-## Alpha.2 release provenance
+## Alpha.3 release provenance
 
-For each downloaded alpha.2 archive, inventory or checksum, verify the file with
+For each downloaded alpha.3 archive, inventory or checksum, verify the file with
 a current GitHub CLI. These commands pin the exact released source and signer:
 
 ```sh
@@ -60,8 +60,8 @@ gh attestation verify DOWNLOADED_FILE \
   --repo NIPE-Solutions/permesh \
   --cert-identity https://github.com/NIPE-Solutions/permesh/.github/workflows/attested-candidates.yml@refs/heads/main \
   --source-ref refs/heads/main \
-  --source-digest aad58397e139ed755fcf983da8e9f045e7e5a556 \
-  --signer-digest aad58397e139ed755fcf983da8e9f045e7e5a556 \
+  --source-digest add7a725745f5e05415b330e8d6be61fcaaf5d67 \
+  --signer-digest add7a725745f5e05415b330e8d6be61fcaaf5d67 \
   --predicate-type https://slsa.dev/provenance/v1 \
   --deny-self-hosted-runners
 ```
@@ -80,8 +80,8 @@ that directory. From a checkout of the recorded revision, run:
 
 ```sh
 python3 scripts/verify_candidates.py candidate-files \
-  --version 0.1.0-alpha.2 --lockfile Cargo.lock \
-  --source-sha aad58397e139ed755fcf983da8e9f045e7e5a556 \
+  --version 0.1.0-alpha.3 --lockfile Cargo.lock \
+  --source-sha add7a725745f5e05415b330e8d6be61fcaaf5d67 \
   --bundle attestation-bundle.json
 ```
 
@@ -91,9 +91,39 @@ and `--artifact-run-sha` option in [artifact attestations](artifact-attestations
 These checks establish signed build provenance, not Apple notarization, Windows
 Authenticode, reproducible builds or safe source behavior.
 
+## Alpha.2 release provenance
+
+Alpha.2 remains immutable. For a file downloaded from its
+[release page](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.2),
+pin its original source and signer:
+
+```sh
+gh attestation verify DOWNLOADED_FILE \
+  --repo NIPE-Solutions/permesh \
+  --cert-identity https://github.com/NIPE-Solutions/permesh/.github/workflows/attested-candidates.yml@refs/heads/main \
+  --source-ref refs/heads/main \
+  --source-digest aad58397e139ed755fcf983da8e9f045e7e5a556 \
+  --signer-digest aad58397e139ed755fcf983da8e9f045e7e5a556 \
+  --predicate-type https://slsa.dev/provenance/v1 \
+  --deny-self-hosted-runners
+```
+
+Repeat with the alpha.2 `attestation-bundle.json` using `--bundle`. For a complete
+alpha.2 set, run the same `verify_candidates.py` command shown above with
+`--version 0.1.0-alpha.2`, `--source-sha aad58397e139ed755fcf983da8e9f045e7e5a556`,
+the alpha.2 lockfile and bundle. Do not substitute alpha.3 files or source hashes.
+
 ## Upgrade or uninstall
 
 To upgrade, download and verify the desired release and replace the executable while it is not running. There is no CLI self-update or background update check. `provider update` manages separate provider packages and does not update the CLI.
+
+Upgrade alpha.2 to alpha.3 before using the new provider catalog entries. Alpha.2
+strictly rejects the additive `discovery_protocol` catalog field, even if you ask
+for an older provider version, so selecting an old version does not bypass this
+catalog compatibility boundary. Replacing the CLI leaves installed provider pins,
+local executable trust and legacy approval records stored. Alpha.3 does not accept
+an alpha.2 legacy approval as execution authority; run `provider external review`
+and explicitly approve each configured external provider once before querying.
 
 To uninstall, remove the executable. This preserves workspace files, exported reports, installed provider packages, local approvals and keychain credentials. Use `auth logout` for credentials you want to remove before uninstalling; see [secret storage](secrets.md) and [provider storage](provider-packages.md) for retained local data. Never delete shared credentials indiscriminately.
 

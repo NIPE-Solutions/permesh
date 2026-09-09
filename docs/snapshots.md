@@ -1,7 +1,7 @@
 # Explicit snapshots and offline comparison
 
-These commands are implemented in the access-review source candidate. They are
-not available in the published CLI `0.1.0-alpha.2`.
+These commands are available for evaluation in published CLI `0.1.0-alpha.3`.
+Alpha.2 remains unchanged and does not contain them.
 
 A snapshot records observations, not a complete authorization decision. It is an
 explicit export, never a background cache or database. Files contain sensitive

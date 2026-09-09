@@ -22,7 +22,7 @@ This is a reviewable statement about GitHub's immutable numeric user ID. It surv
 
 Exact matches are deterministic. Authoritative records with the same canonical ID and compatible kind/status union their verified addresses in stable order. Different canonical IDs sharing an address remain separate candidates. Discovery sorting is independent of provider response order. Input order cannot decide identity ownership.
 
-The demo includes an authoritative synthetic source. [`permesh orphaned`](orphaned.md) reviews inactive, suspended, unmatched and ambiguous accounts while keeping service, bot and external identities distinct. It requires an explicitly configured authoritative source; incomplete authority observations leave accounts unassessed. Current Google Workspace source candidates can supply directory identity evidence through the external-provider workflow; see [provider availability](providers.md) before selecting an installable release. Directory account state does not establish employment.
+The demo includes an authoritative synthetic source. [`permesh orphaned`](orphaned.md) reviews inactive, suspended, unmatched and ambiguous accounts while keeping service, bot and external identities distinct. It requires an explicitly configured authoritative source; incomplete authority observations leave accounts unassessed. The catalog-installable Google Workspace 0.2.0 evaluation release can supply directory identity evidence through the external-provider workflow; live tenant qualification remains pending. Directory account state does not establish employment.
 
 Google directory identities use `google:CUSTOMER_ID:USER_ID` as their canonical
 ID. Their primary address is directory-attested and used for exact lookup; email
@@ -32,4 +32,4 @@ identity. See [Google identity semantics](providers/google.md#identity-semantics
 
 Use the [explicit identity mapping commands](identity-mapping.md) to inspect stable
 account evidence and review an exact mapping proposal before saving it. These
-current-main commands preserve the same conservative matching rules.
+alpha.3 evaluation commands preserve the same conservative matching rules.

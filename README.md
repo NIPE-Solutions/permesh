@@ -84,9 +84,9 @@ and an inactive identity that still has access. No signup, token, or API
 connection is needed.
 
 **Release status:** Permesh is alpha software. The published CLI is
-[0.1.0-alpha.2](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.2).
-This README describes current `main`, including unreleased identity semantics and
-JSON schema 2; published output differs. See the [release notes](docs/releases/0.1.0-alpha.2.md)
+[0.1.0-alpha.3](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.3).
+It is an evaluation prerelease and includes the current identity semantics,
+JSON schema 2 and local review workflows. See the [release notes](docs/releases/0.1.0-alpha.3.md)
 and [migration guide](docs/migrations/domain-schema-2.md).
 
 To try the exact source version shown here, use Rust 1.91 or newer:
@@ -102,7 +102,7 @@ cover checksums and build provenance; platform signing remains a release limitat
 
 ## Review changes and departures
 
-Current source builds also support an explicit local review workflow:
+The alpha.3 prerelease supports an explicit local review workflow:
 
 ```bash
 permesh snapshot create --output before.json
@@ -122,7 +122,7 @@ access. Snapshots and reports stay local and contain sensitive metadata.
 
 Read the [snapshot guide](docs/snapshots.md), [departure workflow](docs/offboarding.md)
 and [resource/policy examples](docs/resource-policies.md). These commands are
-**unreleased** and are absent from the published `0.1.0-alpha.2` binary.
+evaluation features in the published `0.1.0-alpha.3` prerelease.
 
 ## Connect GitHub
 
@@ -159,17 +159,29 @@ inventory reader. Service integrations are independently distributed from the [o
 
 | Provider | What it helps you inspect | Availability |
 | --- | --- | --- |
-| GitHub | Organization owners, repository roles, teams and membership paths | **Installable:** 0.1.0; 0.2.0 source candidate |
-| Google Workspace | Directory identities and lifecycle for identity-authority checks | **Source candidate:** 0.2.0, unpublished |
-| Cloudflare | Account members, groups and scoped role assignments | **Source candidate:** 0.2.0, unpublished |
-| AWS IAM | Users, roles, groups and policy attachments | **Source candidate:** 0.2.0, unpublished |
-| GitLab | Scoped group/project membership and native access levels | **Source candidate:** 0.2.0, unpublished |
-| Microsoft Entra ID | Tenant-bound directory identities, groups and membership observations | **Source candidate:** 0.2.0, unpublished |
-| AWS Identity Center | Directory identities and scoped permission-set assignments | **Source candidate:** 0.2.0, unpublished |
+| GitHub | Organization owners, repository roles, teams and membership paths | **Catalog installable:** 0.1.0 and 0.2.0 evaluation releases |
+| Google Workspace | Directory identities and lifecycle for identity-authority checks | **Catalog installable:** 0.2.0 evaluation release |
+| Cloudflare | Account members, groups and scoped role assignments | **Catalog installable:** 0.2.0 evaluation release |
+| AWS IAM | Users, roles, groups and policy attachments | **Catalog installable:** 0.2.0 evaluation release |
+| GitLab | Scoped group/project membership and native access levels | **Catalog installable:** 0.2.0 evaluation release |
+| Microsoft Entra ID | Tenant-bound directory identities, groups and membership observations | **Catalog installable:** 0.2.0 evaluation release |
+| AWS Identity Center | Directory identities and scoped permission-set assignments | **Catalog installable:** 0.2.0 evaluation release |
 
 An implemented provider is not automatically a qualified release. AWS attachments
 and Cloudflare assignments do not establish effective privilege. Review
 [coverage, limitations, and availability](docs/providers.md) before relying on a report.
+Upgrade the CLI to alpha.3 before using the new provider catalog contract. Alpha.2
+rejects entries containing `discovery_protocol`, even when an older provider
+version is requested. Upgrading the CLI does not change installed provider pins,
+and existing binary trust remains stored. Alpha.2 legacy approval records also
+remain stored, but alpha.3's scoped fingerprint v2 does not accept them: review
+and explicitly approve each configured external provider once before querying.
+
+Alpha.3 can install catalog packages for all seven providers. Guided `provider add`
+supports GitHub, Google, Cloudflare and AWS IAM. GitLab, Entra and AWS Identity
+Center use `provider install`, followed by the explicit native external trust,
+setup and approval flow with negotiated discovery; alpha.3 does not expose guided
+`provider add` variants for those three.
 Need an internal system? [Build your own provider](docs/provider-development.md)
 without changing Permesh core.
 

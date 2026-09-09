@@ -8,17 +8,28 @@ that scope; it is not an access certification or a guarantee of offboarding.
 
 ## Choose the version deliberately
 
-The published CLI is `0.1.0-alpha.2`; the published GitHub provider is `0.1.0`.
-Current source and unpublished provider candidates have additional contracts and
-features. Check [release limitations](releases/0.1.0-alpha.2.md),
+The published evaluation CLI is `0.1.0-alpha.3`; alpha.2 remains unchanged. Seven
+provider 0.2.0 evaluation releases have passed package and public catalog
+installation/update qualification. Check [release limitations](releases/0.1.0-alpha.3.md),
 [provider availability](providers.md) and the [roadmap](ROADMAP.md) before
 choosing an exact CLI/provider pair. Do not combine arbitrary candidate binaries.
+Catalog installation and guided onboarding are separate: alpha.3 guided
+`provider add` covers GitHub, Google, Cloudflare and AWS IAM. For GitLab, Entra or
+AWS Identity Center, install the package and use the documented explicit external
+trust/setup/approval flow with negotiated discovery.
 
-Identity mapping commands and identity inventory import are source candidates in
-this development slice. Their guides do not promise that a published binary contains
-them. Evaluate a candidate only after its tests pass and record the exact revision;
+Identity mapping commands and identity inventory import are evaluation features
+in alpha.3. Record the exact release pair used;
 see [mapping](identity-mapping.md) and [inventory](identity-inventory.md). [Snapshots and diffs](snapshots.md) and [read-only offboarding](offboarding.md) are
-also source candidates; these guides do not change published release availability.
+also alpha.3 evaluation features. Their availability does not establish live
+provider completeness or make the prerelease stable.
+
+Upgrade alpha.2 to alpha.3 before using the new provider catalog. Alpha.2 rejects
+the additive `discovery_protocol` field even when an older provider version is
+requested. The CLI upgrade preserves installed provider pins, local trust and
+legacy approval records on disk. Alpha.3 does not accept an alpha.2 legacy approval
+as execution authority; review and explicitly approve each external provider once
+before running health checks or queries.
 
 ## Start offline
 
@@ -68,11 +79,12 @@ observed and what could not be checked. Suspension, group removal, sessions,
 tokens, ownership and retention are different concerns; Permesh does not change
 them for you.
 
-The candidate [snapshot workflow](snapshots.md) makes this comparison repeatable:
+The alpha.3 [snapshot workflow](snapshots.md) makes this comparison repeatable:
 explicit snapshot creation before and after, followed by offline comparison. Missing data after a partial collection is inconclusive;
 absence in a comparable successful collection means no longer observed in that
-scope, not proof of universal revocation. Offboarding assessment and verification are source-candidate commands; they are
-not available in the published CLI.
+scope, not proof of universal revocation. Offboarding assessment and verification
+are evaluation commands in the published alpha.3 CLI; they remain read-only and
+do not establish complete revocation.
 
 ## Troubleshoot and close the pilot
 
