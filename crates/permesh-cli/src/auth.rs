@@ -39,6 +39,13 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
                     });
                     continue;
                 }
+                if p.external
+                    .as_ref()
+                    .is_some_and(|external| external.aws_profile.is_some())
+                {
+                    o.report.providers.push(ProviderStatus { id: p.id.clone(), kind: collection::kind(&p).into(), state: "configured".into(), message: "Explicit temporary AWS profile configured; file and session validity are unverified until an approved provider operation. No credential file was read.".into(), limitations: vec![] });
+                    continue;
+                }
                 if p.external.as_ref().is_some_and(|external| {
                     external.credentials.values().any(|value| {
                         matches!(SecretRef::parse(value), Ok(SecretRef::Remote { .. }))
@@ -164,6 +171,15 @@ fn keychain_ref(
         .ok_or_else(|| AppError::input("Unknown provider instance; run permesh provider list"))?;
     if matches!(provider.kind, ProviderKind::Github | ProviderKind::Google) {
         return Err(AppError::input(collection::legacy_message(provider)));
+    }
+    if provider
+        .external
+        .as_ref()
+        .is_some_and(|external| external.aws_profile.is_some())
+    {
+        return Err(AppError::input(
+            "This instance reads an explicit temporary AWS profile. Refresh or remove the selected profile using your existing AWS authentication tooling; auth login/logout does not modify shared AWS files.",
+        ));
     }
     let value = if let Some(external) = &provider.external {
         let name = credential

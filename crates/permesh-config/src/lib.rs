@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
+mod aws_profile;
+pub use aws_profile::AwsProfile;
 mod credential_resolvers;
 mod data;
 pub use credential_resolvers::CredentialResolver;

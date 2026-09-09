@@ -4,6 +4,9 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add explicitly selected temporary AWS shared-credentials profiles with
+  account/role-bound provider settings; no automatic credential chain or helper execution.
+
 - Add native provider scaffolding and offline discovery/health/setup transcript
   validation. Neither operation executes, installs or trusts generated code.
 - Add resource-centric inspection and focused local review policies. Policy findings

@@ -4,6 +4,7 @@ mod app;
 mod args;
 mod artifact;
 mod auth;
+mod aws_profile;
 mod blocking;
 mod browser_flow;
 mod browser_login;

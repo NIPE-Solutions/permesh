@@ -78,6 +78,23 @@ pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<
                 }
                 writeln!(out)?;
             }
+            if result["aws_profile"].is_object() {
+                writeln!(out, "Temporary AWS profile")?;
+                for (key, label) in [
+                    ("credentials_file", "Credentials file"),
+                    ("profile", "Named profile"),
+                ] {
+                    writeln!(
+                        out,
+                        "  {label}: {}",
+                        safe(field(&result["aws_profile"], key))
+                    )?;
+                }
+                writeln!(
+                    out,
+                    "  Delivers: access_key_id, secret_access_key, session_token\n  Resolves only after approval; no AWS credential chain or helper execution.\n"
+                )?;
+            }
             if let Some(resolvers) = result["credential_resolvers"].as_object() {
                 writeln!(out, "Remote credential resolvers")?;
                 for (name, resolver) in resolvers {
