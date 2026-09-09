@@ -243,56 +243,89 @@ fn legacy_organization_bounds_and_unsafe_workspace_fail_before_writing() -> Test
 
 #[test]
 fn google_migration_preserves_authority_customer_and_immutable_aliases() -> TestResult {
-    for reference in [
-        "env://PERMESH_MIGRATION_UNSET",
-        "keychain://google-work/token",
-    ] {
-        let tmp = tempfile::tempdir()?;
-        let root = tmp.path().canonicalize()?;
-        let path = root.join("permesh.yaml");
-        let original = serde_json::json!({
-            "version":1,"organization":{"name":"Example"},
-            "providers":[{"id":"google-work","type":"google","customer_id":"C01234567","auth":{"token":reference}}],
-            "identity":{"sources":[{"provider":"google-work","authoritative":true}],
-            "aliases":{"google:C01234567:123":{"google-work":["123"]}}}
-        });
-        fs::write(&path, serde_json::to_vec(&original)?)?;
-        let registry = Registry::new(root.join("state/providers"))?;
-        let fixture = root.join("inert-google");
-        fs::write(&fixture, b"\x7fELFmust never execute")?;
-        let digest = inspect(&fixture)?.sha256;
-        registry.trust(
-            &fixture,
-            "google",
-            &digest,
-            &[Capability::Accounts, Capability::Identities],
-        )?;
-        let output = run(&root, "google-work", &digest)?;
-        assert_eq!(
-            output.status.code(),
-            Some(0),
-            "{}",
-            String::from_utf8_lossy(&output.stdout)
-        );
-        let report: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-        assert_eq!(report["result"]["provider"], "google");
-        assert_eq!(report["result"]["credentials_resolved"], false);
-        let after = permesh_config::Config::load(&path)?;
-        assert_eq!(serde_json::to_value(&after.identity)?, original["identity"]);
-        let provider = &after.providers[0];
-        assert_eq!(provider.id, "google-work");
-        assert!(provider.auth.is_none() && provider.customer_id.is_none());
-        let external = provider.external.as_ref().ok_or("missing external")?;
-        assert_eq!(external.provider, "google");
-        assert_eq!(
-            external.configuration,
-            std::collections::BTreeMap::from([
-                ("customer_id".into(), serde_json::json!("C01234567")),
-                ("auth_mode".into(), serde_json::json!("access_token")),
-            ])
-        );
-        assert_eq!(external.credentials["token"], reference);
-        assert!(!root.join("state/workspace-approvals").exists());
+    for protocol in [None, Some("legacy"), Some("negotiated-v1")] {
+        for reference in [
+            "env://PERMESH_MIGRATION_UNSET",
+            "keychain://google-work/token",
+        ] {
+            let tmp = tempfile::tempdir()?;
+            let root = tmp.path().canonicalize()?;
+            let path = root.join("permesh.yaml");
+            let original = serde_json::json!({
+                "version":1,"organization":{"name":"Example"},
+                "providers":[{"id":"google-work","type":"google","customer_id":"C01234567","auth":{"token":reference}}],
+                "identity":{"sources":[{"provider":"google-work","authoritative":true}],
+                "aliases":{"google:C01234567:123":{"google-work":["123"]}}}
+            });
+            fs::write(&path, serde_json::to_vec(&original)?)?;
+            let registry = Registry::new(root.join("state/providers"))?;
+            let fixture = root.join("inert-google");
+            fs::write(&fixture, b"\x7fELFmust never execute")?;
+            let digest = inspect(&fixture)?.sha256;
+            registry.trust(
+                &fixture,
+                "google",
+                &digest,
+                &[Capability::Accounts, Capability::Identities],
+            )?;
+            let output = if let Some(protocol) = protocol {
+                Command::new(env!("CARGO_BIN_EXE_permesh"))
+                    .current_dir(&root)
+                    .env("PERMESH_DATA_DIR", root.join("state"))
+                    .env_remove("PERMESH_MIGRATION_UNSET")
+                    .args([
+                        "provider",
+                        "migrate",
+                        "google-work",
+                        "--sha256",
+                        &digest,
+                        "--discovery-protocol",
+                        protocol,
+                        "--json",
+                    ])
+                    .output()?
+            } else {
+                run(&root, "google-work", &digest)?
+            };
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{}",
+                String::from_utf8_lossy(&output.stdout)
+            );
+            let report: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+            assert_eq!(report["result"]["provider"], "google");
+            assert_eq!(report["result"]["credentials_resolved"], false);
+            if protocol == Some("negotiated-v1") {
+                assert_eq!(report["result"]["discovery_protocol"], "negotiated_v1");
+            } else {
+                assert!(report["result"].get("discovery_protocol").is_none());
+            }
+            let after = permesh_config::Config::load(&path)?;
+            assert_eq!(serde_json::to_value(&after.identity)?, original["identity"]);
+            let provider = &after.providers[0];
+            assert_eq!(provider.id, "google-work");
+            assert!(provider.auth.is_none() && provider.customer_id.is_none());
+            let external = provider.external.as_ref().ok_or("missing external")?;
+            assert_eq!(external.provider, "google");
+            assert_eq!(
+                external.discovery_protocol,
+                if protocol == Some("negotiated-v1") {
+                    permesh_config::DiscoveryProtocol::NegotiatedV1
+                } else {
+                    permesh_config::DiscoveryProtocol::Legacy
+                }
+            );
+            assert_eq!(
+                external.configuration,
+                std::collections::BTreeMap::from([
+                    ("customer_id".into(), serde_json::json!("C01234567")),
+                    ("auth_mode".into(), serde_json::json!("access_token")),
+                ])
+            );
+            assert_eq!(external.credentials["token"], reference);
+            assert!(!root.join("state/workspace-approvals").exists());
+        }
     }
     Ok(())
 }

@@ -40,7 +40,11 @@ impl Legacy {
     }
 }
 
-pub(super) fn convert(provider: &mut ProviderConfig, sha256: &str) -> Result<Legacy, AppError> {
+pub(super) fn convert(
+    provider: &mut ProviderConfig,
+    sha256: &str,
+    discovery_protocol: permesh_config::DiscoveryProtocol,
+) -> Result<Legacy, AppError> {
     let kind = match provider.kind {
         ProviderKind::Github => Legacy::Github,
         ProviderKind::Google => Legacy::Google,
@@ -93,7 +97,7 @@ pub(super) fn convert(provider: &mut ProviderConfig, sha256: &str) -> Result<Leg
         .token;
     provider.kind = ProviderKind::External;
     provider.external = Some(ExternalConfig {
-        discovery_protocol: permesh_config::DiscoveryProtocol::Legacy,
+        discovery_protocol,
         provider: kind.name().into(),
         sha256: sha256.into(),
         configuration,

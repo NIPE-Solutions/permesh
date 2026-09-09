@@ -25,6 +25,9 @@ const LOCAL_DEADLINE: Duration = Duration::from_secs(120);
 pub struct SetupArgs {
     /// Locally trusted provider registration ID.
     pub provider: String,
+    /// Discovery contract for this separately trusted native provider.
+    #[arg(long, value_enum, default_value_t = crate::args::DiscoveryProtocol::Legacy)]
+    pub discovery_protocol: crate::args::DiscoveryProtocol,
     #[arg(long, help = "New instance ID; defaults to PROVIDER-main")]
     pub id: Option<String>,
     #[arg(
@@ -89,6 +92,7 @@ pub(crate) struct TrustedSetup {
     pub root: PathBuf,
     pub registration: Registration,
     pub executable: PathBuf,
+    pub discovery_protocol: permesh_config::DiscoveryProtocol,
 }
 pub(crate) enum SetupOutcome {
     Described(Outcome),
@@ -165,6 +169,7 @@ pub async fn run(
             root,
             registration,
             executable,
+            discovery_protocol: args.discovery_protocol.into(),
         },
     )
     .await?
@@ -186,6 +191,7 @@ pub(crate) async fn execute(
         root,
         registration,
         executable,
+        discovery_protocol,
     } = trusted;
     if args.authoritative && !registration.capabilities.contains(&Capability::Identities) {
         return Err(AppError::input(
@@ -250,6 +256,46 @@ pub(crate) async fn execute(
     // No background prompt/credential worker can write the configuration later.
     draft
         .ok_or_else(|| AppError::new(5, "Setup workspace is missing"))?
-        .commit_instance(&id, &registration, values, args.authoritative)
+        .commit_instance(
+            &id,
+            &registration,
+            values,
+            args.authoritative,
+            discovery_protocol,
+        )
         .map(SetupOutcome::Created)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn standalone_setup_defaults_to_legacy_and_accepts_explicit_negotiated_v1() {
+        for (selector, expected) in [
+            (None, permesh_config::DiscoveryProtocol::Legacy),
+            (Some("legacy"), permesh_config::DiscoveryProtocol::Legacy),
+            (
+                Some("negotiated-v1"),
+                permesh_config::DiscoveryProtocol::NegotiatedV1,
+            ),
+        ] {
+            let mut argv = vec!["permesh", "provider", "setup", "fixture", "--describe"];
+            if let Some(selector) = selector {
+                argv.extend(["--discovery-protocol", selector]);
+            }
+            let cli = Cli::try_parse_from(argv).unwrap_or_else(|error| panic!("{error}"));
+            let crate::args::Command::Provider {
+                command: crate::args::ProviderCommand::Setup(args),
+            } = cli.command
+            else {
+                panic!("setup command expected")
+            };
+            assert_eq!(
+                permesh_config::DiscoveryProtocol::from(args.discovery_protocol),
+                expected
+            );
+        }
+    }
 }

@@ -30,6 +30,29 @@ pub enum Color {
     Always,
     Never,
 }
+/// Explicit discovery contract for separately trusted native provider binaries.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+pub enum DiscoveryProtocol {
+    #[default]
+    Legacy,
+    NegotiatedV1,
+}
+impl From<DiscoveryProtocol> for permesh_config::DiscoveryProtocol {
+    fn from(value: DiscoveryProtocol) -> Self {
+        match value {
+            DiscoveryProtocol::Legacy => Self::Legacy,
+            DiscoveryProtocol::NegotiatedV1 => Self::NegotiatedV1,
+        }
+    }
+}
+impl std::fmt::Display for DiscoveryProtocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Legacy => "legacy",
+            Self::NegotiatedV1 => "negotiated-v1",
+        })
+    }
+}
 #[derive(Subcommand, Clone)]
 pub enum Command {
     /// Create a workspace without overwriting existing files.
@@ -91,22 +114,24 @@ pub enum ProviderCommand {
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {
-    #[arg(value_parser=["github", "google", "external"], help="Provider type; github guides official package trust and setup")]
+    #[arg(value_parser=["github", "google", "cloudflare", "aws", "external"], help="Provider type; official providers guide package trust and setup")]
     pub provider_type: String,
+    #[arg(long, value_enum, default_value_t = DiscoveryProtocol::Legacy, help = "Discovery contract for advanced external configuration; official packages use catalog metadata")]
+    pub discovery_protocol: DiscoveryProtocol,
     #[arg(
         long,
-        help = "Exact official GitHub version; defaults to the newest compatible release"
+        help = "Exact official provider version; defaults to the newest compatible release"
     )]
     pub version: Option<String>,
     #[arg(
         long,
         value_name = "FILE",
-        help = "GitHub declarative setup answers; nonsecret settings and credential references only"
+        help = "Provider declarative setup answers; nonsecret settings and credential references only"
     )]
     pub answers: Option<PathBuf>,
     #[arg(
         long,
-        help = "Explicitly trust the selected official GitHub binary and approve the resulting instance's settings and credential delivery"
+        help = "Explicitly trust the selected official provider binary and approve the resulting instance's settings and credential delivery"
     )]
     pub accept_risk: bool,
     #[arg(long, help = "Stable instance ID; defaults to TYPE-main")]

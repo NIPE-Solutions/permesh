@@ -49,6 +49,7 @@ impl Draft {
         registration: &Registration,
         values: ResolvedSetup,
         authoritative: bool,
+        discovery_protocol: permesh_config::DiscoveryProtocol,
     ) -> Result<CreatedInstance, AppError> {
         self.config.providers.push(ProviderConfig {
             id: id.into(),
@@ -57,7 +58,7 @@ impl Draft {
             customer_id: None,
             auth: None,
             external: Some(ExternalConfig {
-                discovery_protocol: permesh_config::DiscoveryProtocol::Legacy,
+                discovery_protocol,
                 provider: registration.id.clone(),
                 sha256: registration.sha256.clone(),
                 configuration: values.configuration,
@@ -116,7 +117,8 @@ mod tests {
                     "example-main",
                     &registration,
                     ResolvedSetup::default(),
-                    false
+                    false,
+                    permesh_config::DiscoveryProtocol::Legacy
                 )
                 .is_err_and(|e| e.message.contains("changed"))
         );
@@ -128,7 +130,13 @@ mod tests {
             .insert("token".into(), "SENTINEL_PRIVATE".into());
         assert!(
             draft
-                .commit_instance("example-main", &registration, values, false)
+                .commit_instance(
+                    "example-main",
+                    &registration,
+                    values,
+                    false,
+                    permesh_config::DiscoveryProtocol::Legacy
+                )
                 .is_err_and(|e| !e.message.contains("SENTINEL_PRIVATE"))
         );
         assert_eq!(std::fs::read_to_string(&path)?, changed);
@@ -164,7 +172,13 @@ mod tests {
         );
         assert!(
             draft
-                .commit_instance("new-main", &registration, values, false)
+                .commit_instance(
+                    "new-main",
+                    &registration,
+                    values,
+                    false,
+                    permesh_config::DiscoveryProtocol::Legacy
+                )
                 .is_err()
         );
         assert_eq!(std::fs::read(&path)?, original);

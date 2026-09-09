@@ -6,7 +6,6 @@ use crate::{
 use permesh_config::{Config, ProviderConfig, ProviderKind};
 use permesh_core::Snapshot;
 use permesh_provider_sdk::{Metadata, Provider, ProviderError};
-use permesh_secrets::{SecretRef, SecretResolver};
 use std::{collections::VecDeque, sync::Arc};
 const MAX_CONCURRENT_PROVIDERS: usize = 4;
 pub fn kind(provider: &ProviderConfig) -> &'static str {
@@ -17,16 +16,23 @@ pub fn kind(provider: &ProviderConfig) -> &'static str {
         ProviderKind::External => "external",
     }
 }
-pub fn legacy_github_message(id: &str) -> String {
+pub fn legacy_message(provider: &ProviderConfig) -> String {
+    let name = match provider.kind {
+        ProviderKind::Github => "GitHub",
+        ProviderKind::Google => "Google",
+        _ => kind(provider),
+    };
     format!(
-        "Bundled GitHub execution is unavailable. Install and explicitly trust the external GitHub provider, then run permesh provider migrate {id} --sha256 DIGEST and review workspace execution approval"
+        "Bundled {name} execution is unavailable. Install and explicitly trust the external {name} provider, then run permesh provider migrate {} --sha256 DIGEST --discovery-protocol negotiated-v1 for a negotiated-v1 binary and review workspace execution approval. Use --discovery-protocol legacy only for older binaries",
+        provider.id
     )
 }
 pub fn metadata(provider: &ProviderConfig) -> Result<Metadata, AppError> {
     Ok(match provider.kind {
         ProviderKind::Demo => permesh_provider_demo::provider_metadata(),
-        ProviderKind::Github => return Err(AppError::input(legacy_github_message(&provider.id))),
-        ProviderKind::Google => permesh_provider_google::provider_metadata(),
+        ProviderKind::Github | ProviderKind::Google => {
+            return Err(AppError::input(legacy_message(provider)));
+        }
         ProviderKind::External => return crate::external_workspace::metadata(provider),
     })
 }
@@ -39,28 +45,10 @@ pub fn build(provider: &ProviderConfig) -> Result<Arc<dyn Provider>, ProviderErr
         ProviderKind::Demo => Ok(Arc::new(permesh_provider_demo::DemoProvider::new(
             &provider.id,
         ))),
-        ProviderKind::Github => Err(ProviderError::new(
+        ProviderKind::Github | ProviderKind::Google => Err(ProviderError::new(
             "migration_required",
-            legacy_github_message(&provider.id),
+            legacy_message(provider),
         )),
-        ProviderKind::Google => {
-            let reference = provider
-                .auth
-                .as_ref()
-                .ok_or_else(|| ProviderError::new("auth", "Authentication reference missing"))?;
-            let reference = SecretRef::parse(&reference.token)
-                .map_err(|_| ProviderError::new("auth", "Invalid secret reference"))?;
-            let secret = SecretResolver.resolve(&reference).map_err(|_| ProviderError::new("auth", "Authentication unavailable. Set the configured environment variable or run permesh auth login for this instance."))?;
-            let customer = provider
-                .customer_id
-                .clone()
-                .ok_or_else(|| ProviderError::new("configuration", "Google customer_id missing"))?;
-            Ok(Arc::new(permesh_provider_google::GoogleProvider::new(
-                provider.id.clone(),
-                customer,
-                secret,
-            )?))
-        }
     }
 }
 pub fn selected(config: &Config, id: Option<&str>) -> Result<Vec<ProviderConfig>, AppError> {
@@ -198,22 +186,24 @@ mod legacy_tests {
     use super::*;
     #[test]
     fn legacy_build_rejects_before_even_parsing_a_credential_reference() {
-        let provider = ProviderConfig {
-            id: "legacy".into(),
-            kind: ProviderKind::Github,
-            organizations: vec!["acme".into()],
-            customer_id: None,
-            external: None,
-            auth: Some(permesh_config::AuthConfig {
-                token: "invalid secret reference must never be parsed".into(),
-            }),
-        };
-        match build(&provider) {
-            Err(error) => {
-                assert_eq!(error.code, "migration_required");
-                assert!(error.message.contains("provider migrate legacy"));
+        for kind in [ProviderKind::Github, ProviderKind::Google] {
+            let provider = ProviderConfig {
+                id: "legacy".into(),
+                kind,
+                organizations: vec!["acme".into()],
+                customer_id: None,
+                external: None,
+                auth: Some(permesh_config::AuthConfig {
+                    token: "invalid secret reference must never be parsed".into(),
+                }),
+            };
+            match build(&provider) {
+                Err(error) => {
+                    assert_eq!(error.code, "migration_required");
+                    assert!(error.message.contains("provider migrate legacy"));
+                }
+                Ok(_) => panic!("legacy provider constructed an adapter"),
             }
-            Ok(_) => panic!("legacy provider constructed an adapter"),
         }
     }
 }

@@ -8,23 +8,26 @@ Provider output goes through the host's validated protocol.
 | --- | --- | --- |
 | Demo | Synthetic accounts, authoritative identities, resources, groups, memberships and grants; no secrets or network | Bundled; `init --demo` |
 | GitHub | Organization/repository observations, teams, memberships and observed grants; no claim of complete effective authorization | External 0.1.0 published for all five native targets |
-| Google | Customer-wide directory accounts and optionally authoritative identities; no resource grants or groups | Bundled access-token adapter; external 0.1.1 is an unpublished draft with refresh/browser source implemented |
-| Cloudflare | Account-access observations with conservative policy and visibility handling | External 0.1.0 is an unpublished draft held for qualification, absent from catalog |
-| AWS | IAM users, roles, groups and policy attachments in one commercial account; no effective-permission or administrator analysis | External 0.1.0 is an unpublished draft; live and release qualification remain separate gates |
+| Google | Customer-wide directory accounts and optionally authoritative identities; no resource grants or groups | External 0.2.0 source candidate; refresh/browser support implemented, no package published |
+| Cloudflare | Account-access observations with conservative policy and visibility handling | External 0.2.0 is an unpublished candidate held for qualification, absent from catalog |
+| AWS | IAM users, roles, groups and policy attachments in one commercial account; no effective-permission or administrator analysis | External 0.2.0 is an unpublished candidate; live and release qualification remain separate gates |
 
 Official external source is maintained in
 [permesh-providers](https://github.com/NIPE-Solutions/permesh-providers).
-Google 0.1.1, Cloudflare 0.1.0 and AWS 0.1.0 drafts are not published releases or
-installable catalog entries. Source status is based on provider revision
-[`ba672ae`](https://github.com/NIPE-Solutions/permesh-providers/commit/ba672ae426a740a31d23a8540eb87e488d51e5e8). Follow the [GitHub guide](providers/github.md) and [Google identity
-source guide](providers/google.md) for the supported configuration paths.
+All four official adapters now have negotiated-v1 0.2.0 source candidates,
+qualified offline on five native targets in
+[provider PR 13](https://github.com/NIPE-Solutions/permesh-providers/pull/13).
+They are not published releases or installable catalog entries. GitHub 0.1.0
+remains the only published package. Follow the [GitHub guide](providers/github.md)
+and [Google identity source guide](providers/google.md) for setup and limitations.
 
 The external Google provider supports access tokens, refresh tokens and a
 provider-declared browser flow with host-owned PKCE and callback handling.
 Browser login requires a configured OAuth client, trusted binary, approved
 workspace and a same-instance keychain destination. It does not provide OAuth
-client registration or qualify a live tenant automatically. The bundled Google
-adapter continues to use externally supplied access tokens.
+client registration or qualify a live tenant automatically. Legacy `type: google`
+configurations require [explicit migration](google-migration.md); only demo remains
+bundled.
 
 AWS uses named `access_key_id`, `secret_access_key` and optional `session_token`
 references. It does not load ambient profiles, shared credential files, SSO

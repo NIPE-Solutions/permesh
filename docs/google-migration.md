@@ -5,13 +5,19 @@
 explicit local configuration edit: it never downloads, trusts, launches or approves
 code and never resolves credentials.
 
+The bundled adapter has been removed from current source. Published CLI alpha.2
+is unchanged. The external Google 0.2.0 candidate is qualified offline, but has
+not been published in the catalog; live tenant qualification remains pending.
+Migration therefore requires a reviewed native build until publication.
+
 Obtain a qualified Google executable and review it using the [provider trust
 workflow](provider-packages.md). Its registration must be named `google` with
 exactly `accounts` and `identities`. Downloading a package alone does not establish
 trust. Use its reviewed executable digest:
 
 ```sh
-permesh provider migrate google-main --sha256 REVIEWED_EXECUTABLE_SHA256
+permesh provider migrate google-main --sha256 REVIEWED_EXECUTABLE_SHA256 \
+  --discovery-protocol negotiated-v1
 permesh provider external review google-main
 ```
 
@@ -33,6 +39,7 @@ becomes:
   type: external
   external:
     provider: google
+    discovery_protocol: negotiated_v1
     sha256: REVIEWED_EXECUTABLE_SHA256
     configuration:
       customer_id: C01234567
@@ -67,3 +74,7 @@ and [filesystem caveats](github-migration.md) also apply.
 The external host has its own bounded transcript and 60-second operation deadline.
 A successful migration does not establish directory completeness or live tenant
 qualification. Health and query checks follow explicit workspace approval.
+
+The discovery selector defaults to legacy for historical binaries. Select
+`negotiated-v1` explicitly for 0.2.0 candidates; migration does not probe a binary
+or guess compatibility. The selector is part of workspace approval.

@@ -188,6 +188,7 @@ Official provider packages are maintained in
 [permesh-providers](https://github.com/NIPE-Solutions/permesh-providers).
 [Explicit install and update commands](docs/provider-packages.md) are implemented;
 the catalog lists qualified releases for the supported native platforms.
-Google and the offline demo remain bundled; GitHub requires an external binary.
-Explicit Google migration is available for a reviewed external binary. Removing
-the bundled Google adapter follows external release qualification.
+Only the offline demo is bundled. GitHub, Google, Cloudflare and AWS adapters
+live in the provider repository. Google source candidates are available, but
+no Google package is published yet; see [Google migration](docs/google-migration.md)
+and [provider availability](docs/providers.md).

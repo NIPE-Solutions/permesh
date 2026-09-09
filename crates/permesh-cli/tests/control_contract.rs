@@ -153,6 +153,7 @@ fn release_and_package_preserve_complete_baseline_objects_and_null() {
     use permesh_provider_external::{catalog::Release, packages::InstalledPackage};
     use permesh_provider_sdk::Capability;
     let release = Release {
+        discovery_protocol: Default::default(),
         provider: "fixture".into(),
         version: "1.2.3".parse().unwrap(),
         target: "x86_64-unknown-linux-gnu".into(),

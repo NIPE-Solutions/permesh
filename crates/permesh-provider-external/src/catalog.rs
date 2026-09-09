@@ -23,6 +23,32 @@ pub struct Catalog {
     pub releases: Vec<Release>,
 }
 
+/// Discovery contract explicitly selected by verified release metadata.
+/// Missing metadata preserves the legacy persisted representation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscoveryProtocol {
+    #[default]
+    Legacy,
+    NegotiatedV1,
+}
+
+impl<'de> Deserialize<'de> for DiscoveryProtocol {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        match String::deserialize(deserializer)?.as_str() {
+            "legacy" => Ok(Self::Legacy),
+            "negotiated_v1" => Ok(Self::NegotiatedV1),
+            _ => Err(serde::de::Error::custom("unknown discovery protocol")),
+        }
+    }
+}
+
+impl DiscoveryProtocol {
+    fn is_legacy(&self) -> bool {
+        *self == Self::Legacy
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Release {
@@ -31,6 +57,8 @@ pub struct Release {
     pub target: String,
     pub capabilities: Vec<Capability>,
     pub protocols: Vec<u32>,
+    #[serde(default, skip_serializing_if = "DiscoveryProtocol::is_legacy")]
+    pub discovery_protocol: DiscoveryProtocol,
     pub archive_sha256: String,
     pub executable_sha256: String,
     pub archive_size: u64,
@@ -86,8 +114,13 @@ impl Release {
             || !digest(&self.archive_sha256)
             || !digest(&self.executable_sha256)
             || !(1..=MAX_ARCHIVE_BYTES).contains(&self.archive_size)
-            || !self.protocols.contains(&2)
-            || self.protocols.iter().any(|v| !matches!(v, 2 | 3))
+            || match self.discovery_protocol {
+                DiscoveryProtocol::Legacy => {
+                    !self.protocols.contains(&2)
+                        || self.protocols.iter().any(|v| !matches!(v, 2 | 3))
+                }
+                DiscoveryProtocol::NegotiatedV1 => self.protocols != [3],
+            }
             || self
                 .protocols
                 .iter()

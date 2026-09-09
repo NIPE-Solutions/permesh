@@ -23,6 +23,9 @@ pub struct MigrationArgs {
     /// Exact SHA-256 of an already trusted external provider binary.
     #[arg(long, value_name = "DIGEST")]
     pub sha256: String,
+    /// Discovery contract of the explicitly trusted binary; never auto-detected.
+    #[arg(long, value_enum, default_value_t = crate::args::DiscoveryProtocol::Legacy)]
+    pub discovery_protocol: crate::args::DiscoveryProtocol,
 }
 fn cancelled() -> AppError {
     AppError::new(130, "Cancelled")
@@ -103,7 +106,7 @@ impl Draft {
             .ok_or_else(|| {
                 AppError::input("Unknown provider instance; run permesh provider list")
             })?;
-        let kind = provider::convert(provider, &args.sha256)?;
+        let kind = provider::convert(provider, &args.sha256, args.discovery_protocol.into())?;
         config.validate()?;
         let path = path
             .canonicalize()
@@ -125,15 +128,16 @@ impl Draft {
         }
         let yaml = permesh_config::to_yaml(&self.config)?;
         Config::from_bytes(yaml.as_bytes())?;
-        let outcome = Outcome::new(
-            "provider_migrate",
-            serde_json::json!({
-                "id":args.id,"provider":self.kind.name(),"sha256":args.sha256,"file":self.path,"changed":true,
-                "trust_changed":false,"approval_records_changed":false,"execution_approvals_require_review":true,"credentials_resolved":false,
-                "message":format!("{} Configuration formatting was normalized. Review the diff. This workspace change invalidates execution approvals for all external instances; review and approve each before querying. No provider was executed and no credentials were resolved or stored.", self.kind.message()),
-                "next":format!("permesh provider external review {}",args.id)
-            }),
-        )?;
+        let mut result = serde_json::json!({
+            "id":args.id,"provider":self.kind.name(),"sha256":args.sha256,"file":self.path,"changed":true,
+            "trust_changed":false,"approval_records_changed":false,"execution_approvals_require_review":true,"credentials_resolved":false,
+            "message":format!("{} Configuration formatting was normalized. Review the diff. This workspace change invalidates execution approvals for all external instances; review and approve each before querying. No provider was executed and no credentials were resolved or stored.", self.kind.message()),
+            "next":format!("permesh provider external review {}",args.id)
+        });
+        if args.discovery_protocol == crate::args::DiscoveryProtocol::NegotiatedV1 {
+            result["discovery_protocol"] = serde_json::json!("negotiated_v1");
+        }
+        let outcome = Outcome::new("provider_migrate", result)?;
         let parent = self
             .path
             .parent()
@@ -171,6 +175,7 @@ mod tests {
         let args = MigrationArgs {
             id: "github-main".into(),
             sha256: "a".repeat(64),
+            discovery_protocol: crate::args::DiscoveryProtocol::Legacy,
         };
         std::fs::write(&path, original)?;
         let draft = Draft::load(&path, &args).map_err(|error| error.message)?;

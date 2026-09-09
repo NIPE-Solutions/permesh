@@ -56,7 +56,7 @@ macOS uses the system `open` executable; Linux uses `/usr/bin/xdg-open` with
 commands. Use `--no-open` if the desktop opener is unavailable.
 
 Provider authors declare this capability using optional [protocol draft 4](provider-protocol.md).
-Discovery remains draft 2 and setup remains draft 3; package catalog protocol
+Discovery uses the explicitly selected legacy or negotiated contract; setup remains draft 3; package catalog protocol
 lists continue to describe those existing operations so older CLIs can install
 providers without using browser login.
 

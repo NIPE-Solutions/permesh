@@ -184,4 +184,7 @@ for prompting. `resolve` applies defaults, enforces required fields and separate
 CLI applies secret-reference and instance/slot rules.
 
 Providers return a complete description in the [draft-3 exchange](provider-protocol.md#setup-description-draft-3).
-Queries and health still require draft 2. [Package installation and explicit updates](provider-packages.md) store untrusted binaries; use explicit binary trust before setup. Automatic updates and dynamic provider-driven setup steps remain deferred.
+Queries and health use the explicitly selected discovery contract. Official guided
+add carries the verified package selection into workspace configuration. For
+separately trusted negotiated-v1 binaries, pass `--discovery-protocol negotiated-v1`
+to setup; the advanced workflow defaults to legacy for existing binaries. [Package installation and explicit updates](provider-packages.md) store untrusted binaries; use explicit binary trust before setup. Automatic updates and dynamic provider-driven setup steps remain deferred.

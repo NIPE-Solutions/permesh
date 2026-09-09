@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! Official GitHub onboarding composes existing verified distribution and trust boundaries.
+//! Official provider onboarding composes existing verified distribution and trust boundaries.
 use crate::{
     args::{AddProvider, Cli},
     blocking::BlockingPool,
@@ -25,10 +25,11 @@ fn cancelled(cancellation: &Cancellation) -> Result<(), AppError> {
     }
 }
 fn setup_args(args: &AddProvider) -> Result<SetupArgs, AppError> {
-    if args.provider_type != "github"
-        || !args.organization.is_empty()
+    if !matches!(
+        args.provider_type.as_str(),
+        "github" | "google" | "cloudflare" | "aws"
+    ) || !args.organization.is_empty()
         || args.customer_id.is_some()
-        || args.authoritative
         || args.token_ref.is_some()
         || args.provider.is_some()
         || args.sha256.is_some()
@@ -36,23 +37,24 @@ fn setup_args(args: &AddProvider) -> Result<SetupArgs, AppError> {
         || !args.credential.is_empty()
     {
         return Err(AppError::input(
-            "GitHub add handles official install, trust and setup. Use its declarative form or --answers FILE instead of legacy/external configuration flags; --authoritative is not supported.",
+            "Official provider add handles official install, trust and setup. Use its declarative form or --answers FILE instead of legacy/external configuration flags.",
         ));
     }
-    catalog::validate_request("github", args.version.as_deref())
+    catalog::validate_request(&args.provider_type, args.version.as_deref())
         .map_err(|_| AppError::input("--version requires an exact stable provider version"))?;
     Ok(SetupArgs {
-        provider: "github".into(),
+        provider: args.provider_type.clone(),
+        discovery_protocol: crate::args::DiscoveryProtocol::Legacy,
         id: args.id.clone(),
         answers: args.answers.clone(),
         describe: false,
-        authoritative: false,
+        authoritative: args.authoritative,
     })
 }
 fn continuation(id: &str, package: &InstalledPackage) -> String {
     format!(
-        "permesh provider add github --id {id} --version {}",
-        package.release.version
+        "permesh provider add {} --id {id} --version {}",
+        package.release.provider, package.release.version
     )
 }
 fn annotate(mut error: AppError, next: &str) -> AppError {
@@ -74,7 +76,7 @@ pub async fn run(
     };
     let fetch = async {
         crate::distribution::acquire(
-            "github",
+            &args.provider_type,
             args.version.as_deref(),
             false,
             false,
@@ -121,7 +123,7 @@ where
     let setup_args = setup_args(args)?;
     if !env.interactive && (args.answers.is_none() || !args.accept_risk) {
         return Err(AppError::input(
-            "Noninteractive GitHub add requires --answers FILE and --accept-risk. The flag authorizes both native binary trust and the resulting instance's credential delivery; authentication remains separate.",
+            "Noninteractive official provider add requires --answers FILE and --accept-risk. The flag authorizes both native binary trust and the resulting instance's credential delivery; authentication remains separate.",
         ));
     }
     // Retain the captured workspace revision and parsed answers across download and consent.
@@ -137,7 +139,7 @@ where
     release
         .validate()
         .map_err(|_| AppError::new(3, "Invalid official package metadata"))?;
-    if release.provider != "github"
+    if release.provider != args.provider_type
         || Some(release.target.as_str()) != catalog::native_target()
         || !release.protocols.contains(&3)
         || args
@@ -146,7 +148,7 @@ where
             .is_some_and(|v| *v != release.version.to_string())
     {
         return Err(AppError::input(
-            "Selected GitHub package does not match the requested version/platform or does not support declarative setup",
+            "Selected official package does not match the requested version/platform or does not support declarative setup",
         ));
     }
     let next = continuation(&id, &package);
@@ -164,13 +166,14 @@ where
         .collect::<Vec<_>>()
         .join(", ");
     let mut review = format!(
-        "GitHub provider {}
+        "{} provider {}
 Source: {}
 Reported capabilities: {capabilities}
 
 Package checksums match the public catalog; publisher signatures were not verified.
 This code runs as your user with access to files and network; it is not sandboxed.
 Trust this provider and run its setup form?",
+        release.provider,
         release.version,
         download::CATALOG_URL
     );
@@ -211,7 +214,7 @@ SHA-256: {}",
 fn trust_package(root: PathBuf, package: &InstalledPackage) -> Result<TrustedSetup, AppError> {
     let release = &package.release;
     let registry = Registry::new(root.clone()).map_err(failure)?;
-    let registration = match registry.load_pinned("github", &release.executable_sha256) {
+    let registration = match registry.load_pinned(&release.provider, &release.executable_sha256) {
         Ok(registration) => {
             if registration.capabilities.len() != release.capabilities.len()
                 || registration
@@ -229,7 +232,7 @@ fn trust_package(root: PathBuf, package: &InstalledPackage) -> Result<TrustedSet
         Err(_) => registry
             .trust(
                 &package.executable,
-                "github",
+                &release.provider,
                 &release.executable_sha256,
                 &release.capabilities,
             )
@@ -240,6 +243,12 @@ fn trust_package(root: PathBuf, package: &InstalledPackage) -> Result<TrustedSet
         root: root.clone(),
         registration,
         executable,
+        discovery_protocol: match release.discovery_protocol {
+            catalog::DiscoveryProtocol::Legacy => permesh_config::DiscoveryProtocol::Legacy,
+            catalog::DiscoveryProtocol::NegotiatedV1 => {
+                permesh_config::DiscoveryProtocol::NegotiatedV1
+            }
+        },
     })
 }
 
@@ -266,12 +275,17 @@ where
         .and_then(|p| p.external.as_ref())
         .ok_or_else(|| AppError::new(5, "Created provider instance is missing"))?;
     let review = format!(
-        "GitHub instance {id}\nWorkspace: {}\nSettings: {}\nCredential references: {}\n\nApprove this instance's settings and named credential delivery to the trusted binary? Credentials have not been resolved or stored. Authentication remains a separate auth login command.",
+        "{} instance {id}\nWorkspace: {}\nSettings: {}\nCredential references: {}\nDiscovery protocol: {}\n\nApprove this instance's settings and named credential delivery to the trusted binary? Credentials have not been resolved or stored. Authentication remains a separate auth login command.",
+        release.provider,
         crate::output::safe(&created.path.display().to_string()),
         serde_json::to_string_pretty(&instance.configuration)
             .map_err(|_| AppError::new(5, "Cannot format settings"))?,
         serde_json::to_string_pretty(&instance.credentials)
-            .map_err(|_| AppError::new(5, "Cannot format credential references"))?
+            .map_err(|_| AppError::new(5, "Cannot format credential references"))?,
+        match instance.discovery_protocol {
+            permesh_config::DiscoveryProtocol::Legacy => "legacy",
+            permesh_config::DiscoveryProtocol::NegotiatedV1 => "negotiated-v1",
+        }
     );
     cancelled(cancellation)?;
     let approve = consent(review).await?;
@@ -283,7 +297,7 @@ where
     }
     Outcome::new(
         "provider_add",
-        serde_json::json!({"id":id,"provider":"github","version":release.version.to_string(),"sha256":release.executable_sha256,"file":created.path,"configured":true,"approved":approve,"credentials_resolved":false,"configuration":instance.configuration,"credential_references":instance.credentials,"message":if approve {"GitHub instance configured and approved. Authentication remains separate; no credentials were resolved or stored."}else{"GitHub instance configured. Workspace execution approval declined; credentials remain unavailable to the provider until explicit approval."},"next":if approve {format!("permesh auth login {id}; permesh doctor")}else{format!("permesh provider external review {id}")}}),
+        serde_json::json!({"id":id,"provider":release.provider,"version":release.version.to_string(),"sha256":release.executable_sha256,"file":created.path,"configured":true,"approved":approve,"credentials_resolved":false,"configuration":instance.configuration,"credential_references":instance.credentials,"message":if approve {"Provider instance configured and approved. Authentication remains separate; no credentials were resolved or stored."}else{"Provider instance configured. Workspace execution approval declined; credentials remain unavailable to the provider until explicit approval."},"next":if approve {format!("permesh auth login {id}; permesh doctor")}else{format!("permesh provider external review {id}")}}),
     )
 }
 

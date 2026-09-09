@@ -132,6 +132,8 @@ pub(crate) struct Release<'a> {
     target: &'a str,
     capabilities: Vec<&'static str>,
     protocols: &'a [u32],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    discovery_protocol: Option<&'static str>,
     archive_sha256: &'a str,
     executable_sha256: &'a str,
     archive_size: u64,
@@ -144,6 +146,12 @@ impl<'a> From<&'a permesh_provider_external::catalog::Release> for Release<'a> {
             target: &value.target,
             capabilities: capabilities(&value.capabilities),
             protocols: &value.protocols,
+            discovery_protocol: match value.discovery_protocol {
+                permesh_provider_external::catalog::DiscoveryProtocol::Legacy => None,
+                permesh_provider_external::catalog::DiscoveryProtocol::NegotiatedV1 => {
+                    Some("negotiated_v1")
+                }
+            },
             archive_sha256: &value.archive_sha256,
             executable_sha256: &value.executable_sha256,
             archive_size: value.archive_size,
@@ -162,5 +170,27 @@ impl<'a> From<&'a permesh_provider_external::packages::InstalledPackage> for Ins
             release: Release::from(&value.release),
             executable: &value.executable,
         }
+    }
+}
+
+#[cfg(test)]
+mod release_tests {
+    #[test]
+    fn negotiated_contract_is_explicit_and_legacy_output_stays_unchanged()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let legacy = serde_json::json!({"provider":"github","version":"0.1.0","target":"aarch64-apple-darwin","capabilities":["accounts"],"protocols":[2,3],"archive_sha256":"a".repeat(64),"executable_sha256":"b".repeat(64),"archive_size":123});
+        let mut release: permesh_provider_external::catalog::Release =
+            serde_json::from_value(legacy.clone())?;
+        assert_eq!(
+            serde_json::to_value(super::Release::from(&release))?,
+            legacy
+        );
+        release.discovery_protocol =
+            permesh_provider_external::catalog::DiscoveryProtocol::NegotiatedV1;
+        release.protocols = vec![3];
+        let value = serde_json::to_value(super::Release::from(&release))?;
+        assert_eq!(value["discovery_protocol"], "negotiated_v1");
+        assert_eq!(value["protocols"], serde_json::json!([3]));
+        Ok(())
     }
 }
