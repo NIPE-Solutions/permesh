@@ -116,13 +116,13 @@ network context and portable pins remain the foundation.
 | --- | --- | --- | --- |
 | 0 | Case-sensitive local documentation checks and accurate release/source guidance | Existing docs and CI | Implemented; offline checker and regression suite, PR 33/provider PR 16 merged after three-platform tests, dependency checks and five native targets |
 | 1 | Cross-provider reference workflow, qualification matrix and compatible candidates | Existing host/adapters | Implemented reference fixture and qualification matrix; current candidate artifacts remain unpublished; directory live checks require a tenant |
-| 2A | Explicit identity mapping tools and versioned file-backed identity source | Identity index, strict config, captured writes | Implemented and locally tested; new feature cross-platform gates pending |
+| 2A | Explicit identity mapping tools and versioned file-backed identity source | Identity index, strict config, captured writes | Implemented; identity/inventory PR merged after passing cross-platform CI |
 | 2B | Explicit private snapshots, offline inspection and scope-aware diffs | Validated graph, independent artifact DTOs | Implemented; 15 comparison/privacy/adversarial CLI tests and broader local suite passed |
-| 3 | Read-only departure assessment, advisory plan, verification and HTML/JSON reports | Identity tools and snapshots | Implemented; 9 adversarial/fresh/replay CLI tests; source expiry, ownership and partial checks explicit |
+| 3 | Read-only departure assessment, advisory plan, verification and HTML/JSON reports | Identity tools and snapshots | Implemented; 10 adversarial/fresh/replay CLI tests, including lost-correlation verification; source expiry, ownership and partial checks explicit |
 | 4A | Resource queries and focused local review rules | Existing graph and review artifacts | Implemented; core and CLI tests passed, scoped exceptions/owners, findings exit 6 |
 | 4B | Minimal native scaffold and conformance workflow | SDK/runtime and existing fixtures | Implemented; offline validator tests and generated native scaffold tests passed, no automatic execution |
 | 5A | Entra, GitLab and explicit short-lived AWS/Identity Center integrations | Qualified existing-provider workflow | Implemented candidate sources and local HTTP/native tests; explicit temporary-profile integration implemented; candidate artifact gates tracked separately, live prerequisites recorded separately |
-| 5B | Host-owned 1Password and OpenBao/Vault KV resolvers | Secret references, approved network/auth context | Implemented and locally tested exact-field retrieval, bounded cancellation, no recursive fallback or bootstrap reflection; PR and cross-platform gates pending |
+| 5B | Host-owned 1Password and OpenBao/Vault KV resolvers | Secret references, approved network/auth context | Implemented and locally tested exact-field retrieval, bounded cancellation, no recursive fallback or bootstrap reflection; remote-source PR merged after passing cross-platform CI |
 | Future | Pilot-driven integrations and separate remediation design | Evidence from adoption | Backlog and ADR only; no mutation implementation |
 
 The active program is not complete until phases 0–5 are implemented or their
@@ -132,9 +132,10 @@ contracts and release notes will be updated with each implemented slice.
 
 ## Access-review delivery evidence and remaining gates
 
-The combined local source program at `1a4b3e4` passed 503 tests, strict Clippy,
+The combined local source program at `37ddc5c` passed 503 tests, strict Clippy,
 formatting, dependency checks and 101 tracked-document checks on macOS. Later
-focused temporary-profile checks also passed. A 14-command synthetic demo
+focused temporary-profile checks passed at `1a4b3e4`. A 14-command synthetic demo
+at that later source revision
 exercised review queries, snapshots/diffs, advisory plans and verification,
 HTML output, private artifact modes and policy findings exit 6. These are local
 source checks, not claims about every PR head, platform or published artifact.
