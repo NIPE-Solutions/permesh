@@ -63,3 +63,13 @@ enter CLI reports or approval records. There is no global secret cache or remote
 store mutation. Configuration, listing and remote auth status do not contact the
 store or resolve its bootstrap. See [remote credential contracts and qualification
 limits](remote-credentials.md).
+
+## Explicit temporary AWS profiles
+
+An approved [temporary AWS profile](aws-profiles.md) is read on the host only after
+executable trust and workspace approval. The provider receives the three selected
+session values, not the source path, other profiles or the AWS process environment.
+Permesh does not rewrite or cache the file. The filesystem may itself reside on a
+network mount; select the source according to your organization's credential-storage
+policy. Profile status and review do not open the file. Session validity is checked
+by the AWS adapter against the approved caller account and role during operation.

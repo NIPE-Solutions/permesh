@@ -3,6 +3,7 @@ mod admins_output;
 mod app;
 mod args;
 mod auth;
+mod aws_profile;
 mod blocking;
 mod browser_flow;
 mod browser_login;

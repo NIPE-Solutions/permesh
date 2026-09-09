@@ -127,6 +127,7 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
         .unwrap_or_else(|| format!("{}-main", args.provider_type));
     let external = Some(permesh_config::ExternalConfig {
         credential_resolvers: Default::default(),
+        aws_profile: None,
         network: None,
         discovery_protocol: args.discovery_protocol.into(),
         provider: args

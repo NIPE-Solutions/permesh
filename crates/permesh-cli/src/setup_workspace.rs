@@ -70,6 +70,7 @@ impl Draft {
             auth: None,
             external: Some(ExternalConfig {
                 credential_resolvers: Default::default(),
+                aws_profile: None,
                 network: None,
                 discovery_protocol,
                 provider: registration.id.clone(),

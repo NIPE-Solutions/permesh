@@ -5,7 +5,8 @@
 | `env://NAME` | Supplied to the local process by its parent; subject to OS process-access rules | Commit the reference; inject the value through existing CI secret tooling | Replace/unset the variable in its owner; revoke old credentials at the provider |
 | `keychain://instance/slot` | Native credential store under the current user's OS security policy | Recommended local desktop storage; share references, not entries | Explicit login replaces the local entry; logout removes it; revoke remotely through the provider |
 | `1password://NAME`, `vault://NAME`, `openbao://NAME` | Explicit host-owned read through a reviewed per-instance resolver; whole Connect item or KV object is fetched, exact field delivered | Share only nonsecret declarations; provision the explicit local bootstrap independently | Refresh at the selected store; no remote writes, deletion, renewal or cached fallback |
-| Native AWS profile/SSO, SOPS, command resolvers | Not a supported Permesh secret backend yet | No implicit ambient credential-chain or command execution | Future explicit contracts; do not place commands or plaintext credentials in references |
+| [Temporary AWS profile](aws-profiles.md) | One selected private shared-credentials file and named temporary session | Explicit machine/CI path; no copied credentials in YAML | Refresh externally; account/role stay bound to approved provider settings |
+| Automatic AWS SSO/role chains, SOPS, executable resolvers | Unsupported | No implicit ambient lookup or helper execution | Future separately reviewed contracts |
 
 Workspace configuration accepts `env://NAME` and
 `keychain://instance-id/credential-name`, plus the explicit named remote schemes
@@ -28,8 +29,8 @@ slot as account (`token` for built-in providers). Keyring
 Service on Linux. A working user session and unlocked credential store may be
 required. Reading configuration does not contact the credential store. Resolving
 a reference reads credentials; only explicit authentication commands should call
-the library's `store` and `delete` operations. No fallback to plaintext files is
-implemented. Deleting an absent entry reports a curated credential-store error.
+the library's `store` and `delete` operations. There is no implicit fallback to plaintext files; the temporary AWS
+profile source is an explicit, separately approved choice. Deleting an absent entry reports a curated credential-store error.
 
 Resolved secrets use `secrecy::SecretString`, which zeroizes its backing storage
 on drop. They have a redacted `Debug` representation and no serialization
@@ -88,7 +89,8 @@ For noninteractive login, use `--token-stdin` to read the selected slot's value
 from stdin; never pass it as a command argument. Environment-backed slots are
 managed outside Permesh. `auth status` checks direct local credential availability;
 remote slots report configured but unverified without reading bootstrap credentials
-or contacting a remote store. Mixed configurations still report missing direct
+or contacting a remote store. Explicit AWS profile status likewise does not open
+the credential file. Mixed configurations still report missing direct
 local slots. It does not authenticate against the provider. Explicit login/logout manage local
 credentials, not workspace execution approval or remote token revocation.
 
@@ -160,3 +162,14 @@ are rejected. No remote writes or secret persistence are implemented. `auth logi
 and `logout` reject remote slots rather than changing a remote store. See the
 [configuration, bounds and qualification limits](remote-credentials.md) before
 using a source. Synthetic protocol tests do not qualify a live product deployment.
+
+## Explicit temporary AWS profiles
+
+The [temporary AWS profile source](aws-profiles.md) reads one reviewed absolute
+shared-credentials file and exact named section after provider approval. It supplies
+all three temporary credential fields together, requires explicit caller account,
+region and role settings, and cannot be combined with direct or remote credential
+slots in that instance. The AWS adapter verifies caller scope before discovery.
+It does not load AWS config/SSO caches, execute helpers or follow a fallback chain.
+`auth login`/`logout` reject profile-backed instances; refresh the selected source
+through your existing AWS authentication process. Review and status remain file-free.
