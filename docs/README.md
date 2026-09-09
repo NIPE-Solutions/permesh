@@ -23,6 +23,9 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 | Review inactive, unmatched and non-human accounts | [Orphaned](orphaned.md) |
 | Review and save stable identity mappings | [Identity mapping](identity-mapping.md) |
 | Use a maintained identity roster | [Pinned identity inventory](identity-inventory.md) |
+| Compare saved observations offline | [Snapshots and diffs](snapshots.md) |
+| Assess a departure and verify later observations | [Read-only offboarding](offboarding.md) |
+| Review one resource or run local rules | [Resource queries and policies](resource-policies.md) |
 | Process reports in scripts | [JSON schemas and exit codes](output-schema.md) |
 | Diagnose authentication or provider failures | [Troubleshooting](troubleshooting.md) |
 | Set up command completion | [Shell completion](completion.md) |

@@ -91,6 +91,25 @@ pub enum Command {
         #[command(subcommand)]
         command: crate::identity_command::IdentityCommand,
     },
+    /// Inspect who has observed access to a selected resource.
+    Resource(crate::resource_command::ResourceArgs),
+    /// Evaluate focused local access review rules without changing infrastructure.
+    Policy {
+        #[command(subcommand)]
+        command: crate::policy_command::PolicyCommand,
+    },
+    /// Assess, plan and verify a departure review without changing provider access.
+    Offboard {
+        #[command(subcommand)]
+        command: crate::offboard::OffboardCommand,
+    },
+    /// Save or inspect explicit local access snapshots.
+    Snapshot {
+        #[command(subcommand)]
+        command: crate::snapshot_command::SnapshotCommand,
+    },
+    /// Compare two saved snapshots offline; absence is never proof of revocation.
+    Diff { before: PathBuf, after: PathBuf },
     /// Print a static shell completion script; no workspace or provider access.
     Completion {
         #[arg(value_enum, conflicts_with = "json")]

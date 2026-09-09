@@ -10,7 +10,13 @@ fn now() -> OffsetDateTime {
     OffsetDateTime::parse("2026-09-09T11:00:00Z", &Rfc3339).unwrap()
 }
 fn parse(value: &Value) -> Result<Observation, AppError> {
-    decode("roster", value.to_string().as_bytes(), 86400, now())
+    decode(
+        "roster",
+        value.to_string().as_bytes(),
+        "a".repeat(64),
+        86400,
+        now(),
+    )
 }
 #[test]
 fn explicit_classifications_never_create_verified_email_evidence() {
@@ -23,6 +29,8 @@ fn explicit_classifications_never_create_verified_email_evidence() {
             .is_empty()
     );
     assert!(observation.snapshot.accounts.is_empty());
+    assert_eq!(observation.scope, "engineering-directory");
+    assert_eq!(observation.exported_at, "2026-09-09T10:00:00Z");
     assert_eq!(
         observation.snapshot.identities[0].status,
         IdentityStatus::Inactive
@@ -88,12 +96,12 @@ fn strict_records_reject_duplicates_unknown_values_emails_and_future_exports() {
     let bytes = document()
         .to_string()
         .replace("\"version\":1", "\"version\":1,\"version\":1");
-    assert!(decode("roster", bytes.as_bytes(), 86400, now()).is_err());
+    assert!(decode("roster", bytes.as_bytes(), "a".repeat(64), 86400, now()).is_err());
     let bytes = document().to_string().replace(
         "\"kind\":\"human\"",
         "\"kind\":\"human\",\"kind\":\"human\"",
     );
-    assert!(decode("roster", bytes.as_bytes(), 86400, now()).is_err());
+    assert!(decode("roster", bytes.as_bytes(), "a".repeat(64), 86400, now()).is_err());
 }
 fn fixture() -> (tempfile::TempDir, ProviderConfig, PathBuf) {
     let temp = tempfile::tempdir().unwrap();
@@ -155,7 +163,7 @@ fn freshness_bound_applies_to_fractional_seconds_and_exact_boundary() {
     let data = document().to_string();
     let exact = OffsetDateTime::parse("2026-09-10T10:00:00Z", &Rfc3339).unwrap();
     assert!(
-        decode("roster", data.as_bytes(), 86400, exact)
+        decode("roster", data.as_bytes(), "a".repeat(64), 86400, exact)
             .unwrap()
             .snapshot
             .complete
@@ -164,6 +172,7 @@ fn freshness_bound_applies_to_fractional_seconds_and_exact_boundary() {
         !decode(
             "roster",
             data.as_bytes(),
+            "a".repeat(64),
             86400,
             exact + time::Duration::nanoseconds(1)
         )

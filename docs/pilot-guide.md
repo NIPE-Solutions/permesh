@@ -17,8 +17,8 @@ choosing an exact CLI/provider pair. Do not combine arbitrary candidate binaries
 Identity mapping commands and identity inventory import are source candidates in
 this development slice. Their guides do not promise that a published binary contains
 them. Evaluate a candidate only after its tests pass and record the exact revision;
-see [mapping](identity-mapping.md) and [inventory](identity-inventory.md). Snapshot,
-diff and offboarding workflows remain later work in the [roadmap](ROADMAP.md).
+see [mapping](identity-mapping.md) and [inventory](identity-inventory.md). [Snapshots and diffs](snapshots.md) and [read-only offboarding](offboarding.md) are
+also source candidates; these guides do not change published release availability.
 
 ## Start offline
 
@@ -68,9 +68,8 @@ observed and what could not be checked. Suspension, group removal, sessions,
 tokens, ownership and retention are different concerns; Permesh does not change
 them for you.
 
-The planned snapshot workflow in the [roadmap](ROADMAP.md) is intended to make
-this comparison repeatable after implementation and qualification: explicit snapshot
-creation before and after, followed by offline comparison. Missing data after a partial collection is inconclusive;
+The candidate [snapshot workflow](snapshots.md) makes this comparison repeatable:
+explicit snapshot creation before and after, followed by offline comparison. Missing data after a partial collection is inconclusive;
 absence in a comparable successful collection means no longer observed in that
 scope, not proof of universal revocation. Do not present planned offboarding
 assessment/verification commands as available in the published CLI.
