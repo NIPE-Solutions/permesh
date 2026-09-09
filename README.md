@@ -154,8 +154,8 @@ bytes, not publisher signatures. [Setup and automation details](docs/provider-se
 
 ## Available providers
 
-Only the offline demo is bundled. Real integrations are independently distributed
-from the [official provider repository](https://github.com/NIPE-Solutions/permesh-providers).
+The CLI includes the offline demo and, in current source, a pinned local identity
+inventory reader. Service integrations are independently distributed from the [official provider repository](https://github.com/NIPE-Solutions/permesh-providers).
 
 | Provider | What it helps you inspect | Availability |
 | --- | --- | --- |
@@ -163,6 +163,9 @@ from the [official provider repository](https://github.com/NIPE-Solutions/permes
 | Google Workspace | Directory identities and lifecycle for identity-authority checks | **Source candidate:** 0.2.0, unpublished |
 | Cloudflare | Account members, groups and scoped role assignments | **Source candidate:** 0.2.0, unpublished |
 | AWS IAM | Users, roles, groups and policy attachments | **Source candidate:** 0.2.0, unpublished |
+| GitLab | Scoped group/project membership and native access levels | **Source candidate:** 0.2.0, unpublished |
+| Microsoft Entra ID | Tenant-bound directory identities, groups and membership observations | **Source candidate:** 0.2.0, unpublished |
+| AWS Identity Center | Directory identities and scoped permission-set assignments | **Source candidate:** 0.2.0, unpublished |
 
 An implemented provider is not automatically a qualified release. AWS attachments
 and Cloudflare assignments do not establish effective privilege. Review

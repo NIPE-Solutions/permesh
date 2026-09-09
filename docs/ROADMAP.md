@@ -23,7 +23,8 @@ Nothing here declares the SDK or protocol stable.
   package compatibility propagates to guided setup; advanced setup/migration
   has an explicit selector. Existing legacy metadata remains unchanged.
 - Official provider sources in the separate provider repository, including the
-  three additional candidates listed above. Only demo remains bundled. Legacy Google/GitHub configurations
+  three additional candidates listed above. Demo and pinned identity inventories
+  are local built-ins. Legacy Google/GitHub configurations
   remain readable for explicit migration, with execution blocked before secrets.
 - Cross-platform CI, dependency audits, native archives and notices, checksums,
   target-bound dependency inventories and CLI provenance qualification.
