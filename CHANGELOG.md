@@ -4,6 +4,15 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Carry negotiated-v1 package compatibility into guided official provider setup;
+  expose explicit discovery selection for advanced setup and migration. Legacy
+  metadata remains unchanged; conflicting protocol declarations fail closed.
+- Remove the duplicated bundled Google adapter. Legacy Google configuration
+  remains parseable for explicit migration, but execution/authentication stop
+  before reading credentials. Google external packages are not yet published;
+  current source requires a reviewed native candidate. Only demo remains bundled.
+
+
 - Add explicit `external.discovery_protocol: negotiated_v1` for native workspace discovery and health. Required-operation negotiation precedes credential delivery; independent wire DTOs preserve principal dimensions, resource containment and access evidence. Legacy drafts/defaults remain unchanged. Switching contracts requires fresh workspace approval; see [negotiated protocol 1](docs/provider-protocol/negotiated-v1.md).
 
 - **Access JSON schema 2:** user, admins, orphaned and standalone external discovery now expose independent principal kind, affiliation and lifecycle, resource kind/parent, access evidence kind and path certainty. Control JSON and legacy provider wire formats stay unchanged; see [migration guidance](docs/migrations/domain-schema-2.md).

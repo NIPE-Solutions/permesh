@@ -107,3 +107,57 @@ fn rejects_ambiguous_or_unbounded_catalogs() {
         assert!(parse(&encoded(vec![item])).is_err(), "accepted {key}");
     }
 }
+
+#[test]
+fn negotiated_discovery_requires_an_explicit_consistent_contract() {
+    let mut item = release("1.0.0");
+    item["discovery_protocol"] = json!("negotiated_v1");
+    item["protocols"] = json!([3]);
+    let catalog = parse(&encoded(vec![item.clone()])).unwrap();
+    assert_eq!(serde_json::to_value(&catalog.releases[0]).unwrap(), item);
+    for protocols in [
+        json!([]),
+        json!([2]),
+        json!([2, 3]),
+        json!([3, 3]),
+        json!([3, 4]),
+    ] {
+        let mut invalid = item.clone();
+        invalid["protocols"] = protocols;
+        assert!(parse(&encoded(vec![invalid])).is_err());
+    }
+    for selector in [
+        Value::Null,
+        json!("unknown"),
+        json!("negotiated-v1"),
+        json!(3),
+        json!({"negotiated_v1": null}),
+    ] {
+        let mut invalid = item.clone();
+        invalid["discovery_protocol"] = selector;
+        // One unknown release invalidates the catalog, even with a valid match.
+        assert!(parse(&encoded(vec![release("0.9.0"), invalid])).is_err());
+    }
+    for protocols in [json!([2]), json!([2, 3]), json!([3, 2])] {
+        let mut legacy = release("0.9.0");
+        legacy["protocols"] = protocols;
+        assert!(parse(&encoded(vec![legacy.clone(), item.clone()])).is_ok());
+        legacy["discovery_protocol"] = json!("legacy");
+        assert!(parse(&encoded(vec![legacy, item.clone()])).is_ok());
+    }
+    let bytes = String::from_utf8(encoded(vec![item])).unwrap();
+    assert!(parse(bytes.replace("\"discovery_protocol\":\"negotiated_v1\"", "\"discovery_protocol\":\"negotiated_v1\",\"discovery_protocol\":\"negotiated_v1\"").as_bytes()).is_err());
+}
+
+#[test]
+fn legacy_release_serialization_preserves_persisted_bytes() {
+    let bytes = format!(
+        r#"{{"provider":"example","version":"1.0.0","target":"x86_64-unknown-linux-gnu","capabilities":["accounts"],"protocols":[2,3],"archive_sha256":"{}","executable_sha256":"{}","archive_size":42}}"#,
+        "a".repeat(64),
+        "b".repeat(64)
+    );
+    let release: permesh_provider_external::catalog::Release =
+        serde_json::from_str(&bytes).unwrap();
+    release.validate().unwrap();
+    assert_eq!(serde_json::to_string(&release).unwrap(), bytes);
+}

@@ -1,83 +1,78 @@
 # Roadmap
 
-Permesh's first stable release remains smaller than the long-term product vision.
-CLI [0.1.0-alpha.2](releases/0.1.0-alpha.2.md) is published with verified GitHub
-provenance for its five native target artifact sets. Platform code signatures and
-notarization remain absent. GitHub 0.1.0 is the only published official provider
-package; Google 0.1.1, Cloudflare 0.1.0 and AWS 0.1.0 are unpublished drafts.
-Implemented source and qualified releases are tracked separately.
+Source readiness and published artifacts are separate. CLI 0.1.0-alpha.2 and
+GitHub provider 0.1.0 remain the published releases. All four official providers
+have unpublished 0.2.0 source candidates; offline qualification is recorded in
+[provider PR 13](https://github.com/NIPE-Solutions/permesh-providers/pull/13).
+Nothing here declares the SDK or protocol stable.
 
-## Implemented source
+## Implemented foundation
 
-- Local-first read-only queries: offline demo, `doctor`, `user`, `admins`,
-  `orphaned`, versioned JSON, shell completions and explicit identity authority.
-- Native external providers: digest-bound trust, separate exact workspace
-  approval, named env/keychain credentials, bounded execution and cancellation,
-  declarative setup, explicit package install/update and legacy migration.
-- GitHub observed-access discovery, Google directory identities, Google
-  refresh-token authentication and provider-declared browser login. Google
-  migration preserves explicit authority; the bundled adapter remains available.
-- In the official provider repository, Cloudflare account-access observations and
-  an AWS IAM policy-attachment inventory with named credentials. Neither claims
-  complete effective authorization. See [provider scope and status](providers.md).
-- Native candidate packaging, dependency notices, checksums, target-bound
-  dependency inventories and Unix terminal checks. A separate manual workflow
-  generates and verifies GitHub provenance attestations for reviewed candidates.
-  Alpha.2 promotes the exact subjects from [run 34273757910](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910),
-  with its verified bundle; later revisions need their own qualification.
+- Local read-only `user`, `admins`, `orphaned`, `doctor`, versioned JSON and an
+  offline demo. No backend, telemetry or persistent access database.
+- Independent domain, wire and output models; principal kind/affiliation/lifecycle,
+  resource containment, native roles, access evidence and conservative certainty.
+- Native external execution with digest verification, instance-scoped credentials,
+  workspace approval, bounded communication, cancellation and partial results.
+- Explicit provider installation/updates and guided add/setup, declarative setup
+  forms, keychain/environment references and provider-described browser login.
+- Negotiated v1 discovery/health in the host and official emitters. Verified
+  package compatibility propagates to guided setup; advanced setup/migration
+  has an explicit selector. Existing legacy metadata remains unchanged.
+- Official GitHub, Google, Cloudflare and AWS adapters in the separate provider
+  repository. Only demo remains bundled. Legacy Google/GitHub configurations
+  remain readable for explicit migration, with execution blocked before secrets.
+- Cross-platform CI, dependency audits, native archives and notices, checksums,
+  target-bound dependency inventories and CLI provenance qualification.
 
-## Contract hardening
+## Next hardening slices
 
-The [architecture audit and backlog](audits/architecture-hardening-backlog.md)
-track the pre-stability work. Frozen legacy wire DTOs, independent output DTOs,
-scoped approvals and guided GitHub setup are implemented. Core now separates
-principal dimensions, validates resource containment and distinguishes access
-evidence; access reports use JSON schema 2.
+1. **P1 — Enterprise networking:** explicit proxy/custom CA/endpoint configuration,
+   provider support negotiation and approval binding. Keep child environments
+   sanitized; do not inherit arbitrary shell settings.
+2. **P1 — Mixed-platform teams:** reviewed target-to-digest release pins. Current
+   instance configuration binds one executable digest, so it is not yet a portable
+   pin for macOS, Linux and Windows administrators sharing one workspace.
+3. **P2 — Diagnostics and integrity:** clearer doctor/status stages and stable
+   provider diagnostic codes; further executable-substitution tests and reduced
+   verification/execution gaps. Document OS-level residual risk.
+4. **P0 — Final contract review:** review protocol/SDK, config, output schemas,
+   setup/auth operation negotiation and provider conformance together. Complete
+   the threat-model pass before declaring stability. The number of supported
+   operations must not drive protocol version increments.
 
-Opt-in protocol-1 discovery and health now carry these dimensions. Next are qualified
-official emitters, explicit enterprise networking and target-aware provider pins. A
-whole-contract review remains required before SDK or protocol stability. The
-source changes do not qualify or replace published artifacts.
+See the [architecture backlog](audits/architecture-hardening-backlog.md) for
+acceptance criteria and historical implementation evidence.
 
-## Before stable release and provider publication
+## Release and adoption gates
 
-1. Complete the broader credentialed GitHub fixture exercise, live Google
-   directory/browser login, and live Cloudflare/AWS acceptance. Google and
-   Cloudflare draft packages and AWS 0.1.0 are not cataloged. Qualify their exact
-   candidate artifacts separately before publication. Synthetic tests do not
-   substitute for these checks.
-2. Complete remaining Windows terminal and interactive desktop credential-store
-   acceptance, then qualify the exact release revision on all supported targets.
-3. Apply the same exact-revision qualification and public-verification gates to
-   subsequent CLI and provider releases; keep the published alpha.1 and alpha.2
-   assets immutable. See [release gates](releasing.md).
-4. Complete native signing/notarization once Apple and Windows signing identities
-   are available. GitHub provenance does not replace either platform's signing
-   requirements. Package-manager manifests must use the final distributed hashes.
-5. Publish qualified external Google packages before removing the bundled adapter;
-   keep the offline demo available without downloads.
+- Qualify the exact candidate CLI with candidate provider installation, trust,
+  setup, approval, credentials and queries. Publish compatible artifacts and
+  catalog entries only after this gate; never replace existing release bytes.
+- Complete broader live GitHub acceptance and live Google directory/browser,
+  Cloudflare and AWS checks with least-privilege credentials. Mock tests prove
+  behavior against fixtures, not real tenant permissions or API visibility.
+- Complete remaining Windows terminal and interactive desktop credential-store
+  acceptance. CI unit tests do not substitute for platform credential UX checks.
+- Apply exact-revision native build, dependency and provenance verification to the
+  new release. Native code signing/notarization remains dependent on available
+  Apple and Windows signing identities; GitHub provenance does not replace it.
+- Google source removal is a deliberate pre-adoption breaking change. Until its
+  external package is published, Google users need a reviewed native build or
+  must remain on the existing published CLI. The migration guide states this gap.
 
-## Later options
+## Later, separate work
 
-- Package-manager distribution and CLI self-update. Provider package updates
-  already exist; they do not update the CLI.
-- Native AWS profiles, SSO and credential refresh. Current AWS credentials are
-  explicit references; temporary sessions are refreshed outside Permesh.
-- Dynamic API-driven onboarding and broader provider coverage.
-- A standards SBOM generator with a clean reviewed dependency graph. The existing
-  inventory is not a CycloneDX/SPDX SBOM; see [tool evaluation](releasing.md#standards-generator-evaluation-2026-09-08).
-- Deterministic config composition/local overrides, schema migrations,
-  policies/audit and snapshot diff. JSON output already supports report export;
-  additional export formats are separate future work.
+- AWS Identity Center/Organizations and native short-lived authentication,
+  including reviewed profile/SSO behavior; current IAM attachments are evidence,
+  not effective authorization.
+- More identity authorities such as Entra, then additional providers driven by
+  concrete use cases and qualification, not provider-count targets.
+- CLI self-update and package managers; provider updates already exist.
+- Developer provider mode, conformance tooling, deterministic config composition,
+  snapshots/diffs and local policies. No mutation features in this milestone.
+- A standards SBOM generator; the current dependency inventory is not an
+  SPDX/CycloneDX SBOM.
 
-No collaboration backend, telemetry, remote configuration or mutation APIs are
-planned for this milestone.
-
-## Negotiated discovery rollout
-
-Negotiated protocol 1 supports explicit workspace discovery/health selection and the richer
-principal/resource/evidence model. It does not automatically update official
-provider artifacts. Next, qualify native emitters and compatible SDK pins, then
-review setup/auth operation migration and conformance tooling. Keep the protocol
-prerelease until the complete contract review passes. Enterprise network context
-and platform-aware provider pins remain separate follow-up slices.
+No collaboration server, remote credential vault, analytics or remediation is
+needed to finish the discovery foundation.

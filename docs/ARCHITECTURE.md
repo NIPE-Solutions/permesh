@@ -2,7 +2,7 @@
 
 Status: accepted implementation design; pre-release.
 
-Use a Rust workspace with `permesh-core` (normalized domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, `permesh-provider-google`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded versioned discovery
+Use a Rust workspace with `permesh-core` (normalized domain and deterministic queries), `permesh-provider-sdk` (discovery/health contracts), `permesh-config` (strict YAML and workspace discovery), `permesh-secrets` (references and native resolution), `permesh-provider-demo`, and `permesh-cli` (application orchestration and output modules). The `permesh-provider-protocol` crate provides pure, bounded versioned discovery
 and health validation. The `permesh-provider-external` crate owns protected native
 registrations, workspace approval fingerprints, private invocation credentials
 and subprocess supervision. Presentation stays in CLI modules.
@@ -16,10 +16,14 @@ flowchart LR
   CLI --> ExternalHost
   ExternalHost --> GitHub
   GitHub --> ProtocolValidation
-  SDK --> Google
+  ExternalHost --> Google
+  ExternalHost --> Cloudflare
+  ExternalHost --> AWS
   Demo --> Snapshot
   ProtocolValidation --> Snapshot
-  Google --> Snapshot
+  Google --> ProtocolValidation
+  Cloudflare --> ProtocolValidation
+  AWS --> ProtocolValidation
   Snapshot --> Core
   Config --> Core
   Core --> Queries
@@ -38,15 +42,15 @@ The identity index and bounded graph traversal are shared by user, admins and or
 
 External transcripts follow `bounded NDJSON → strict envelope/capabilities → normalized records → core validation → sorted snapshot`. The offline developer validator returns counts only. Standalone `provider external discover` uses draft 1. Workspace external
 operations follow `validated config → registered digest/capabilities → exact local
-approval → credential resolution → supervised draft-2 handshake → private request
+approval → credential resolution → supervised explicitly selected handshake → private request
 → validated health/snapshot`. Approval binds the canonical config path, instance,
 selected provider configuration, relevant identity mappings/authority and registration. Ordinary queries merge only validated
 snapshots using existing partial-result and source-authority rules. Cancellation
 signals running external operations and awaits cleanup rather than dropping them.
 
-GitHub executes only through the external protocol host after digest verification
-and workspace approval. Its adapter lives in the separate providers repository.
-`ProviderKind::Github` remains a legacy parsing marker for explicit configuration
+GitHub and Google execute only through the external protocol host after digest verification
+and workspace approval. Their adapters live in the separate providers repository.
+`ProviderKind::Github` and `ProviderKind::Google` remain legacy parsing markers for explicit configuration
 migration; all legacy invocation paths fail before credential resolution.
 
 ## Compatibility boundaries
@@ -74,8 +78,9 @@ Core principals now separate kind, affiliation and lifecycle. Resource containme
 is validated independently from access edges; grants retain explicit evidence
 kinds and paths derive certainty without rewriting source observations. Access
 JSON uses schema 2 while control reports remain schema 1. Legacy wire mapping
-leaves unexpressed fields unknown; native provider packages need a negotiated
-contract before emitting the new dimensions.
+leaves unexpressed fields unknown; official 0.2.0 source candidates emit the richer dimensions through negotiated
+protocol v1. Verified package metadata selects this contract during guided setup;
+separately trusted executables require an explicit setup selector.
 
 Domain semantics are not declared stable yet. See the
 [architecture audit](audits/architecture-hardening.md) for identity dimensions,

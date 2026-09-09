@@ -69,7 +69,10 @@ pub async fn run(
         command: ProviderCommand::Add(args),
     } = &cli.command
     {
-        if args.provider_type == "github" {
+        if matches!(
+            args.provider_type.as_str(),
+            "github" | "google" | "cloudflare" | "aws"
+        ) {
             return crate::guided_add::run(cli, args, blocking, cancellation).await;
         }
         return workspace::add(cli, args);
@@ -86,7 +89,17 @@ pub async fn run(
                     no_open,
                     ..
                 },
-        } => crate::browser_login::run(&config, &path, id, *no_open, blocking, cancellation).await,
+        } => {
+            if let Some(provider) = config.providers.iter().find(|p| p.id == *id)
+                && matches!(
+                    provider.kind,
+                    permesh_config::ProviderKind::Github | permesh_config::ProviderKind::Google
+                )
+            {
+                return Err(AppError::input(collection::legacy_message(provider)));
+            }
+            crate::browser_login::run(&config, &path, id, *no_open, blocking, cancellation).await
+        }
         Command::Auth { command } => auth::run(&config, command, cli.json, blocking).await,
         Command::Provider {
             command: ProviderCommand::List,

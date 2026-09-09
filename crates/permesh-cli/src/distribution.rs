@@ -270,6 +270,10 @@ mod tests {
             releases: vec![original],
         };
         assert!(validate_known_versions(&catalog, &installed).is_ok());
+        catalog.releases[0].discovery_protocol = catalog::DiscoveryProtocol::NegotiatedV1;
+        catalog.releases[0].protocols = vec![3];
+        assert!(validate_known_versions(&catalog, &installed).is_err_and(|e| e.code == 3));
+        catalog.releases[0] = installed[0].release.clone();
         catalog.releases[0].executable_sha256 = "c".repeat(64);
         assert!(validate_known_versions(&catalog, &installed).is_err_and(|e| e.code == 3));
         Ok(())

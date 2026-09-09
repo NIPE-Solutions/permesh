@@ -235,9 +235,11 @@ fn provider_add_preserves_workspace_when_yaml_expansion_exceeds_limit() {
         &[
             "provider",
             "add",
-            "google",
-            "--customer-id",
-            "C123",
+            "external",
+            "--provider",
+            "fixture",
+            "--sha256",
+            &"a".repeat(64),
             "--json",
         ],
     );

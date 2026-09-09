@@ -6,6 +6,10 @@ This is a source and offline behavior audit, not a live tenant qualification or
 an independent penetration test. Priorities describe readiness for contract
 stability; P0 does not imply an exploitable vulnerability.
 
+For subsequent implementation status, see the [backlog](architecture-hardening-backlog.md).
+The baseline below is historical; current source has removed bundled Google and
+added negotiated-v1 provider distribution selection.
+
 ## Current architecture
 
 The Rust workspace separates core queries/domain, configuration, secrets, SDK,

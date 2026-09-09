@@ -19,10 +19,10 @@ pub async fn run(
     if cancellation.is_cancelled() {
         return Err(AppError::new(130, "Cancelled"));
     }
-    if provider.kind == ProviderKind::Github {
+    if matches!(provider.kind, ProviderKind::Github | ProviderKind::Google) {
         return Err(AppError::new(
             3,
-            crate::collection::legacy_github_message(&provider.id),
+            crate::collection::legacy_message(&provider),
         ));
     }
     let id = provider.id.clone();

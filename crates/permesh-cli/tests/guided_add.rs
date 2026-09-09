@@ -29,7 +29,7 @@ fn guided_add_requires_explicit_noninteractive_inputs_before_network_or_state() 
 }
 
 #[test]
-fn github_only_flags_are_rejected_for_other_provider_types() {
+fn invalid_official_and_external_add_flags_fail_before_network() {
     let root = tempfile::tempdir().unwrap();
     for args in [
         vec![
@@ -46,7 +46,7 @@ fn github_only_flags_are_rejected_for_other_provider_types() {
         let output = Command::new(env!("CARGO_BIN_EXE_permesh"))
             .current_dir(root.path())
             .env("PERMESH_DATA_DIR", root.path().join("state"))
-            .args(args)
+            .args(&args)
             .arg("--json")
             .output()
             .unwrap();
@@ -56,7 +56,13 @@ fn github_only_flags_are_rejected_for_other_provider_types() {
             report["error"]["message"]
                 .as_str()
                 .unwrap()
-                .contains("require provider add github")
+                .contains(if args[2] == "external" {
+                    "require provider add"
+                } else if args.contains(&"--customer-id") {
+                    "declarative form"
+                } else {
+                    "--answers FILE and --accept-risk"
+                })
         );
         assert!(output.stderr.is_empty());
         assert!(!root.path().join("state").exists());

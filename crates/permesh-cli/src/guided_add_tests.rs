@@ -506,10 +506,122 @@ async fn default_trust_review_explains_scope_without_manual_hash_or_path_steps()
     .await
     .unwrap();
     let review = &reviews[0];
-    assert!(review.contains("GitHub provider 1.0.0"));
+    assert!(review.contains("github provider 1.0.0"));
     assert!(review.contains("Reported capabilities: accounts"));
     assert!(review.contains("publisher signatures were not verified"));
     assert!(review.contains("not sandboxed"));
     assert!(!review.contains(&sandbox.package.release.executable_sha256));
     assert!(!review.contains(sandbox.package.executable.to_str().unwrap()));
+}
+
+#[tokio::test]
+async fn official_setup_persists_verified_contract_despite_contradictory_selector() {
+    for negotiated in [false, true] {
+        let mut sandbox = Sandbox::new();
+        sandbox.args.discovery_protocol = if negotiated {
+            crate::args::DiscoveryProtocol::Legacy
+        } else {
+            crate::args::DiscoveryProtocol::NegotiatedV1
+        };
+        let expected = if negotiated {
+            sandbox.package.release.discovery_protocol = catalog::DiscoveryProtocol::NegotiatedV1;
+            sandbox.package.release.protocols = vec![3];
+            permesh_config::DiscoveryProtocol::NegotiatedV1
+        } else {
+            permesh_config::DiscoveryProtocol::Legacy
+        };
+        sandbox.run(vec![true, false]).await.unwrap();
+        let config = permesh_config::Config::load(&sandbox.config).unwrap();
+        assert_eq!(
+            config.providers[0]
+                .external
+                .as_ref()
+                .unwrap()
+                .discovery_protocol,
+            expected
+        );
+        assert_eq!(
+            fs::read_to_string(&sandbox.config)
+                .unwrap()
+                .contains("discovery_protocol:"),
+            negotiated
+        );
+        let access = WorkspaceAccess {
+            root: sandbox.root.clone(),
+        };
+        assert_missing_approval(&sandbox, &config, &access);
+    }
+}
+
+#[tokio::test]
+async fn official_contract_conflicts_and_provider_mismatches_fail_before_trust() {
+    for mismatch in ["protocols", "provider"] {
+        let mut sandbox = Sandbox::new();
+        if mismatch == "protocols" {
+            sandbox.package.release.discovery_protocol = catalog::DiscoveryProtocol::NegotiatedV1;
+        } else {
+            sandbox.args.provider_type = "google".into();
+        }
+        let before = fs::read(&sandbox.config).unwrap();
+        assert!(sandbox.run(vec![]).await.is_err());
+        assert!(!sandbox.root.exists());
+        assert_eq!(fs::read(&sandbox.config).unwrap(), before);
+    }
+}
+
+#[tokio::test]
+async fn standalone_setup_persists_explicit_contract_and_requires_separate_approval() {
+    for selector in [
+        crate::args::DiscoveryProtocol::Legacy,
+        crate::args::DiscoveryProtocol::NegotiatedV1,
+    ] {
+        let sandbox = Sandbox::new();
+        let mut args = setup_args(&sandbox.args).unwrap();
+        args.discovery_protocol = selector;
+        let prepared = setup::prepare(&sandbox.cli, &args).unwrap();
+        let mut trusted = trust_package(sandbox.root.clone(), &sandbox.package).unwrap();
+        // Standalone setup takes the explicit selector after verifying local registration.
+        trusted.discovery_protocol = args.discovery_protocol.into();
+        setup::execute(
+            &args,
+            prepared,
+            &BlockingPool::new(),
+            &Cancellation::new(),
+            trusted,
+        )
+        .await
+        .unwrap();
+        let config = permesh_config::Config::load(&sandbox.config).unwrap();
+        assert_eq!(
+            config.providers[0]
+                .external
+                .as_ref()
+                .unwrap()
+                .discovery_protocol,
+            selector.into()
+        );
+        let access = WorkspaceAccess {
+            root: sandbox.root.clone(),
+        };
+        assert_missing_approval(&sandbox, &config, &access);
+    }
+}
+
+fn assert_missing_approval(
+    sandbox: &Sandbox,
+    config: &permesh_config::Config,
+    access: &WorkspaceAccess,
+) {
+    let (_, _, fingerprint) = access
+        .reviewed(config, &sandbox.config, &config.providers[0].id)
+        .unwrap();
+    let approvals = permesh_provider_external::approvals::ApprovalStore::new(
+        sandbox.root.parent().unwrap().join("workspace-approvals"),
+    )
+    .unwrap();
+    assert!(
+        approvals
+            .verify(&sandbox.config, &config.providers[0].id, &fingerprint)
+            .is_err()
+    );
 }

@@ -190,3 +190,11 @@ negotiated protocol 1, its result additionally contains `discovery_protocol: "ne
 and human review displays the same selection. Legacy results omit this optional
 field, preserving their prior shape. This is a workspace contract choice; it does
 not change access schema 2 or setup/browser-auth output schemas.
+
+### Package discovery compatibility
+
+Control schema 1 release objects optionally include `discovery_protocol: "negotiated_v1"`.
+The field is omitted for legacy releases, preserving their existing output.
+Negotiated packages list `protocols: [3]` for legacy setup only; discovery/health
+use the independently selected protocol-v1 envelope. No output contains resolved
+credentials.

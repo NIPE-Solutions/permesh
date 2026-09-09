@@ -78,6 +78,7 @@ fn release(bytes: &[u8]) -> Release {
         target: target().into(),
         capabilities: vec![Capability::Accounts],
         protocols: vec![2, 3],
+        discovery_protocol: crate::catalog::DiscoveryProtocol::Legacy,
         archive_sha256: digest(bytes),
         executable_sha256: digest(NATIVE),
         archive_size: bytes.len() as u64,
@@ -529,5 +530,57 @@ fn archive_digest_and_declared_size_are_checked_before_state_creation() -> TestR
     rel.archive_size += 1;
     assert!(store.install(&rel, &bytes).is_err());
     assert!(!root.join("packages").exists());
+    Ok(())
+}
+
+#[test]
+fn installed_discovery_contract_survives_reload_and_cannot_change_in_place() -> TestResult {
+    let temp = tempfile::tempdir()?;
+    let root = temp.path().canonicalize()?;
+    let store = store(&root)?;
+    let bytes = archive(&[(binary(), NATIVE), ("LICENSE", b"License")])?;
+    let legacy = release(&bytes);
+    let installed = store.install(&legacy, &bytes)?;
+    let manifest_path = installed.executable.with_file_name("manifest.json");
+    let original_manifest = std::fs::read(&manifest_path)?;
+    assert!(!String::from_utf8(original_manifest.clone())?.contains("discovery_protocol"));
+    let mut value = serde_json::to_value(&legacy)?;
+    value["discovery_protocol"] = serde_json::json!("negotiated_v1");
+    value["protocols"] = serde_json::json!([3]);
+    let mut negotiated: Release = serde_json::from_value(value)?;
+    assert!(matches!(
+        store.install(&negotiated, &bytes),
+        Err(DistributionError::Integrity)
+    ));
+    assert_eq!(std::fs::read(&manifest_path)?, original_manifest);
+    negotiated.version = semver::Version::new(2, 0, 0);
+    let installed = store.install(&negotiated, &bytes)?;
+    assert_eq!(installed.release, negotiated);
+    assert_eq!(
+        store
+            .load(installed.executable.parent().ok_or("missing parent")?)?
+            .release,
+        negotiated
+    );
+    let inventory = store.list_provider("example")?;
+    assert_eq!(inventory.len(), 2);
+    assert_eq!(inventory[0].release, legacy);
+    assert_eq!(inventory[1].release, negotiated);
+    assert_eq!(store.install(&negotiated, &bytes)?.release, negotiated);
+    let manifest_path = installed.executable.with_file_name("manifest.json");
+    let mut manifest: serde_json::Value = serde_json::from_slice(&std::fs::read(&manifest_path)?)?;
+    assert_eq!(manifest["release"]["discovery_protocol"], "negotiated_v1");
+    for selector in [
+        serde_json::Value::Null,
+        serde_json::json!("unknown"),
+        serde_json::json!("legacy"),
+    ] {
+        manifest["release"]["discovery_protocol"] = selector;
+        std::fs::write(&manifest_path, serde_json::to_vec(&manifest)?)?;
+        assert!(matches!(
+            store.list_provider("example"),
+            Err(DistributionError::Integrity)
+        ));
+    }
     Ok(())
 }

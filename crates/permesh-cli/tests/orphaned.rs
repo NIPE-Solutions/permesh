@@ -64,23 +64,26 @@ fn orphaned_requires_explicit_authority_before_discovery() {
 fn unavailable_authority_makes_all_accounts_unassessed() {
     let dir = tempfile::tempdir().unwrap();
     assert!(run(dir.path(), &["init", "--demo"]).status.success());
-    assert!(
-        run(
-            dir.path(),
-            &[
-                "provider",
-                "add",
-                "google",
-                "--customer-id",
-                "C123",
-                "--authoritative",
-                "--token-ref",
-                "env://PERMESH_TEST_ORPHAN_AUTH_41975"
-            ]
-        )
-        .status
-        .success()
-    );
+    let path = dir.path().join("permesh.yaml");
+    let mut config = permesh_config::Config::load(&path).unwrap();
+    config.providers.push(permesh_config::ProviderConfig {
+        id: "google-main".into(),
+        kind: permesh_config::ProviderKind::Google,
+        organizations: vec![],
+        customer_id: Some("C123".into()),
+        external: None,
+        auth: Some(permesh_config::AuthConfig {
+            token: "env://PERMESH_TEST_ORPHAN_AUTH_41975".into(),
+        }),
+    });
+    config
+        .identity
+        .sources
+        .push(permesh_config::IdentitySource {
+            provider: "google-main".into(),
+            authoritative: true,
+        });
+    std::fs::write(path, permesh_config::to_yaml(&config).unwrap()).unwrap();
     let output = run(dir.path(), &["orphaned", "--json"]);
     assert_eq!(output.status.code(), Some(4));
     let data: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();

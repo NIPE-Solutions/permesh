@@ -2,7 +2,7 @@
 
 The official [provider repository](https://github.com/NIPE-Solutions/permesh-providers)
 hosts a static catalog and independently versioned native releases. The catalog is
-reviewed in Git: only qualified releases are advertised. GitHub requires an external executable; Google and the offline demo remain bundled. These commands require no workspace.
+reviewed in Git: only qualified releases are advertised. All real providers require external executables; only the offline demo remains bundled. These commands require no workspace.
 
 ```bash
 permesh provider install github --version VERSION
@@ -66,9 +66,19 @@ Catalog schema 1 contains `schema_version` and `releases`. Each release contains
 | --- | --- |
 | `provider`, `version`, `target` | Unique provider/version/platform coordinate |
 | `capabilities` | Exact discovery capabilities advertised by the binary |
-| `protocols` | Supported protocol drafts; 2 required, 3 optional |
+| `protocols` | Legacy operation drafts: legacy discovery requires 2, setup optionally 3; negotiated releases list only setup `[3]` |
+| `discovery_protocol` | Optional `negotiated_v1`; omitted means legacy discovery |
 | `archive_sha256`, `executable_sha256` | Lowercase SHA-256 digests |
 | `archive_size` | Exact compressed byte count |
+
+Legacy metadata omits `discovery_protocol` on disk and in JSON output. Explicit
+null, unknown selectors and mixed negotiated/legacy discovery claims are rejected.
+The selector is part of immutable installed release metadata. Older clients reject
+the new field; a compatible CLI is required for negotiated packages. This is an
+intentional pre-stability catalog extension, not a reinterpretation of protocol 2.
+Guided `provider add` uses verified release metadata to select the workspace
+contract. Advanced `provider setup` requires `--discovery-protocol negotiated-v1`
+for separately registered new binaries. Installation alone grants no trust.
 
 Provider IDs start with a lowercase ASCII letter and contain lowercase letters,
 digits, hyphens or underscores, up to 32 bytes. Catalogs are bounded to 1 MiB and

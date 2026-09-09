@@ -122,8 +122,9 @@ class TerminalAcceptance(unittest.TestCase):
 
     def login_workspace(self):
         self.run_json('init')
-        self.run_json('provider', 'add', 'google', '--id', self.instance,
-                      '--customer-id', 'C12345')
+        self.run_json('provider', 'add', 'external', '--id', self.instance,
+                      '--provider', 'fixture', '--sha256', 'a' * 64,
+                      '--credential', f'token=keychain://{self.instance}/token')
         # Unique instance plus unconditional cleanup protects against unexpected
         # future acceptance of synthetic input. Failure output is never printed.
         self.addCleanup(lambda: subprocess.run(

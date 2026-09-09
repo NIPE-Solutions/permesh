@@ -5,7 +5,7 @@ use crate::{
     report::Outcome,
 };
 use permesh_config::{
-    AuthConfig, Config, IdentityConfig, IdentitySource, Organization, ProviderConfig, ProviderKind,
+    Config, IdentityConfig, IdentitySource, Organization, ProviderConfig, ProviderKind,
     find_workspace, to_yaml,
 };
 use std::{
@@ -103,76 +103,49 @@ fn create_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
 pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
     if args.version.is_some() || args.answers.is_some() || args.accept_risk {
         return Err(AppError::input(
-            "--version, --answers and --accept-risk require provider add github",
+            "--version, --answers and --accept-risk require provider add github, google, cloudflare or aws",
         ));
     }
-    if args.provider_type == "github" {
+    if args.provider_type != "external" {
         return Err(AppError::input(
-            "GitHub uses an external provider: install an official package, explicitly trust its binary, then run permesh provider setup github --id INSTANCE. Existing legacy instances use provider migrate",
+            "Official providers use guided package install, trust and setup. Existing legacy instances use provider migrate",
+        ));
+    }
+    if args.customer_id.is_some() || !args.organization.is_empty() || args.token_ref.is_some() {
+        return Err(AppError::input(
+            "Use --setting and --credential for external provider settings and credential references",
         ));
     }
     let path = path(cli)?;
     let original = source(&path)?;
     let mut config = Config::from_bytes(&original)?;
-    let kind = match args.provider_type.as_str() {
-        "google" => ProviderKind::Google,
-        "external" => ProviderKind::External,
-        _ => return Err(AppError::input("Unsupported provider type")),
-    };
-    if args.authoritative && !matches!(kind, ProviderKind::Google | ProviderKind::External) {
-        return Err(AppError::input(
-            "Only identity-source providers support --authoritative",
-        ));
-    }
+    let kind = ProviderKind::External;
     let id = args
         .id
         .clone()
         .unwrap_or_else(|| format!("{}-main", args.provider_type));
-    let external = if kind == ProviderKind::External {
-        if args.token_ref.is_some() {
-            return Err(AppError::input(
-                "Use --credential NAME=REFERENCE for external credentials",
-            ));
-        }
-        Some(permesh_config::ExternalConfig {
-            discovery_protocol: permesh_config::DiscoveryProtocol::Legacy,
-            provider: args
-                .provider
-                .clone()
-                .ok_or_else(|| AppError::input("External providers require --provider"))?,
-            sha256: args
-                .sha256
-                .clone()
-                .ok_or_else(|| AppError::input("External providers require --sha256"))?,
-            configuration: pairs(&args.setting)?
-                .into_iter()
-                .map(|(key, value)| (key, serde_json::Value::String(value)))
-                .collect(),
-            credentials: pairs(&args.credential)?,
-        })
-    } else {
-        if args.provider.is_some()
-            || args.sha256.is_some()
-            || !args.setting.is_empty()
-            || !args.credential.is_empty()
-        {
-            return Err(AppError::input(
-                "--provider, --sha256, --setting and --credential require type external",
-            ));
-        }
-        None
-    };
+    let external = Some(permesh_config::ExternalConfig {
+        discovery_protocol: args.discovery_protocol.into(),
+        provider: args
+            .provider
+            .clone()
+            .ok_or_else(|| AppError::input("External providers require --provider"))?,
+        sha256: args
+            .sha256
+            .clone()
+            .ok_or_else(|| AppError::input("External providers require --sha256"))?,
+        configuration: pairs(&args.setting)?
+            .into_iter()
+            .map(|(key, value)| (key, serde_json::Value::String(value)))
+            .collect(),
+        credentials: pairs(&args.credential)?,
+    });
     config.providers.push(ProviderConfig {
         id: id.clone(),
         kind,
         customer_id: args.customer_id.clone(),
         organizations: args.organization.clone(),
-        auth: (kind != ProviderKind::External).then(|| AuthConfig {
-            token: args
-                .token_ref
-                .clone()
-                .unwrap_or_else(|| format!("keychain://{id}/token")),
-        }),
+        auth: None,
         external,
     });
     if args.authoritative {
@@ -186,7 +159,7 @@ pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
     replace(&path, &original, yaml.as_bytes())?;
     Outcome::new(
         "provider_add",
-        serde_json::json!({"message":"Added provider. Configuration formatting was normalized; review the Git diff.","next":if kind == ProviderKind::External {format!("permesh provider external review {id}")}else{format!("permesh auth login {id}")}}),
+        serde_json::json!({"message":"Added provider. Configuration formatting was normalized; review the Git diff.","next":format!("permesh provider external review {id}")}),
     )
 }
 
