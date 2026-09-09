@@ -19,6 +19,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Check local documentation links
+        run: python scripts/check_docs.py
+      - name: Test documentation link checker
+        run: python -m unittest discover -s scripts -p 'test_check_docs.py'
       - name: Install stable Rust
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
       - name: Select stable Rust
@@ -45,9 +52,6 @@ jobs:
         env:
           DBUS_SESSION_BUS_ADDRESS: unix:path=/tmp/permesh-no-bus
         run: cargo test -p permesh-secrets --test native --locked -- --ignored --exact unavailable_service_is_redacted
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
       - run: python -m unittest discover -s examples/external-provider -p 'test_*.py'
       - name: Exercise explicit native external discovery
         run: python scripts/check_external_host.py
