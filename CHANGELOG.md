@@ -4,6 +4,13 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add explicit private snapshots, offline inspection and source-scoped diffs with
+  independent format version 1. Changed visibility, failed collection and older
+  exports never imply revoked access. Existing provider wire schemas are unchanged.
+- Add read-only departure assessment, target-scoped advisory plans and repeatable
+  verification with JSON/HTML reports. Evidence freshness, ownership dependencies
+  and unsupported checks remain explicit; no remote mutation commands are added.
+
 - Add reviewed stable-account identity mapping commands and an explicitly pinned,
   bounded JSON identity inventory. Contradictory evidence stays ambiguous; inventory
   lifecycle does not imply employment or verified email ownership.

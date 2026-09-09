@@ -17,7 +17,7 @@ Assets include provider tokens, organizational identities and access metadata, w
 | External credential reflection or endpoint change | Review configuration and reference slots; invalidate changed approvals; send values on stdin only after handshake; reject decoded response strings/keys containing supplied values | Trusted code can transform, persist or exfiltrate values; this is not a sandbox |
 | Hung or flooding plugin | Frame/total-output bounds, request deadline, cancellation, process-group/job termination and reap, bounded discarded stderr | A subprocess is not a sandbox; same-user file/network access and deliberate Unix process-group escape remain possible |
 | Identity confusion | Explicit mappings or exact verified email evidence; retain ambiguity | Public GitHub emails do not prove identity; test duplicates and cross-provider same native IDs |
-| Export disclosure | No automatic persistence; versioned stdout with caller-owned destination | Future export must use restrictive create-new files and explicit overwrite policy; terminals, shell redirects and consumers can leak data |
+| Export disclosure | No automatic persistence; explicit bounded snapshot/plan/report writes use private create-new files by default (snapshot replacement requires explicit `--overwrite`); offline inspection does not execute providers | Exports contain sensitive access metadata; inherited Windows ACLs, backups, terminals, shell redirects and consumers can leak data |
 | Dependency compromise | Committed lockfile, reviewed features/licenses, pinned workflow actions, advisory scans, least CI permissions | Scanners only find known issues; build scripts and updates need human review |
 
 ## Acceptance exercises

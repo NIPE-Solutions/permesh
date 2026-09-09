@@ -34,7 +34,7 @@ Dependencies point inward: providers depend on SDK/core/secrets, never CLI. Core
 
 Snapshots retain provider-scoped immutable IDs, observation timestamps, resources, groups, memberships, grants, and warnings about visibility. Traversal follows account/group membership edges with cycle protection and yields explicit paths. It does not fabricate provider authorization semantics. Identity matching uses explicit instance/account mappings and exact verified emails only; duplicate candidate identities remain ambiguous. Public GitHub email is not verified identity evidence.
 
-No discovery data is persisted. Exports are future functionality; JSON goes to stdout under the caller's control. Query commands never rewrite configuration. Plain output uses vertically arranged records to work in narrow terminals, with escaped control characters. Structured output is independently serialized, schema-versioned, and deterministic apart from observation times.
+Discovery remains transient by default. Explicit `snapshot create` writes a private, versioned local artifact; offline inspection and comparison never resolve credentials or execute providers. Snapshot DTOs are independent of domain and wire serialization. See [snapshot boundaries](snapshots.md). JSON also goes to stdout under the caller's control. Query commands never rewrite configuration. Plain output uses vertically arranged records to work in narrow terminals, with escaped control characters. Structured output is independently serialized, schema-versioned, and deterministic apart from observation times.
 
 Alternatives: one crate would weaken adapter boundaries; a crate per every conceptual type would multiply maintenance without a use case. The workspace crates provide a modest boundary around security-sensitive responsibilities. A full graph database and foreign runtime embedding are unnecessary.
 
@@ -85,3 +85,33 @@ separately trusted executables require an explicit setup selector.
 Domain semantics are not declared stable yet. See the
 [architecture audit](audits/architecture-hardening.md) for identity dimensions,
 resource containment, evidence and negotiated-operation migration decisions.
+
+
+## Local review inputs
+
+The explicit [identity inventory](identity-inventory.md) is a bounded host-local
+JSON reader. It is the intentional exception to external production adapters:
+there is no executable, network transport or authentication involved. Its reviewed
+byte digest, declared scope, export time and completeness describe the imported
+assertions. It cannot establish employment or verify an arbitrary email address.
+
+Identity mappings use immutable provider account IDs and authoritative canonical
+IDs. The [mapping workflow](identity-mapping.md) reviews a proposed aliases change
+before an atomic configuration write. Conflicting authoritative evidence remains
+ambiguous.
+
+```mermaid
+flowchart LR
+    Approved[Approved providers] --> Capture[Validated observations]
+    Inventory[Reviewed inventory file] --> Capture
+    Capture --> Query[Deterministic identity and access queries]
+    Capture --> Export[Explicit private snapshot]
+    Export --> Offline[Bounded offline reader]
+    Offline --> Compare[Scope-aware comparison]
+    Query --> Output[Versioned output]
+    Compare --> Output
+```
+
+Snapshot comparisons retain source failures and scope changes. A newer scan does
+not prove revocation: missing records are classified only within comparable visible
+scope, and older or overlapping observations cannot establish disappearance.

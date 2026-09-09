@@ -14,6 +14,19 @@ pub async fn run(
     if let Command::Identity { command } = &cli.command {
         return crate::identity_command::run(cli, command, blocking, cancellation).await;
     }
+    if let Command::Offboard { command } = &cli.command {
+        return crate::offboard::run(cli, command, blocking, cancellation).await;
+    }
+    if let Command::Snapshot { command } = &cli.command {
+        return crate::snapshot_command::run(cli, command, blocking, cancellation).await;
+    }
+    if let Command::Diff { before, after } = &cli.command {
+        let before = before.clone();
+        let after = after.clone();
+        return blocking
+            .run(move || crate::snapshot_command::compare(&before, &after))
+            .await?;
+    }
     match &cli.command {
         Command::Provider {
             command: ProviderCommand::Migrate(args),
