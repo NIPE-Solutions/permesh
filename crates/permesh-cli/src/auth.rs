@@ -39,6 +39,27 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
                     });
                     continue;
                 }
+                if p.external.as_ref().is_some_and(|external| {
+                    external.credentials.values().any(|value| {
+                        matches!(SecretRef::parse(value), Ok(SecretRef::Remote { .. }))
+                    })
+                }) {
+                    let local_available = p.external.as_ref().is_some_and(|external| {
+                        external
+                            .credentials
+                            .values()
+                            .all(|value| match SecretRef::parse(value) {
+                                Ok(SecretRef::Remote { .. }) => true,
+                                Ok(local) => SecretResolver.resolve(&local).is_ok(),
+                                Err(_) => false,
+                            })
+                    });
+                    o.report.providers.push(ProviderStatus {
+                        id: p.id.clone(), kind: collection::kind(&p).into(), state: if local_available {"configured"} else {"failed"}.into(),
+                        message: if local_available {"Remote credential resolver configured; availability is unverified until an approved provider operation. No remote store or bootstrap credential was accessed."} else {"A direct local credential is unavailable. Remote resolver availability remains unverified; no remote store or bootstrap credential was accessed."}.into(), limitations: vec![],
+                    });
+                    continue;
+                }
                 let available = if p.kind == ProviderKind::Demo {
                     true
                 } else if let Some(external) = &p.external {
@@ -65,7 +86,11 @@ fn run_sync(config: &Config, command: &AuthCommand, json: bool) -> Result<Outcom
                 });
             }
             o.report.providers.sort_by(|a, b| a.id.cmp(&b.id));
-            o.report.complete = o.report.providers.iter().all(|p| p.state == "connected");
+            o.report.complete = o
+                .report
+                .providers
+                .iter()
+                .all(|p| matches!(p.state.as_str(), "connected" | "configured"));
             if !o.report.complete {
                 o.code = if o.report.providers.iter().all(|p| p.state == "failed") {
                     3
@@ -172,10 +197,65 @@ fn keychain_ref(
     };
     let reference =
         SecretRef::parse(value).map_err(|_| AppError::input("Invalid secret reference"))?;
+    if matches!(reference, SecretRef::Remote { .. }) {
+        return Err(AppError::input(
+            "This credential slot uses a read-only remote resolver. Set its configured bootstrap environment or instance keychain entry; auth login/logout never writes remote stores.",
+        ));
+    }
     if matches!(reference, SecretRef::Env(_)) {
         return Err(AppError::input(
             "This instance uses an environment reference. Set or unset that variable in your shell; auth login/logout only manage keychain references.",
         ));
     }
     Ok(reference)
+}
+
+#[cfg(test)]
+mod remote_tests {
+    use super::*;
+    #[test]
+    fn remote_status_is_configured_unverified_and_login_logout_never_touch_bootstrap()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let config=Config::from_bytes(serde_json::json!({"version":1,"organization":{"name":"test"},"providers":[{"id":"instance","type":"external","external":{"provider":"fixture","sha256":"a".repeat(64),"credentials":{"token":"vault://named"},"credential_resolvers":{"named":{"version":1,"type":"vault_kv2","origin":"https://invalid.invalid","mount":"secret","path":"one","field":"token","bootstrap":"env://PERMESH_ABSENT_BOOTSTRAP_937812"}}}}]}).to_string().as_bytes())?;
+        let status = run_sync(
+            &config,
+            &AuthCommand::Status {
+                id: Some("instance".into()),
+            },
+            true,
+        )
+        .map_err(|e| e.message)?;
+        assert_eq!(status.code, 0);
+        assert!(status.report.complete);
+        assert_eq!(status.report.providers[0].state, "configured");
+        assert!(status.report.providers[0].message.contains("unverified"));
+        let mut mixed = config.clone();
+        mixed.providers[0]
+            .external
+            .as_mut()
+            .ok_or("external")?
+            .credentials
+            .insert("other".into(), "env://PERMESH_ABSENT_DIRECT_938172".into());
+        let mixed_status = run_sync(
+            &mixed,
+            &AuthCommand::Status {
+                id: Some("instance".into()),
+            },
+            true,
+        )
+        .map_err(|e| e.message)?;
+        assert_eq!(mixed_status.code, 3);
+        assert!(!mixed_status.report.complete);
+        assert!(
+            mixed_status.report.providers[0]
+                .message
+                .contains("direct local credential")
+        );
+        let error = keychain_ref(&config, "instance", None)
+            .err()
+            .ok_or("remote slot must reject writes")?;
+        assert_eq!(error.code, 2);
+        assert!(error.message.contains("read-only remote resolver"));
+        Ok(())
+    }
 }

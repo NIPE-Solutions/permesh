@@ -6,8 +6,12 @@ use std::{fmt, str::FromStr};
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("invalid secret reference; use env://NAME or keychain://provider-id/credential-name")]
+    #[error(
+        "invalid secret reference; use an explicit env, keychain or configured remote resolver reference"
+    )]
     InvalidReference,
+    #[error("remote credential resolution requires an approved provider-instance resolver")]
+    HostResolverRequired,
     #[error("credential environment variable is missing, empty, or not Unicode")]
     EnvironmentUnavailable,
     #[error(
@@ -19,10 +23,32 @@ pub enum Error {
     #[error("credential must not be empty")]
     Empty,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RemoteBackend {
+    OnePassword,
+    Vault,
+    OpenBao,
+}
+impl RemoteBackend {
+    pub fn scheme(self) -> &'static str {
+        match self {
+            Self::OnePassword => "1password",
+            Self::Vault => "vault",
+            Self::OpenBao => "openbao",
+        }
+    }
+}
 #[derive(Clone, PartialEq, Eq)]
 pub enum SecretRef {
     Env(String),
-    Keychain { service: String, account: String },
+    Keychain {
+        service: String,
+        account: String,
+    },
+    Remote {
+        backend: RemoteBackend,
+        name: String,
+    },
 }
 fn valid_id(s: &str) -> bool {
     !s.is_empty()
@@ -45,6 +71,7 @@ impl SecretRef {
                     && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
             }
             Self::Keychain { service, account } => valid_id(service) && valid_id(account),
+            Self::Remote { name, .. } => valid_id(name),
         }
     }
 }
@@ -58,6 +85,17 @@ impl FromStr for SecretRef {
             Self::Keychain {
                 service: service.into(),
                 account: account.into(),
+            }
+        } else if let Some((scheme, name)) = value.split_once("://") {
+            let backend = match scheme {
+                "1password" => RemoteBackend::OnePassword,
+                "vault" => RemoteBackend::Vault,
+                "openbao" => RemoteBackend::OpenBao,
+                _ => return Err(Error::InvalidReference),
+            };
+            Self::Remote {
+                backend,
+                name: name.into(),
             }
         } else {
             return Err(Error::InvalidReference);
@@ -76,6 +114,7 @@ impl fmt::Display for SecretRef {
         }
         match self {
             Self::Env(name) => write!(f, "env://{name}"),
+            Self::Remote { backend, name } => write!(f, "{}://{name}", backend.scheme()),
             Self::Keychain { service, account } => write!(f, "keychain://{service}/{account}"),
         }
     }
@@ -107,6 +146,7 @@ impl SecretResolver {
             return Err(Error::InvalidReference);
         }
         let value = match reference {
+            SecretRef::Remote { .. } => return Err(Error::HostResolverRequired),
             SecretRef::Env(name) => {
                 std::env::var(name).map_err(|_| Error::EnvironmentUnavailable)?
             }
