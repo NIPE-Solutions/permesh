@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
+mod credential_resolvers;
 mod data;
+pub use credential_resolvers::CredentialResolver;
 mod inventory;
 pub use inventory::InventoryConfig;
 mod external;
@@ -203,6 +205,11 @@ impl Config {
                         .ok_or_else(|| invalid("provider requires auth.token"))?;
                     let reference = SecretRef::parse(&auth.token)
                         .map_err(|_| invalid("auth.token must be an env or keychain reference"))?;
+                    if matches!(reference, SecretRef::Remote { .. }) {
+                        return Err(invalid(
+                            "legacy authentication accepts only environment or keychain references",
+                        ));
+                    }
                     if let SecretRef::Keychain { service, account } = reference
                         && (service != provider.id || account != "token")
                     {

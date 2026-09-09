@@ -25,6 +25,7 @@ mod provider_development;
 mod provider_diagnostics;
 mod provider_migration;
 mod provider_operation;
+mod remote_secrets;
 mod report;
 mod review_scope;
 mod schema1_control;

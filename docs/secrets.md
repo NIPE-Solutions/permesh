@@ -4,13 +4,16 @@
 | --- | --- | --- | --- |
 | `env://NAME` | Supplied to the local process by its parent; subject to OS process-access rules | Commit the reference; inject the value through existing CI secret tooling | Replace/unset the variable in its owner; revoke old credentials at the provider |
 | `keychain://instance/slot` | Native credential store under the current user's OS security policy | Recommended local desktop storage; share references, not entries | Explicit login replaces the local entry; logout removes it; revoke remotely through the provider |
-| Native AWS profile/SSO, SOPS, Vault, command resolvers | Not a supported Permesh secret backend yet | No implicit ambient credential-chain or command execution | Future explicit contracts; do not place commands or plaintext credentials in references |
+| `1password://NAME`, `vault://NAME`, `openbao://NAME` | Explicit host-owned read through a reviewed per-instance resolver; whole Connect item or KV object is fetched, exact field delivered | Share only nonsecret declarations; provision the explicit local bootstrap independently | Refresh at the selected store; no remote writes, deletion, renewal or cached fallback |
+| Native AWS profile/SSO, SOPS, command resolvers | Not a supported Permesh secret backend yet | No implicit ambient credential-chain or command execution | Future explicit contracts; do not place commands or plaintext credentials in references |
 
 Workspace configuration accepts `env://NAME` and
-`keychain://instance-id/credential-name`. Built-in providers continue to use the
+`keychain://instance-id/credential-name`, plus the explicit named remote schemes
+described in [remote credentials](remote-credentials.md). Built-in providers continue to use the
 `token` account only. Approved external instances can declare named credential
 slots; the keychain service must match the containing instance and the account
-must equal the slot name. Literal credentials, executable references, URL
+must equal the slot name. A remote resolver bootstrap can use a separately
+provisioned keychain account under that same instance service. Literal credentials, executable references, URL
 parameters and encoded paths are rejected.
 
 Environment names use ASCII letters, digits and underscore, beginning with a
@@ -83,8 +86,10 @@ permesh auth logout internal-main --credential token
 
 For noninteractive login, use `--token-stdin` to read the selected slot's value
 from stdin; never pass it as a command argument. Environment-backed slots are
-managed outside Permesh. `auth status` checks named credential availability;
-it does not authenticate against the provider. Explicit login/logout manage local
+managed outside Permesh. `auth status` checks direct local credential availability;
+remote slots report configured but unverified without reading bootstrap credentials
+or contacting a remote store. Mixed configurations still report missing direct
+local slots. It does not authenticate against the provider. Explicit login/logout manage local
 credentials, not workspace execution approval or remote token revocation.
 
 Workspace discovery and health require a matching approval before external
@@ -137,3 +142,21 @@ the declared, same-instance refresh-token keychain entry after successful PKCE
 login. It does not print or persist the returned access token. `--no-open` prints
 only the authorization URL for manual browser opening. Existing token-stdin and
 hidden-prompt login remain available separately.
+
+## Explicit remote credential sources
+
+Current-main source builds add versioned declarations for 1Password Connect and
+separately dispatched Vault/OpenBao KV v2 exact reads. They are not part of
+published alpha.2. Resolver origin, exact locator, selected field, bootstrap
+reference and optional proxy/CA pins are included in provider-specific approval.
+The host validates all declared transports and approval before resolving any
+bootstrap. References never invoke arbitrary commands or an ambient credential
+chain, and configuration/list operations stay offline.
+
+The bootstrap is host-only; the native provider receives only the selected
+credential slot. Remote stores return a whole item or object, so other secret
+fields temporarily reach host memory. Returned values containing the full bootstrap
+are rejected. No remote writes or secret persistence are implemented. `auth login`
+and `logout` reject remote slots rather than changing a remote store. See the
+[configuration, bounds and qualification limits](remote-credentials.md) before
+using a source. Synthetic protocol tests do not qualify a live product deployment.
