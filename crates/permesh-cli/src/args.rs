@@ -73,7 +73,13 @@ pub enum Command {
         command: AuthCommand,
     },
     /// Diagnose configuration, credentials and provider connectivity.
-    Doctor,
+    Doctor {
+        #[arg(
+            long,
+            help = "Include curated stage codes and remediation from the same health checks"
+        )]
+        details: bool,
+    },
     /// Show observed access and the paths that explain it.
     User { identity: String },
     /// Show privileged access, uncertain roles, and unresolved group grants.

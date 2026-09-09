@@ -4,6 +4,12 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Recheck trusted executable pins immediately before launch and stop already
+  cancelled operations before spawning. Path-based OS race limitations remain.
+- Add `doctor --details` with curated diagnostic stages and remediation while
+  preserving default output. Native cleanup failures consistently return exit 5.
+
+
 - Add optional target-specific external executable pins and guided `--portable`
   setup for shared workspaces. Existing scalar pins remain supported; each
   machine still requires local trust and approval.

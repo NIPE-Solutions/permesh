@@ -263,3 +263,46 @@ fn parsed_access_failures_use_schema_two_while_control_failures_use_one() {
         assert!(value["error"].is_object());
     }
 }
+
+#[test]
+fn doctor_details_is_opt_in_and_uses_curated_diagnostics() {
+    let d = tempfile::tempdir().unwrap();
+    assert!(run(d.path(), &["init", "--demo"]).status.success());
+    let plain = run(d.path(), &["doctor", "--json"]);
+    let plain: serde_json::Value = serde_json::from_slice(&plain.stdout).unwrap();
+    assert!(plain["result"].get("diagnostics").is_none());
+    let detailed = run(d.path(), &["doctor", "--details", "--json"]);
+    assert!(detailed.status.success(), "{detailed:?}");
+    let detailed: serde_json::Value = serde_json::from_slice(&detailed.stdout).unwrap();
+    assert_eq!(detailed["schema_version"], 1);
+    assert_eq!(detailed["result"]["diagnostics_version"], 1);
+    assert_eq!(detailed["result"]["diagnostics"][0]["code"], "check_ok");
+    assert_eq!(detailed["providers"], plain["providers"]);
+    let human = run(d.path(), &["doctor", "--details"]);
+    assert!(
+        String::from_utf8(human.stdout)
+            .unwrap()
+            .contains("check_ok")
+    );
+}
+
+#[test]
+fn detailed_doctor_reports_untrusted_instances_in_sorted_order_without_credentials() {
+    let d = tempfile::tempdir().unwrap();
+    let digest = "a".repeat(64);
+    std::fs::write(d.path().join("permesh.yaml"), format!("version: 1\norganization: {{name: test}}\nproviders:\n- id: z-last\n  type: external\n  external: {{provider: diagnostics-untrusted, sha256: '{digest}', credentials: {{token: 'env://PERMESH_DIAGNOSTICS_UNAVAILABLE_4815'}}}}\n- id: a-first\n  type: external\n  external: {{provider: diagnostics-untrusted, sha256: '{digest}', credentials: {{token: 'env://PERMESH_DIAGNOSTICS_UNAVAILABLE_4815'}}}}\n")).unwrap();
+    let output = run(d.path(), &["doctor", "--details", "--json"]);
+    assert_eq!(output.status.code(), Some(3));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let rows = value["result"]["diagnostics"].as_array().unwrap();
+    assert_eq!(rows[0]["instance"], "a-first");
+    assert_eq!(rows[1]["instance"], "z-last");
+    for row in rows {
+        assert_eq!(row["stage"], "trust");
+        assert_eq!(row["code"], "binary_untrusted_or_changed");
+        assert!(
+            !row.to_string()
+                .contains("PERMESH_DIAGNOSTICS_UNAVAILABLE_4815")
+        );
+    }
+}

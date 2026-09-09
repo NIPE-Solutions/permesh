@@ -22,6 +22,7 @@ pub struct Report {
 pub struct Outcome {
     pub report: Report,
     pub code: u8,
+    pub(crate) diagnostics: Vec<crate::provider_diagnostics::Row>,
 }
 pub fn now() -> Result<String, AppError> {
     time::OffsetDateTime::now_utc()
@@ -42,6 +43,7 @@ impl Outcome {
                 result,
             },
             code: 0,
+            diagnostics: vec![],
         })
     }
 }

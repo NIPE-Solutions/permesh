@@ -259,3 +259,24 @@ fn portable_approval_binds_security_context_and_ignores_unrelated_providers() ->
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn prepared_portable_invocation_rechecks_the_retained_pin_before_launch() -> TestResult {
+    let (_temporary, access, mut config, path) = setup(&[])?;
+    let (native, _) = portable(&mut config)?;
+    let external = config.providers[0].external.as_mut().ok_or("external")?;
+    external.credentials.clear();
+    let expected = external.digest_for_target(Some(native))?.to_owned();
+    let other = path.with_file_name("other-native");
+    std::fs::write(&other, b"\x7fELFnew selected executable")?;
+    let registry = Registry::new(access.root.clone())?;
+    registry.trust(&other, "fixture", &inspect(&other)?.sha256, &[])?;
+    let (_, _, fingerprint) = access.reviewed(&config, &path, "instance").map_err(|error| error.message)?;
+    access.approve(&config, &path, "instance", &fingerprint, true).map_err(|error| error.message)?;
+    let (executable, registration, invocation) = access.prepare(&config, &path, &config.providers[0]).map_err(|error| error.message)?;
+    assert_eq!(registration.sha256, expected);
+    std::fs::write(&executable, b"\x7fELFsubstituted after preparation")?;
+    let result = permesh_provider_external::host::check_configured(&executable, "fixture", "instance", &[], &invocation, std::future::pending()).await;
+    assert!(matches!(result, Err(permesh_provider_external::ExternalError::Trust)));
+    Ok(())
+}

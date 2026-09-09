@@ -256,6 +256,19 @@ fn inspection(bytes: &[u8]) -> Result<Inspection, ExternalError> {
         size: bytes.len() as u64,
     })
 }
+/// Narrow the verification-to-launch gap for managed executables. This cannot
+/// atomically bind a later path-based spawn against hostile same-user races.
+pub(crate) fn verify_executable_pin(path: &Path, expected: &str) -> Result<(), ExternalError> {
+    if !valid_digest(expected) {
+        return Err(ExternalError::Trust);
+    }
+    checked_path(path, false, true).map_err(|_| ExternalError::Trust)?;
+    private(path, false).map_err(|_| ExternalError::Trust)?;
+    if inspect(path).map_err(|_| ExternalError::Trust)?.sha256 != expected {
+        return Err(ExternalError::Trust);
+    }
+    Ok(())
+}
 pub fn inspect(path: &Path) -> Result<Inspection, ExternalError> {
     inspection(&read_bounded(path, MAX_BINARY)?)
 }

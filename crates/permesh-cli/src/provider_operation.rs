@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+use crate::provider_diagnostics::Code;
 use crate::{blocking::BlockingPool, cancellation::Cancellation, error::AppError};
 use permesh_config::{Config, DiscoveryProtocol, ProviderConfig, ProviderKind};
 use permesh_core::Snapshot;
@@ -20,10 +21,10 @@ pub async fn run(
         return Err(AppError::new(130, "Cancelled"));
     }
     if matches!(provider.kind, ProviderKind::Github | ProviderKind::Google) {
-        return Err(AppError::new(
-            3,
-            crate::collection::legacy_message(&provider),
-        ));
+        return Err(
+            AppError::new(3, crate::collection::legacy_message(&provider))
+                .diagnostic(Code::MigrationRequired),
+        );
     }
     let id = provider.id.clone();
     let observation = if provider.kind == ProviderKind::External {
@@ -37,7 +38,7 @@ pub async fn run(
         let prepared = tokio::select! {
             biased;
             () = cancellation.cancelled() => return Err(AppError::new(130, "Cancelled")),
-            result = tokio::time::timeout(PROVIDER_TIMEOUT, pool.run(move || crate::external_workspace::prepare(&config, &path, &provider))) => result.map_err(|_| AppError::new(3, "External credential preparation exceeded the 120-second deadline"))???,
+            result = within_deadline(PROVIDER_TIMEOUT, pool.run(move || crate::external_workspace::prepare(&config, &path, &provider)), "External credential preparation exceeded the 120-second deadline") => result???,
         };
         let (executable, registration, invocation) = prepared;
         // The supervisor owns its deadlines. Never drop it before process cleanup finishes.
@@ -104,7 +105,7 @@ pub async fn run(
         tokio::select! {
             biased;
             () = cancellation.cancelled() => return Err(AppError::new(130, "Cancelled")),
-            result = tokio::time::timeout(PROVIDER_TIMEOUT, async {
+            result = within_deadline(PROVIDER_TIMEOUT, async {
                 let adapter = pool.run(move || crate::collection::build(&provider)).await??;
                 if discovery {
                     let snapshot = adapter.discover().await?;
@@ -113,7 +114,7 @@ pub async fn run(
                     let health = adapter.check().await?;
                     Ok((health.message, health.limitations, None))
                 }
-            }) => result.map_err(|_| AppError::new(3, "Provider exceeded the 120-second deadline. Check connectivity or reduce configured organizations."))??,
+            }, "Provider exceeded the 120-second deadline. Check connectivity or reduce configured organizations.") => result??,
         }
     };
     let (message, limitations, mut snapshot) = observation;
@@ -131,8 +132,39 @@ pub async fn run(
 }
 
 fn external_error(error: ExternalError) -> AppError {
-    if matches!(error, ExternalError::Cleanup) {
-        return AppError::new(5, "External provider process cleanup failed");
+    let code = Code::host(&error);
+    crate::external::failure(error).diagnostic(code)
+}
+
+async fn within_deadline<T>(
+    duration: Duration,
+    operation: impl std::future::Future<Output = T>,
+    message: &'static str,
+) -> Result<T, AppError> {
+    tokio::time::timeout(duration, operation)
+        .await
+        .map_err(|_| AppError::new(3, message).diagnostic(Code::DeadlineExceeded))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn preparation_and_builtin_deadlines_preserve_typed_provenance() {
+        for message in ["preparation deadline", "provider deadline"] {
+            let result =
+                within_deadline(Duration::ZERO, std::future::pending::<()>(), message).await;
+            let Err(error) = result else {
+                panic!("pending operation completed")
+            };
+            assert_eq!(error.code, 3);
+            assert_eq!(error.diagnostic, Some(Code::DeadlineExceeded));
+            assert_eq!(error.message, message);
+        }
+        assert!(
+            within_deadline(Duration::from_secs(1), std::future::ready(42), "deadline")
+                .await
+                .is_ok_and(|value| value == 42)
+        );
     }
-    crate::external::failure(error)
 }

@@ -121,6 +121,18 @@ pub async fn collect(
         if result.as_ref().is_err_and(|error| error.code == 5) {
             internal_failure = true;
         }
+        let diagnostic = match &result {
+            Ok((_, limitations, _)) if limitations.is_empty() => {
+                crate::provider_diagnostics::Code::CheckOk
+            }
+            Ok(_) => crate::provider_diagnostics::Code::VisibilityLimited,
+            Err(error) => error
+                .diagnostic
+                .unwrap_or(crate::provider_diagnostics::Code::ProviderFailed),
+        };
+        if command == "doctor" {
+            outcome.diagnostics.push(diagnostic.row(&id));
+        }
         match result {
             Ok((message, limitations, snapshot)) => {
                 let complete = snapshot.as_ref().is_none_or(|s| s.complete);
@@ -162,6 +174,9 @@ pub async fn collect(
         return Err(AppError::new(130, "Cancelled"));
     }
     outcome.report.providers.sort_by(|a, b| a.id.cmp(&b.id));
+    outcome
+        .diagnostics
+        .sort_by(|a, b| a.instance.cmp(&b.instance));
     snapshots.sort_by(|a, b| a.provider.cmp(&b.provider));
     let failures = outcome
         .report

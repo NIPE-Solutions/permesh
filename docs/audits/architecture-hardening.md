@@ -123,3 +123,10 @@ See [the hardening backlog](architecture-hardening-backlog.md). Boundary
 extraction precedes domain evolution because both public formats currently
 depend on core serde. This is a dependency-driven adjustment to the proposed
 slice order, not a replacement architecture.
+
+## Follow-up contract review
+
+The [hardening contract review](hardening-contract-review.md) records resulting
+network, portable-pin, launch-integrity and diagnostic boundaries, retained
+compatibility contracts and explicit release gates. It supplements this baseline
+rather than rewriting the historical findings or claiming protocol stability.

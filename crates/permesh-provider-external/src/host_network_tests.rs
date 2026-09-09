@@ -168,6 +168,7 @@ async fn rejected_network_feature_writes_only_the_public_handshake() {
                     invocation: Some(&invocation),
                     method: "discover",
                     contract: Contract::Negotiated,
+                    expected_pin: None,
                 },
                 deadline,
             )
@@ -189,6 +190,7 @@ async fn rejected_network_feature_writes_only_the_public_handshake() {
                     invocation: Some(&invocation),
                     method: "check",
                     contract: Contract::Negotiated,
+                    expected_pin: None,
                 },
                 deadline,
             )
