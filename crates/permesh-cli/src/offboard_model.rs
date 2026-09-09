@@ -70,6 +70,7 @@ pub enum GapReason {
     IdentityNotEstablished,
     IdentityContextChanged,
     AdditionalAccountsObserved,
+    AccountCorrelationChanged,
     OwnershipRequiresManualReview,
     UnsupportedCheck,
 }

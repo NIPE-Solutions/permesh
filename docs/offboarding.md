@@ -97,6 +97,13 @@ source-local gaps keep the overall report incomplete. If identity cannot be esta
 the assessment is labeled `plan_baseline`; current source outcomes remain in
 `verification_sources` and target checks cannot verify.
 
+If an earlier native account still exists but its verified-email correlation is
+removed or reassigned to another identity, verification reports an
+`account_correlation_changed` gap. Checks for that source return `cannot_verify`
+and the report exits incomplete (4), including direct and inherited access paths.
+Loss of correlation does not establish loss of access. An account actually absent
+from a comparable complete capture can still be `no_longer_observed`.
+
 Checks distinguish:
 
 - `still_observed`: the planned assignment path, membership or account remains visible.
