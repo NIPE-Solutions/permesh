@@ -1,6 +1,6 @@
 # Set up a provider
 
-## Official GitHub
+## Guided official setup
 
 ```bash
 permesh provider add github
@@ -30,7 +30,8 @@ permesh provider add github --id github-main --version VERSION \
 Noninteractive input, including `--json`, requires both `--answers` and
 `--accept-risk`. JSON contains only the result envelope, with no prompt decoration.
 Legacy organization/token flags and manual external settings are rejected: use the
-form or answer file. Other providers retain their existing add/setup workflows.
+form or answer file. Only published catalog entries can be downloaded. See [availability](providers.md)
+for candidate providers.
 
 Declining binary trust leaves only downloaded package files and executes no
 provider. A setup failure retains the package and any completed local trust;
@@ -39,17 +40,18 @@ was created but workspace approval was declined or failed, use the returned exte
 review/approve commands. Add never overwrites an existing instance. Detected workspace
 edits during setup or approval prevent stale writes or approval.
 
-Configuration schema 1 pins one current-host executable digest. A shared configuration
-does not automatically select another platform's artifact; cross-platform release
-pins require a separate configuration design. Install/update still only download
-packages and never silently change instance pins or approvals.
+By default setup pins the current host’s executable digest. Current source also
+supports `permesh provider add github --portable` to record the available native
+target digests for the same release. Only the local target is downloaded and
+trusted. Teammates still install and approve their own local execution; see
+[portable team pins](team-workflows.md). Install/update only download packages and
+never silently change instance pins or approvals.
 
 ## Registered and third-party providers
 
 `permesh provider setup` asks a locally registered native provider for a declarative
 setup description, then uses CLI-owned prompts or an answer file to add a workspace
-instance. The provider must support draft-3 description exchanges. Built-in
-providers continue to use `provider add`.
+instance. The provider must support draft-3 description exchanges. Only demo remains built in.
 
 First [inspect and trust the native binary](external-providers.md). Setup executes
 that verified registered copy as your user. Existing binary trust authorizes this
@@ -138,7 +140,7 @@ permesh doctor
 ```
 
 For keychain references, store a value separately with
-`permesh auth login example-main --slot token` (using the selected slot). Supply
+`permesh auth login example-main --credential token` (using the selected slot). Supply
 environment values outside Permesh for `env://` references. Approval binds the selected instance's configuration and relevant identity
 context. Adding an unrelated instance does not invalidate existing approvals.
 See [workspace approval](external-providers.md) and [credentials](secrets.md).
