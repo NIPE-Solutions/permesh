@@ -12,7 +12,7 @@ Extend pure secret references with three explicit named schemes. Resolve them on
 
 Validate and approve every declaration before bootstrap resolution. Reuse the provider-scoped configuration fingerprint, native executable trust and final executable-pin check. Keep omitted resolver maps absent from legacy serialization. Split provider preparation into blocking trust/config/CA validation and asynchronous bounded GET operations. Never execute an arbitrary helper, follow redirects, inherit ambient proxies, enumerate secrets or fall back to another instance/backend.
 
-The remote server returns a whole Connect item or KV object. Decode through bounded backend response models and deliver only the exact selected string. Bootstrap tokens stay host-side. Own zeroizing body/secret buffers, static errors and sensitive authentication headers; do not claim elimination of all copies made by dependencies. No resolved secret or raw response enters retained review artifacts.
+The remote server returns a whole Connect item or KV object. Decode through bounded backend response models and deliver only the exact selected string. Bootstrap tokens stay host-side. Own zeroizing body/secret buffers, static errors and sensitive authentication headers; do not claim elimination of all copies made by dependencies. No resolved secret or raw response enters CLI reports or approval storage.
 
 ## Consequences
 
