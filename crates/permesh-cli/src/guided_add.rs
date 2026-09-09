@@ -163,6 +163,7 @@ where
             ));
         }
         let external = permesh_config::ExternalConfig {
+            credential_resolvers: Default::default(),
             provider: package.release.provider.clone(),
             sha256: None,
             sha256_by_target: Some(pins.clone()),
