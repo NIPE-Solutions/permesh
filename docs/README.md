@@ -37,7 +37,7 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 ## Use Permesh as a team
 
 - [Team workflows](team-workflows.md): shared Git configuration, local trust and portable pins.
-- [Configuration](configuration.md): strict schema, workspace discovery and identity sources.
+- [Configuration](CONFIGURATION.md): strict schema, workspace discovery and identity sources.
 - [Secret storage](secrets.md): environment references, keychain storage, rotation and removal.
 - [Privacy](privacy.md), [security](security.md) and [threat model](threat-model.md).
 - [GitHub migration](github-migration.md), [Google migration](google-migration.md) and [domain/schema migration](migrations/domain-schema-2.md).
@@ -46,5 +46,5 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 
 - [Contribution guide](../CONTRIBUTING.md) and [provider development](provider-development.md).
 - [Normalization rules](provider-development/normalization.md) and [protocol compatibility](provider-protocol/versioning.md).
-- [Architecture](architecture.md), [domain model](DOMAIN_MODEL.md) and [provider model](PROVIDER_MODEL.md).
+- [Architecture](ARCHITECTURE.md), [domain model](DOMAIN_MODEL.md) and [provider model](PROVIDER_MODEL.md).
 - [Roadmap](ROADMAP.md), [release qualification](releasing.md) and [architecture audit](audits/architecture-hardening.md).
