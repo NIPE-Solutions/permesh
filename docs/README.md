@@ -39,6 +39,7 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 - [Official provider catalog and guides](https://github.com/NIPE-Solutions/permesh-providers): Cloudflare, AWS, release status and contributions.
 - [Networking](networking.md): explicit proxies and additional certificate authorities.
 - [Remote credentials](remote-credentials.md): reviewed exact reads from Connect, Vault or OpenBao.
+- [Temporary AWS profiles](aws-profiles.md): one explicitly selected temporary session.
 
 ## Use Permesh as a team
 

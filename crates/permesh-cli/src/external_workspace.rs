@@ -219,6 +219,10 @@ impl WorkspaceAccess {
         if external.discovery_protocol == permesh_config::DiscoveryProtocol::NegotiatedV1 {
             result["discovery_protocol"] = serde_json::json!("negotiated_v1");
         }
+        if let Some(profile) = &external.aws_profile {
+            result["aws_profile"] = serde_json::to_value(crate::aws_profile::Review::from(profile))
+                .map_err(|_| AppError::input("Cannot format AWS profile review"))?;
+        }
         if !external.credential_resolvers.is_empty() {
             result["credential_resolvers"] = serde_json::to_value(
                 external
@@ -338,7 +342,12 @@ impl WorkspaceAccess {
         provider: &ProviderConfig,
     ) -> Result<(PathBuf, Registration, Invocation), AppError> {
         let context = self.prepare_context(config, path, provider)?;
-        let mut credentials = BTreeMap::new();
+        let mut credentials = if let Some(profile) = &context.external.aws_profile {
+            crate::aws_profile::load(Path::new(&profile.credentials_file), &profile.profile)?
+                .credentials()
+        } else {
+            BTreeMap::new()
+        };
         for (name, value) in &context.external.credentials {
             let reference = SecretRef::parse(value)
                 .map_err(|_| AppError::input("Invalid external credential reference"))?;
@@ -394,7 +403,18 @@ pub(crate) async fn prepare_async(
             .prepare_context(&config, &path, &provider)
         })
         .await??;
-    let mut credentials = BTreeMap::new();
+    let mut credentials = if let Some(profile) = context.external.aws_profile.clone() {
+        if cancel.is_cancelled() {
+            return Err(AppError::new(130, "Cancelled"));
+        }
+        pool.run(move || {
+            crate::aws_profile::load(Path::new(&profile.credentials_file), &profile.profile)
+                .map(crate::aws_profile::Session::credentials)
+        })
+        .await??
+    } else {
+        BTreeMap::new()
+    };
     let mut expiries = Vec::new();
     for (name, value) in &context.external.credentials {
         if cancel.is_cancelled() {

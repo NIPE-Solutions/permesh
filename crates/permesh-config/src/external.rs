@@ -58,6 +58,12 @@ pub struct ExternalConfig {
         deserialize_with = "crate::credential_resolvers::resolver_map"
     )]
     pub credential_resolvers: BTreeMap<String, crate::CredentialResolver>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::network::present"
+    )]
+    pub aws_profile: Option<crate::AwsProfile>,
 }
 
 fn identifier(value: &str) -> bool {
@@ -140,5 +146,8 @@ pub(crate) fn validate(provider: &ProviderConfig) -> Result<()> {
         }
     }
     crate::credential_resolvers::validate(provider)?;
+    if let Some(profile) = &external.aws_profile {
+        profile.validate(external)?;
+    }
     Ok(())
 }

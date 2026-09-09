@@ -98,6 +98,7 @@ pub(super) fn convert(
     provider.kind = ProviderKind::External;
     provider.external = Some(ExternalConfig {
         credential_resolvers: Default::default(),
+        aws_profile: None,
         network: None,
         discovery_protocol,
         provider: kind.name().into(),
