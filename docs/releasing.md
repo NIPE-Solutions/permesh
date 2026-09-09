@@ -203,8 +203,9 @@ For the manual same-run provenance workflow, public verification commands, and r
 
 The access-review source program is unpublished. Its local source version still
 matches alpha.2; do not name or upload new bytes as an existing published asset.
-Select a new prerelease version explicitly before packaging. No next version,
-release date or catalog publication is implied by this checklist.
+CI may produce isolated trial archives using that source version. Select a new
+prerelease version before release qualification; never promote trial builds as
+alpha.2. No next version, release date or catalog publication is implied here.
 
 - Integrate and validate the exact intended source revision, including identity,
   inventory, snapshot/offboard, resource/policy, contributor tooling, remote
