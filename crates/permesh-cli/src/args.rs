@@ -120,6 +120,11 @@ pub enum Command {
 }
 #[derive(Subcommand, Clone)]
 pub enum ProviderCommand {
+    /// Create a provider scaffold or validate a recorded protocol exchange offline.
+    Dev {
+        #[command(subcommand)]
+        command: crate::provider_development::DevelopmentCommand,
+    },
     /// Migrate one GitHub or Google instance to an explicitly pinned trusted external provider.
     Migrate(crate::provider_migration::MigrationArgs),
     /// Download an exact official provider package without executing or trusting it.

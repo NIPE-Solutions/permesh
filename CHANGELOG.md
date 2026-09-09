@@ -4,6 +4,8 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add native provider scaffolding and offline discovery/health/setup transcript
+  validation. Neither operation executes, installs or trusts generated code.
 - Add resource-centric inspection and focused local review policies. Policy findings
   use exit 6; incomplete and failed collections retain precedence without hiding findings.
 

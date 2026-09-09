@@ -11,6 +11,12 @@ pub async fn run(
     blocking: &crate::blocking::BlockingPool,
     cancellation: &crate::cancellation::Cancellation,
 ) -> Result<Outcome, AppError> {
+    if let Command::Provider {
+        command: ProviderCommand::Dev { command },
+    } = &cli.command
+    {
+        return crate::provider_development::run(command, blocking, cancellation).await;
+    }
     if let Command::Resource(args) = &cli.command {
         return crate::resource_command::run(cli, args, blocking, cancellation).await;
     }

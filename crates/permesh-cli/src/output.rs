@@ -74,6 +74,8 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
             }
         }
         writeln!(out, "\nSummary\n  {count} access evidence paths")?;
+    } else if report.command == "provider_development" {
+        crate::provider_development::write(&mut out, result)?;
     } else if report.command == "resource" {
         crate::resource_command::write(&mut out, result)?;
     } else if report.command == "policy_check" {

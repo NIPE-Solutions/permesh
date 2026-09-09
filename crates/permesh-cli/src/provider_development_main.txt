@@ -1,0 +1,145 @@
+// SPDX-License-Identifier: MIT
+use permesh_core::{Account, Affiliation, EntityKey, IdentityKind, IdentityStatus, Snapshot};
+use permesh_native_runtime::Adapter;
+use permesh_provider_sdk::{
+    Capability, Health, Metadata, Provider, ProviderError, ProviderFuture, setup::SetupSpec,
+};
+use serde::Deserialize;
+use zeroize::Zeroizing;
+
+const LIMITATION: &str = "Synthetic account only; no upstream API or identity authority";
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Configuration {
+    #[serde(default)]
+    partial: bool,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Credentials {
+    token: Zeroizing<String>,
+}
+struct Example {
+    instance: String,
+    partial: bool,
+}
+struct Boundary;
+impl Adapter for Boundary {
+    type Configuration = Configuration;
+    type Credentials = Credentials;
+    fn metadata() -> Metadata {
+        Metadata {
+            kind: "@ID@".into(),
+            capabilities: vec![Capability::Accounts],
+        }
+    }
+    fn setup() -> SetupSpec {
+        use permesh_provider_sdk::setup::{Input, SetupField, SetupStep};
+        SetupSpec {
+            schema_version: 1,
+            title: "Synthetic provider".into(),
+            description: "Offline example; never use a real token".into(),
+            steps: vec![SetupStep {
+                id: "settings".into(),
+                title: "Synthetic settings".into(),
+                description: "No upstream network access".into(),
+                when: None,
+                fields: vec![
+                    SetupField {
+                        key: "partial".into(),
+                        label: "Report incomplete discovery".into(),
+                        help: "Synthetic visibility fixture".into(),
+                        required: false,
+                        default: Some(false.into()),
+                        when: None,
+                        input: Input::Boolean,
+                    },
+                    SetupField {
+                        key: "token".into(),
+                        label: "Synthetic token reference".into(),
+                        help: "Use a reference to synthetic data, never a real credential".into(),
+                        required: true,
+                        default: None,
+                        when: None,
+                        input: Input::Credential,
+                    },
+                ],
+            }],
+        }
+    }
+    fn validate(_: &Configuration, credentials: &Credentials) -> bool {
+        !credentials.token.is_empty() && credentials.token.len() <= 4096
+    }
+    fn error_code(_: &str) -> &'static str {
+        "internal"
+    }
+    fn limitations(_: &[String]) -> Vec<&'static str> {
+        vec!["visibility_limited"]
+    }
+}
+impl Provider for Example {
+    fn metadata(&self) -> Metadata {
+        Boundary::metadata()
+    }
+    fn check(&self) -> ProviderFuture<'_, Health> {
+        Box::pin(async {
+            Ok(Health {
+                message: "Synthetic health only".into(),
+                limitations: vec![LIMITATION.into()],
+            })
+        })
+    }
+    fn discover(&self) -> ProviderFuture<'_, Snapshot> {
+        Box::pin(async move {
+            let mut snapshot = Snapshot::new(&self.instance);
+            snapshot.complete = !self.partial;
+            snapshot.limitations.push(LIMITATION.into());
+            snapshot.accounts.push(Account {
+                key: EntityKey::new(&self.instance, "synthetic-account-1"),
+                login: "synthetic-user".into(),
+                kind: IdentityKind::Human,
+                status: IdentityStatus::Active,
+                affiliation: Affiliation::Unknown,
+                verified_emails: vec![],
+            });
+            permesh_provider_sdk::validate_snapshot(&snapshot)?;
+            Ok(snapshot)
+        })
+    }
+}
+async fn run<R: tokio::io::AsyncRead + Unpin, W: tokio::io::AsyncWrite + Unpin>(
+    reader: R,
+    writer: W,
+) -> Result<(), permesh_native_runtime::ProtocolFailure> {
+    permesh_native_runtime::serve::<Boundary, _, _, _, _, _>(
+        reader,
+        writer,
+        |instance, configuration, credentials| async move {
+            drop(credentials);
+            Ok::<_, ProviderError>(Example {
+                instance,
+                partial: configuration.partial,
+            })
+        },
+    )
+    .await
+}
+fn main() -> std::process::ExitCode {
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+    {
+        Ok(value) => value,
+        Err(_) => return std::process::ExitCode::FAILURE,
+    };
+    let result = runtime.block_on(run(tokio::io::stdin(), tokio::io::stdout()));
+    runtime.shutdown_timeout(std::time::Duration::from_millis(100));
+    if result.is_ok() {
+        std::process::ExitCode::SUCCESS
+    } else {
+        std::process::ExitCode::FAILURE
+    }
+}
+#[cfg(test)]
+mod tests;
