@@ -6,8 +6,10 @@ This adapter is covered by mock API tests; live tenant qualification is pending.
 
 The implementation lives in the official
 [provider repository](https://github.com/NIPE-Solutions/permesh-providers/tree/main/providers/google).
-The 0.2.0 source candidate has passed offline native qualification, but no Google
-package is published in the catalog yet. Legacy `type: google` configurations
+The catalog lists the published 0.2.0 evaluation release after native package,
+exact alpha.3 host and public install/update qualification; live tenant
+qualification remains pending.
+Legacy `type: google` configurations
 are parsed for migration only; queries and authentication reject them before
 reading credentials. See [migration](../google-migration.md).
 
@@ -22,9 +24,8 @@ credential exchange backend. See the provider-owned
 
 ## Configuration
 
-Once a qualified package is published, `permesh provider add google` uses the
-same guided installation and explicit consent flow as GitHub. Until then, this
-command reports that a compatible published release is unavailable.
+With alpha.3, `permesh provider add google` uses the same guided catalog
+installation and explicit consent flow as GitHub.
 
 For a reviewed, separately built native candidate, trust its executable digest
 and exact `accounts`/`identities` capabilities, then configure it explicitly:

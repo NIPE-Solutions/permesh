@@ -6,7 +6,7 @@ It is not submitted automatically. Do not include tokens, credential references,
 real identities, tenant/resource names, raw exports, or private configuration.
 Use fictional replacements and approximate timings where appropriate.
 
-- **Build and scope:** What CLI/provider versions or candidate revisions and OS
+- **Build and scope:** What exact CLI/provider evaluation releases or candidate revisions and OS
   did you evaluate? Which kind of review were you trying to complete?
 - **Setup:** Did you reach a successful health check and a useful query? Where
   did installation, permissions, trust, approval or credential setup stop you?

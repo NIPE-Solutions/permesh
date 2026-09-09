@@ -6,11 +6,11 @@ The demo needs no account, credential, or network connection.
 ## Install
 
 Use the [installation guide](installation.md) to download and verify the published
-0.1.0-alpha.2 binary for macOS, Linux or Windows.
+0.1.0-alpha.3 evaluation binary for macOS, Linux or Windows.
 
-This guide follows current source. Alpha.2 has earlier output and contracts;
-see [release limitations](releases/0.1.0-alpha.2.md) and
-[source upgrade notes](migrations/domain-schema-2.md). To build current source,
+Alpha.2 remains unchanged with earlier output and contracts; see the
+[alpha.3 release limitations](releases/0.1.0-alpha.3.md) and
+[schema upgrade notes](migrations/domain-schema-2.md). To build current source,
 install Rust 1.91 or newer, then:
 
 ```bash
@@ -98,8 +98,9 @@ mapping to the account’s immutable numeric ID.
 Add mappings using the [identity resolution guide](identity-resolution.md).
 Aliases link accounts; they do not establish active lifecycle status. For real
 orphan review, configure an authoritative identity source. [Google Directory](providers/google.md)
-is implemented as an unpublished source candidate; check [availability](providers.md)
-before planning a deployment around it.
+is available as a catalog-installed 0.2.0 evaluation provider for alpha.3; live
+tenant qualification remains pending. Check [availability](providers.md) before
+planning a deployment around it.
 
 ## Keep the workspace useful
 

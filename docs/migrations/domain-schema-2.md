@@ -1,6 +1,6 @@
 # Domain and access-output schema 2
 
-This is an intentional prerelease Rust API and access JSON change. Workspace
+This is an intentional alpha.3 prerelease Rust API and access JSON change. Workspace
 schema 1, secret references, trust registration, approval inputs, exit codes and
 legacy NDJSON drafts remain unchanged. Existing releases are not overwritten.
 
@@ -37,6 +37,7 @@ retain their meanings.
 
 There is no lossy schema-1 export switch. Applications needing the earlier output
 must keep using the previously released CLI until their consumer handles schema 2.
+Alpha.2 remains available as the immutable published schema-1 evaluation release.
 Historical schema-1 fixtures remain as a record of that contract; new schema-2
 fixtures cover the migrated access reports. JSON is still emitted only to stdout,
 with no prompts or decoration. No new export or snapshot command is introduced.

@@ -5,10 +5,16 @@
 explicit local configuration edit: it never downloads, trusts, launches or approves
 code and never resolves credentials.
 
-The bundled adapter has been removed from current source. Published CLI alpha.2
-is unchanged. The external Google 0.2.0 candidate is qualified offline, but has
-not been published in the catalog; live tenant qualification remains pending.
-Migration therefore requires a reviewed native build until publication.
+The bundled adapter has been removed. Published CLI alpha.2 is unchanged. The
+external Google 0.2.0 evaluation release passed package, exact alpha.3 host and
+public catalog install/update qualification; live tenant qualification remains
+pending.
+
+Upgrade the CLI to alpha.3 before reading the new provider catalog. Alpha.2 rejects
+the additive `discovery_protocol` field even when an older provider version is
+requested. Pins, trust and legacy approval records remain stored, but alpha.3 does not accept
+an alpha.2 approval as execution authority. Review and explicitly approve the
+external provider once before health checks or queries.
 
 Obtain a qualified Google executable and review it using the [provider trust
 workflow](provider-packages.md). Its registration must be named `google` with
@@ -76,5 +82,5 @@ A successful migration does not establish directory completeness or live tenant
 qualification. Health and query checks follow explicit workspace approval.
 
 The discovery selector defaults to legacy for historical binaries. Select
-`negotiated-v1` explicitly for 0.2.0 candidates; migration does not probe a binary
+`negotiated-v1` explicitly for 0.2.0 releases; migration does not probe a binary
 or guess compatibility. The selector is part of workspace approval.

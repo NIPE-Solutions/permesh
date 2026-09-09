@@ -78,7 +78,7 @@ Core principals now separate kind, affiliation and lifecycle. Resource containme
 is validated independently from access edges; grants retain explicit evidence
 kinds and paths derive certainty without rewriting source observations. Access
 JSON uses schema 2 while control reports remain schema 1. Legacy wire mapping
-leaves unexpressed fields unknown; official 0.2.0 source candidates emit the richer dimensions through negotiated
+leaves unexpressed fields unknown; official 0.2.0 evaluation releases emit the richer dimensions through negotiated
 protocol v1. Verified package metadata selects this contract during guided setup;
 separately trusted executables require an explicit setup selector.
 

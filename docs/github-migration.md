@@ -13,10 +13,31 @@ be named `github` and declare exactly `accounts`, `resources`, `groups`,
 older trusted digest when that is the intended pin. A package download alone is
 insufficient. Use a qualified release from the official catalog.
 
+Choose the discovery contract that belongs to the reviewed binary. GitHub 0.1.0
+uses the legacy default, so omit the selector:
+
 ```bash
 permesh provider migrate github-work --sha256 REVIEWED_EXECUTABLE_SHA256
 permesh provider external review github-work
 ```
+
+GitHub 0.2.0 uses negotiated discovery and requires the explicit selector:
+
+```bash
+permesh provider migrate github-work --sha256 REVIEWED_0_2_0_EXECUTABLE_SHA256 \
+  --discovery-protocol negotiated-v1
+permesh provider external review github-work
+```
+
+Do not add `--discovery-protocol negotiated-v1` for 0.1.0 or omit it for 0.2.0;
+migration does not probe the binary or infer its contract. For 0.2.0 catalog
+metadata, upgrade the CLI to alpha.3 first. Alpha.2 rejects the additive
+`discovery_protocol` field even when an older provider version is requested.
+Replacing the CLI does not adopt a new installed provider pin, trust a new
+executable or renew workspace approval. Existing pins, trust and legacy approval
+records remain stored, but alpha.3 requires one fresh review and explicit approval
+before the provider can execute. GitHub 0.2.0 is now available from the public
+catalog; installation still does not select it in an existing workspace.
 
 The command preserves the instance ID and its position, organization names and
 order, exact token reference, aliases, identity sources and other providers. For

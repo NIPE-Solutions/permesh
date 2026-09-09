@@ -88,11 +88,15 @@ contracts is declared stable.
 
 ## Provider adoption and duplicate removal
 
-Current source carries explicit negotiated discovery metadata into guided setup
+Alpha.3 carries explicit negotiated discovery metadata into guided setup
 and keeps advanced setup/migration selection explicit. Bundled Google has been
 removed after offline external qualification; legacy configs fail before secrets
-and retain a migration path. Google publication/live qualification remains open,
-so source builds require a reviewed native executable until catalog publication.
+and retain a migration path. Google 0.2.0 is a qualified evaluation release;
+catalog installation/update passed while live tenant qualification remains open. Alpha.2 rejects the
+new catalog metadata even for an older requested provider version, so alpha.3 must
+be installed first. Existing installed provider pins are not changed by that upgrade.
+Trust and legacy approval records remain stored, but alpha.3 requires a fresh
+provider review and explicit scoped approval before execution.
 See ADR 0024 and the [prioritized roadmap](../ROADMAP.md).
 
 ## Launch and diagnostic review
@@ -115,7 +119,7 @@ network context and portable pins remain the foundation.
 | Phase | Gap and deliverable | Dependencies | Acceptance / status |
 | --- | --- | --- | --- |
 | 0 | Case-sensitive local documentation checks and accurate release/source guidance | Existing docs and CI | Implemented; offline checker and regression suite, PR 33/provider PR 16 merged after three-platform tests, dependency checks and five native targets |
-| 1 | Cross-provider reference workflow, qualification matrix and compatible candidates | Existing host/adapters | Implemented reference fixture and qualification matrix; current candidate artifacts remain unpublished; directory live checks require a tenant |
+| 1 | Cross-provider reference workflow, qualification matrix and compatible candidates | Existing host/adapters | Implemented reference fixture and qualification matrix; seven catalog-installable 0.2.0 evaluation releases qualified, with broader live checks still open |
 | 2A | Explicit identity mapping tools and versioned file-backed identity source | Identity index, strict config, captured writes | Implemented; identity/inventory PR merged after passing cross-platform CI |
 | 2B | Explicit private snapshots, offline inspection and scope-aware diffs | Validated graph, independent artifact DTOs | Implemented; 15 comparison/privacy/adversarial CLI tests and broader local suite passed |
 | 3 | Read-only departure assessment, advisory plan, verification and HTML/JSON reports | Identity tools and snapshots | Implemented; 10 adversarial/fresh/replay CLI tests, including lost-correlation verification; source expiry, ownership and partial checks explicit |
@@ -185,14 +189,14 @@ artifacts.
 
 | Remaining gate | Concrete prerequisite and acceptance evidence |
 | --- | --- |
-| Release candidates | Exact alpha.3 run 34351503021 passed five targets and independent bundle/public provenance for all 20 subjects. Provider run 34349822945 supplied 35 independently verified 0.2.0 packages. Local host-validator/setup/trust/approval/pin and limited packaged GitHub checks passed; public 0.2.0 guided install/update requires separately authorized publication/catalog adoption. See the alpha.3 notes below. |
+| Release candidates | Exact alpha.3 run 34351503021 passed five targets and independent bundle/public provenance for all 20 subjects. Provider run 34349822945 supplied 35 independently verified 0.2.0 packages. Local host-validator/setup/trust/approval/pin and limited packaged GitHub checks passed; exact public catalog install/update and supported onboarding flows also passed. See the alpha.3 notes below. |
 | GitHub breadth | An authorized tenant and least-privilege credential for API-path/visibility comparisons beyond the limited local health/status/account acceptance. No other provider inherits this result. |
 | Google / Cloudflare / AWS IAM | Authorized tenants/accounts, explicit scopes and credentials; compare visible source records and document omitted permissions. Google browser flow needs desktop acceptance too. |
 | GitLab / Entra | Authorized scoped GitLab groups/projects and read_api PAT; an Entra tenant and permitted Graph application credential. Verify pagination, tenant binding, membership visibility and unsupported-role boundaries against real APIs. |
 | Identity Center / temporary AWS profile | An authorized STS account/role, Identity Center instance/store pair, account allowlist and temporary session. Verify provisioned permission-set assignments, explicit Organizations scope if enabled, and session expiry/role mismatch. No interactive SSO flow is implemented. |
 | Remote credential stores | Explicitly authorized Connect and separately qualified Vault/OpenBao KV v2 services, HTTPS trust, bootstrap credentials and exact item/path/field permissions. Fixture qualification does not establish product/version compatibility or operational availability. |
 | Desktop and Windows | Packaged macOS PTY and synthetic CLI Keychain store/status/delete passed; an independent native value read timed out and remains unverified, with cleanup confirmed. Full interactive desktop and Windows terminal acceptance remain open. |
-| Signing and release | Available Apple/Windows signing identities where required; final reviewed release notes, compatible catalogs and immutable publication. No signing, publication or adoption is implied by source completion. |
+| Signing and release | Apple/Windows signing identities where required. CLI alpha.3 and provider 0.2.0 evaluation releases plus catalog entries are immutable publications, without platform signing. |
 | Voluntary pilots | Opt-in operator feedback with sanitized examples; no automatic telemetry, enrollment, outreach or fabricated tenant evidence. |
 
 Future integrations remain prioritized only in the [roadmap](../ROADMAP.md).
@@ -211,16 +215,19 @@ CLI [PR 41](https://github.com/NIPE-Solutions/permesh/pull/41) selected
 all source and five native gates passed. The new version avoids reusing published
 alpha.2 asset identities. Exact release-run and packaged acceptance evidence
 belongs in the [alpha.3 candidate notes](../releases/0.1.0-alpha.3.md).
-Publication and catalog adoption remain separate gates.
+Alpha.3 and the seven provider 0.2.0 evaluation releases are now published; all
+35 provider entries are adopted in the catalog.
 
 Exact alpha.3 qualification subsequently passed: five native targets, all 20
 subjects independently checked through both bundle and public attestation lookup,
 35 provider packages through the source-matched host validator, seven native
 setup/trust/approval/portable-pin flows and the authorized limited packaged GitHub
 checks. Public GitHub 0.1.0 installation/update passed without automatic trust or
-workspace changes. Unpublished 0.2.0 public guided installation/update remains a
-catalog/publication gate. Packaged offline review and four macOS PTY checks passed;
+workspace changes. All seven 0.2.0 packages passed public installation and
+idempotent updates; guided portable onboarding passed for the four supported
+provider types, and explicit external onboarding passed for the other three.
+Packaged offline review and four macOS PTY checks passed;
 synthetic CLI Keychain lifecycle passed, but an independent native value read timed
 out. Cleanup and subsequent absence were confirmed; full desktop acceptance is
-not claimed. The candidate notes bind all hashes and limitations. No release,
-provider catalog entry or additional live-service authorization was introduced.
+not claimed. The release notes bind all hashes and limitations. No provider catalog
+entry or additional live-service authorization was introduced by qualification.

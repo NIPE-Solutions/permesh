@@ -1,9 +1,10 @@
 # Roadmap
 
-Source readiness and published artifacts are separate. CLI 0.1.0-alpha.2 and
-GitHub provider 0.1.0 remain the published releases. The provider repository now
-contains seven unpublished 0.2.0 candidate binaries: GitHub, Google Workspace,
-Cloudflare, AWS IAM, GitLab, Entra and AWS Identity Center. The original four
+Source readiness and published artifacts are separate. CLI 0.1.0-alpha.3 is the
+published evaluation prerelease; alpha.2 remains immutable. Seven provider 0.2.0
+evaluation releases now exist for GitHub, Google Workspace, Cloudflare, AWS IAM,
+GitLab, Entra and AWS Identity Center. All 35 target entries are in the public
+catalog; exact native public install/update acceptance passed on macOS ARM64. The original four
 completed earlier offline qualification in [provider PR 13](https://github.com/NIPE-Solutions/permesh-providers/pull/13);
 the combined seven-provider source subsequently passed its own five-target trial
 package checks. See the [exact delivery evidence](audits/architecture-hardening-backlog.md#exact-trial-artifact-evidence).
@@ -20,6 +21,9 @@ Nothing here declares the SDK or protocol stable.
   workspace approval, bounded communication, cancellation and partial results.
 - Explicit provider installation/updates and guided add/setup, declarative setup
   forms, keychain/environment references and provider-described browser login.
+  Catalog installation supports seven providers; guided `provider add` supports
+  GitHub, Google, Cloudflare and AWS IAM. GitLab, Entra and Identity Center use
+  explicit external trust/setup after installation.
 - Negotiated v1 discovery/health in the host and official emitters. Verified
   package compatibility propagates to guided setup; advanced setup/migration
   has an explicit selector. Existing legacy metadata remains unchanged.
@@ -56,11 +60,10 @@ artifact qualification, publication and live tenant acceptance.
 
 ## Access-review candidate status
 
-The next CLI candidate is [0.1.0-alpha.3](releases/0.1.0-alpha.3.md),
-currently unpublished. Published alpha.2 assets remain unchanged.
+The current published CLI evaluation release is
+[0.1.0-alpha.3](releases/0.1.0-alpha.3.md). Published alpha.2 assets remain unchanged.
 
-The unpublished source program implements the following bounded workflows. Its
-PRs are integrated and checked separately; publication is a later decision.
+The alpha.3 evaluation prerelease implements the following bounded workflows.
 
 - `identity` lists evidence and proposes stable-account mappings. Exact proposal
   approval binds the alias delta, source context and captured file revision.
@@ -88,13 +91,13 @@ for validation evidence and remaining prerequisites.
 
 - The exact alpha.3 candidate passed signed-artifact verification, local provider
   package/setup/trust/approval/pin checks, and limited authorized GitHub queries;
-  see [candidate evidence](releases/0.1.0-alpha.3.md). Public 0.2.0 guided
-  installation/update, publication and catalog adoption remain separate gates.
+  see [release evidence](releases/0.1.0-alpha.3.md). Public 0.2.0 installation,
+  idempotent update and onboarding acceptance passed for the supported flows.
   Never replace existing release bytes.
-- A local macOS ARM64 GitHub candidate passed authorized read-only health, status
-  and stable-account JSON queries with explicit trust/approval. Visibility limits
-  remained explicit. Exact tested hashes are retained; shared local build output
-  does not prove reproducible full-source provenance or release qualification.
+- The exact packaged macOS ARM64 GitHub candidate passed authorized read-only
+  health, status and stable-account JSON queries with explicit trust/approval.
+  Visibility limits remained explicit. Exact tested hashes are retained; this
+  limited acceptance does not establish broader API or tenant coverage.
   Complete broader GitHub acceptance and live Google directory/browser,
   Cloudflare, AWS IAM, GitLab, Entra and Identity Center checks with explicitly
   authorized least-privilege credentials. Mock tests prove
@@ -104,9 +107,12 @@ for validation evidence and remaining prerequisites.
 - Apply exact-revision native build, dependency and provenance verification to the
   new release. Native code signing/notarization remains dependent on available
   Apple and Windows signing identities; GitHub provenance does not replace it.
-- Google source removal is a deliberate pre-adoption breaking change. Until its
-  external package is published, Google users need a reviewed native build or
-  must remain on the existing published CLI. The migration guide states this gap.
+- Google source removal is a deliberate prerelease breaking change. Its external
+  0.2.0 evaluation release is now catalog-installable through guided setup.
+  Alpha.2 rejects the new catalog discovery metadata, so users must upgrade the
+  CLI to alpha.3 first. Installed provider pins and trust remain stored, but legacy
+  approval records cannot authorize alpha.3 execution; each external provider
+  needs one fresh review and explicit approval before queries.
 
 ## Future integrations: separate from the active program
 
