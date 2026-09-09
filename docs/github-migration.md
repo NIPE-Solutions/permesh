@@ -53,12 +53,11 @@ and writes a temporary file in the same directory before replacing the workspace
 These filesystem checks do not provide isolation from a malicious same-user
 process racing the final checks and replacement.
 
-**Review execution approvals for every external instance in this workspace.**
-Approval fingerprints cover the whole configuration, so this edit invalidates
-existing approvals for other external instances too. Approval records are left
-untouched; each affected instance needs a fresh `provider external review` and
-explicit `approve --fingerprint ... --accept-risk` before queries. Migration never
-runs `doctor` or a query automatically.
+**Review execution approval for the migrated instance.** Its provider context
+changed, so it needs a fresh `provider external review` and explicit
+`approve --fingerprint ... --accept-risk` before queries. Unrelated instances
+retain their scoped approvals. Existing approval records are neither removed nor
+silently renewed. Migration never runs `doctor` or a query automatically.
 
 The command also supports [Google migration](google-migration.md). It refuses unknown, unsupported or already external instances, untrusted or
 tampered binaries, and incompatible capabilities without changing the workspace.

@@ -185,16 +185,42 @@ artifacts.
 
 | Remaining gate | Concrete prerequisite and acceptance evidence |
 | --- | --- |
-| Release candidates | Five-target CLI and 35-provider trial packages passed the checks above. CLI 0.1.0-alpha.3 is selected as the next unpublished candidate; build the exact reviewed release revisions, verify same-run provenance and exercise packaged host/provider setup before publication. Trial packages do not imply published assets or catalog entries. |
+| Release candidates | Exact alpha.3 run 34351503021 passed five targets and independent bundle/public provenance for all 20 subjects. Provider run 34349822945 supplied 35 independently verified 0.2.0 packages. Local host-validator/setup/trust/approval/pin and limited packaged GitHub checks passed; public 0.2.0 guided install/update requires separately authorized publication/catalog adoption. See the alpha.3 notes below. |
 | GitHub breadth | An authorized tenant and least-privilege credential for API-path/visibility comparisons beyond the limited local health/status/account acceptance. No other provider inherits this result. |
 | Google / Cloudflare / AWS IAM | Authorized tenants/accounts, explicit scopes and credentials; compare visible source records and document omitted permissions. Google browser flow needs desktop acceptance too. |
 | GitLab / Entra | Authorized scoped GitLab groups/projects and read_api PAT; an Entra tenant and permitted Graph application credential. Verify pagination, tenant binding, membership visibility and unsupported-role boundaries against real APIs. |
 | Identity Center / temporary AWS profile | An authorized STS account/role, Identity Center instance/store pair, account allowlist and temporary session. Verify provisioned permission-set assignments, explicit Organizations scope if enabled, and session expiry/role mismatch. No interactive SSO flow is implemented. |
 | Remote credential stores | Explicitly authorized Connect and separately qualified Vault/OpenBao KV v2 services, HTTPS trust, bootstrap credentials and exact item/path/field permissions. Fixture qualification does not establish product/version compatibility or operational availability. |
-| Desktop and Windows | Native interactive keychain/terminal tests on supported operating systems, beyond the completed five-target native CI. Automated builds do not substitute for interactive checks. |
+| Desktop and Windows | Packaged macOS PTY and synthetic CLI Keychain store/status/delete passed; an independent native value read timed out and remains unverified, with cleanup confirmed. Full interactive desktop and Windows terminal acceptance remain open. |
 | Signing and release | Available Apple/Windows signing identities where required; final reviewed release notes, compatible catalogs and immutable publication. No signing, publication or adoption is implied by source completion. |
 | Voluntary pilots | Opt-in operator feedback with sanitized examples; no automatic telemetry, enrollment, outreach or fabricated tenant evidence. |
 
 Future integrations remain prioritized only in the [roadmap](../ROADMAP.md).
 Remote remediation remains the separate design-only ADR 0028. Core and official
 connectors remain MIT with no paid feature gates.
+
+### Alpha.3 release preparation
+
+The final documentation PR reruns are closed: CLI PR 40 and provider PR 21
+passed three-platform CI, dependencies and five native targets. Earlier provider
+jobs marked failed in the aggregate check view were canceled executions;
+replacement runs passed. No source remediation was needed for those jobs.
+
+CLI [PR 41](https://github.com/NIPE-Solutions/permesh/pull/41) selected
+`0.1.0-alpha.3` and merged as `add7a725745f5e05415b330e8d6be61fcaaf5d67` after
+all source and five native gates passed. The new version avoids reusing published
+alpha.2 asset identities. Exact release-run and packaged acceptance evidence
+belongs in the [alpha.3 candidate notes](../releases/0.1.0-alpha.3.md).
+Publication and catalog adoption remain separate gates.
+
+Exact alpha.3 qualification subsequently passed: five native targets, all 20
+subjects independently checked through both bundle and public attestation lookup,
+35 provider packages through the source-matched host validator, seven native
+setup/trust/approval/portable-pin flows and the authorized limited packaged GitHub
+checks. Public GitHub 0.1.0 installation/update passed without automatic trust or
+workspace changes. Unpublished 0.2.0 public guided installation/update remains a
+catalog/publication gate. Packaged offline review and four macOS PTY checks passed;
+synthetic CLI Keychain lifecycle passed, but an independent native value read timed
+out. Cleanup and subsequent absence were confirmed; full desktop acceptance is
+not claimed. The candidate notes bind all hashes and limitations. No release,
+provider catalog entry or additional live-service authorization was introduced.
