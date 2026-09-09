@@ -2,9 +2,21 @@
 
 **Know who has access to what.**
 
-Permesh is a local-first CLI for inspecting access across your infrastructure.
-It connects to your providers, correlates accounts, and shows the roles and
-membership paths behind their access.
+Someone leaves the team. A contractor finishes a project. A repository changes
+hands. Who still has access—and through which account, team, or role?
+
+Permesh helps you answer without checking every admin console by hand. It is a
+read-only command-line tool that collects access metadata from the systems you
+connect, links accounts using verified evidence or explicit mappings, and shows
+the paths behind their access.
+
+**Your infrastructure data stays between your machine and your providers.**
+Permesh has no backend, no account to create, and no telemetry.
+
+[Try the demo](#try-it-without-credentials) · [Connect GitHub](#connect-github) ·
+[Providers](#available-providers) · [Documentation](docs/README.md)
+
+## From “who is this?” to “why do they have access?”
 
 ```console
 $ permesh user alice@example.com
@@ -27,31 +39,37 @@ demo
     path certainty: derived
 ```
 
-*Excerpt from the current source checkout’s offline demo. All names and access records are synthetic.*
+*Actual excerpt from the current source demo. All identities and resources are
+fictional.* Alice’s access comes through a team. That distinction matters when
+you are reviewing membership or investigating unexpected access.
 
-Permesh is read-only. Provider configuration and identity mappings can live in
-Git; credentials stay in your environment or OS keychain. Results are processed
-locally and discarded when the command exits.
+## When would I use it?
 
-## Try it
+| You need to answer… | Start with… |
+| --- | --- |
+| What access does this person have across connected systems? | `permesh user alice@example.com` |
+| Which accounts have known administrative access? | `permesh admins` |
+| Which accounts need review against our identity directory? | `permesh orphaned` |
+| Can I connect, and what needs fixing? | `permesh doctor` |
+| How can I process this report in my existing tools? | `permesh user alice@example.com --json` |
 
-The source checkout includes unreleased domain hardening and access JSON schema 2.
-Published alpha.2 retains its earlier schema and workflow; see the
-[migration notes](docs/migrations/domain-schema-2.md) when upgrading from it.
+Use it for access reviews, investigating lingering accounts, and understanding
+inherited roles. Start with one GitHub organization; add provider instances as
+your infrastructure grows. Teams share configuration and identity mappings in
+Git, while each administrator uses their own credentials.
 
-Download the **[0.1.0-alpha.2 prerelease](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.2)** for macOS, Linux or Windows. Verify its provenance and checksum before extracting; see [installation](docs/installation.md). This evaluation release has [known limitations](docs/releases/0.1.0-alpha.2.md).
+Permesh shows **observed access evidence**, including provider limitations and
+incomplete results. It does not guess identity matches, prove every possible
+authorization decision, or remove anyone’s access. Orphan review needs an
+explicit authoritative identity source; service accounts, bots, and external
+identities are distinguished from inactive identities.
 
-The five target archives, dependency inventories and checksum files have signed
-GitHub provenance from [the reviewed release run](https://github.com/NIPE-Solutions/permesh/actions/runs/34273757910), built from
-[`aad5839`](https://github.com/NIPE-Solutions/permesh/commit/aad58397e139ed755fcf983da8e9f045e7e5a556).
-The release includes the verified attestation bundle. Executables still have no
-Apple notarization or Windows Authenticode signatures; build provenance does not
-replace platform signing. The published alpha.1 assets remain unchanged.
+## Try it without credentials
 
-Or build from a checkout with Rust 1.91 or newer:
+Install a [prerelease binary for macOS, Linux, or Windows](docs/installation.md),
+then run:
 
 ```bash
-cargo install --path crates/permesh-cli --locked
 mkdir access-demo
 cd access-demo
 permesh init --demo
@@ -61,19 +79,34 @@ permesh admins
 permesh orphaned
 ```
 
-The demo needs no network or credentials. Add `--json` for structured output:
+The demo runs entirely offline. Explore team-inherited access, an administrator,
+and an inactive identity that still has access. No signup, token, or API
+connection is needed.
+
+**Release status:** Permesh is alpha software. The published CLI is
+[0.1.0-alpha.2](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.2).
+This README describes current `main`, including unreleased identity semantics and
+JSON schema 2; published output differs. See the [release notes](docs/releases/0.1.0-alpha.2.md)
+and [migration guide](docs/migrations/domain-schema-2.md).
+
+To try the exact source version shown here, use Rust 1.91 or newer:
 
 ```bash
-permesh user alice@example.com --json
-permesh admins --json
+git clone https://github.com/NIPE-Solutions/permesh.git
+cd permesh
+cargo install --path crates/permesh-cli --locked
 ```
 
-Shell completions for Bash, Zsh, Fish, PowerShell and Elvish are available through
-`permesh completion <shell>`. See [setup instructions](docs/completion.md).
+Then run the demo commands above in a new directory. Installation instructions
+cover checksums and build provenance; platform signing remains a release limitation.
 
 ## Connect GitHub
 
+In a separate directory from the demo:
+
 ```bash
+mkdir company-access
+cd company-access
 permesh init --organization Acme
 permesh provider add github
 permesh auth login github-main
@@ -81,114 +114,78 @@ permesh doctor
 permesh user YOUR_GITHUB_LOGIN
 ```
 
-Add downloads the newest compatible official package, asks whether to trust its
-native code, collects settings and credential references, then asks you to approve
-that instance. Authentication remains separate. Use `--version VERSION` to choose
-an exact release and `--id ID` to choose an instance name.
+`provider add` guides you through installing the official provider, reviewing its
+local execution, choosing organizations, and approving its configuration. Choose
+`keychain://github-main/token` during setup to store your token with `auth login`.
+For CI or existing secret tooling, choose an environment reference instead.
 
-During setup, supply organization names and a token reference such as
-`keychain://github-main/token`; `auth login` then stores the token in the native
-keychain. For `env://PERMESH_GITHUB_TOKEN`, inject that variable through existing
-secret tooling and skip `auth login`. Never put token values in arguments or
-configuration.
+Start with a GitHub login. To look up an email across providers, add an
+[explicit identity mapping](docs/identity-resolution.md) using the immutable
+account ID; public GitHub profile emails are not verified identity evidence.
+See [GitHub permissions and setup](docs/providers/github.md) before creating a token.
 
-Checksums verify bytes against the public catalog; this does not verify publisher
-signatures. Native providers run as your user and are not sandboxed. The workspace
-pins the current host's executable digest; the same pin does not automatically
-select packages for other operating systems or architectures. See [guided setup
-and automation](docs/provider-setup.md) and [packages](docs/provider-packages.md).
+Providers execute locally with your user permissions. The guided flow preserves
+explicit trust and credential approval; checksum verification checks catalog
+bytes, not publisher signatures. [Setup and automation details](docs/provider-setup.md).
 
-Existing `type: github` workspaces must use [explicit migration](docs/github-migration.md).
-Legacy parsing remains available, but health checks, queries and credential commands
-refuse legacy GitHub instances before accessing credentials or the network.
+## Available providers
 
-GitHub discovery covers organization members and owners, repositories, teams,
-memberships, and observed roles. Results retain their source and visibility
-limitations. A login lookup selects an account; correlating it with an email
-requires an explicit mapping or verified identity evidence.
+Only the offline demo is bundled. Real integrations are independently distributed
+from the [official provider repository](https://github.com/NIPE-Solutions/permesh-providers).
 
-The packaged GitHub executable has also passed a read-only credentialed acceptance
-check: health and privileged-access observations matched the bundled adapter.
-Only aggregate results were retained. [Validation scope](docs/getting-started.md#live-validation).
-Google Workspace directory discovery is available as an [identity source](docs/providers/google.md).
-The official provider repository also contains Google with refresh-token and
-browser-login support, Cloudflare account-access observations, and an AWS IAM
-policy-attachment inventory using named credential references. These source
-implementations still need live qualification and publication. Google 0.1.1,
-Cloudflare 0.1.0 and AWS 0.1.0 are unpublished drafts, absent from the installable
-catalog. GitHub is currently
-the only published official provider package. See [provider scope and status](docs/providers.md).
+| Provider | What it helps you inspect | Availability |
+| --- | --- | --- |
+| GitHub | Organization owners, repository roles, teams and membership paths | **Installable:** 0.1.0; 0.2.0 source candidate |
+| Google Workspace | Directory identities and lifecycle for identity-authority checks | **Source candidate:** 0.2.0, unpublished |
+| Cloudflare | Account members, groups and scoped role assignments | **Source candidate:** 0.2.0, unpublished |
+| AWS IAM | Users, roles, groups and policy attachments | **Source candidate:** 0.2.0, unpublished |
 
-[External native providers](docs/external-providers.md) can be explicitly trusted
-and, after separate workspace approval, used for access queries and health checks
-with reviewed named credential references. [Guided setup](docs/provider-setup.md)
-uses provider-declared questions and keeps answers inside the CLI. Native code is
-not sandboxed.
+An implemented provider is not automatically a qualified release. AWS attachments
+and Cloudflare assignments do not establish effective privilege. Review
+[coverage, limitations, and availability](docs/providers.md) before relying on a report.
+Need an internal system? [Build your own provider](docs/provider-development.md)
+without changing Permesh core.
 
-## Configuration
+## Built for your existing workflow
 
-A workspace uses one `permesh.yaml` file:
+- **Local processing.** No persistent access database, automatic uploads, or hidden
+  update checks. Explicit install/update commands contact public GitHub artifacts.
+- **Reviewable configuration.** One `permesh.yaml` describes providers and identity
+  mappings. Tokens stay in environment variables or the OS keychain.
+- **Useful in a terminal and a pipeline.** Human output explains access paths;
+  versioned JSON exposes evidence, limitations, and completeness.
+- **Read-only by design.** Inspect and review access; use the provider’s own tools
+  to make changes.
 
-```yaml
-version: 1
-organization:
-  name: Acme
-providers:
-  - id: github-main
-    type: external
-    external:
-      provider: github
-      sha256: REVIEWED_EXECUTABLE_SHA256
-      configuration:
-        organizations: [acme]
-      credentials:
-        token: env://PERMESH_GITHUB_TOKEN
-identity:
-  aliases:
-    alice@example.com:
-      github-main: ["123456"]
+```bash
+permesh provider status
+permesh user alice@example.com --json
+permesh provider update github --check
 ```
 
-Aliases reference immutable provider account IDs. Only secret references belong
-in the file. Permesh searches parent directories for the workspace; `--config FILE`
-selects one explicitly.
+Updates are explicit and do not silently change a workspace’s selected provider.
+Exported reports contain sensitive access metadata; handle them accordingly.
+Read the [privacy guarantee](docs/privacy.md) and [team workflow](docs/team-workflows.md).
 
-## Privacy
+## Go deeper
 
-**Permesh has no backend. Access data is fetched directly from the providers you
-configure and processed locally. Permesh never sends infrastructure data to the
-project maintainers.**
+[Documentation index](docs/README.md) includes paths for first-time users,
+team administrators, and provider authors.
 
-There is no telemetry, update check, or persistent access database. Exported JSON
-contains access metadata; keep it somewhere appropriate for your organization.
-[Privacy details](docs/privacy.md).
+- [Getting started](docs/getting-started.md) — install, explore, connect, query.
+- [Configuration](docs/configuration.md) and [credentials](docs/secrets.md).
+- [Identity matching](docs/identity-resolution.md), [orphan review](docs/orphaned.md),
+  and [privileged access](docs/admins.md).
+- [JSON and exit codes](docs/output-schema.md), [troubleshooting](docs/troubleshooting.md),
+  and [shell completion](docs/completion.md).
+- [Architecture](docs/architecture.md), [security](docs/security.md), and [roadmap](docs/ROADMAP.md).
 
-## Documentation
+## Contribute
 
-- [Getting started](docs/getting-started.md)
-- [Configuration](docs/CONFIGURATION.md) and [credentials](docs/secrets.md)
-- [GitHub provider](docs/providers/github.md) and [explicit legacy migration](docs/github-migration.md)
-- [Identity resolution](docs/identity-resolution.md), [privileged access](docs/admins.md), and [orphaned accounts](docs/orphaned.md)
-- [JSON schema and exit codes](docs/output-schema.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Architecture](docs/ARCHITECTURE.md) and [roadmap](docs/ROADMAP.md)
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks, and the
-[provider guide](docs/provider-development.md) for adapter development.
-Report vulnerabilities through the process in [SECURITY.md](SECURITY.md).
-[Release qualification](docs/releasing.md) tracks tested platforms and remaining gates.
+Help improve a provider, reproduce an API edge case with synthetic fixtures, or
+make the docs clearer. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
+Report vulnerabilities using [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE).
-
-Official provider packages are maintained in
-[permesh-providers](https://github.com/NIPE-Solutions/permesh-providers).
-[Explicit install and update commands](docs/provider-packages.md) are implemented;
-the catalog lists qualified releases for the supported native platforms.
-Only the offline demo is bundled. GitHub, Google, Cloudflare and AWS adapters
-live in the provider repository. Google source candidates are available, but
-no Google package is published yet; see [Google migration](docs/google-migration.md)
-and [provider availability](docs/providers.md).
+[MIT](LICENSE). No provider limits, paid feature gates, or required cloud service.

@@ -1,14 +1,26 @@
 # Getting started
 
-Download the [alpha binaries](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.1) and follow the [checksum and installation instructions](installation.md).
+Start with the offline demo, then connect a real provider in a separate workspace.
+The demo needs no account, credential, or network connection.
 
-Alternatively, install from a checkout with stable Rust 1.91+:
+## Install
+
+Use the [installation guide](installation.md) to download and verify the published
+0.1.0-alpha.2 binary for macOS, Linux or Windows.
+
+This guide follows current source. Alpha.2 has earlier output and contracts;
+see [release limitations](releases/0.1.0-alpha.2.md) and
+[source upgrade notes](migrations/domain-schema-2.md). To build current source,
+install Rust 1.91 or newer, then:
 
 ```bash
+git clone https://github.com/NIPE-Solutions/permesh.git
+cd permesh
 cargo install --path crates/permesh-cli --locked
 ```
 
-For development without installing, use `cargo run -p permesh-cli -- --help`. Installation builds a single `permesh` executable. Build-time dependency downloads are Cargo traffic, not application telemetry.
+`cargo install permesh` is not available on crates.io. Build-time Cargo downloads
+are dependency retrieval, not application telemetry.
 
 ## Evaluate offline
 
@@ -18,11 +30,99 @@ cd access-demo
 permesh init --demo --organization Example
 permesh doctor
 permesh user alice@example.com
-permesh user alice@example.com --json
 permesh admins
+permesh orphaned
 ```
 
-Alice has write access to the synthetic payments API through `team/backend` and read access to infrastructure through a synthetic account grant. Bob has an administrative grant, a former user is inactive, and a build bot is a service identity. None refers to a real person or resource. Observation timestamps in demo grants are fixed fixture times, not live observations; execution windows use current UTC.
+In the current demo:
+
+- Alice reaches the payments API through `team/backend` and has a separate read path to infrastructure.
+- Bob has a known administrative path.
+- `former@example.com` is inactive in the synthetic directory but still has access.
+- A contractor, service account and bot appear separately in orphan review.
+
+These are fictional records. Demo observation times are fixed; the execution
+window uses current UTC. `orphaned` reviews identity evidence, not an employment
+policy, and never removes access.
+
+For automation, add `--json`:
+
+```bash
+permesh user alice@example.com --json
+permesh admins --json
+```
+
+Inspect completeness and provider limitations as well as the access records.
+An empty report is not proof that no access exists. See [JSON and exit codes](output-schema.md).
+
+## Connect GitHub
+
+Create a separate directory so synthetic records are not mixed with a real workspace:
+
+```bash
+mkdir company-access
+cd company-access
+permesh init --organization Acme
+permesh provider add github
+permesh auth login github-main
+permesh doctor
+permesh user YOUR_GITHUB_LOGIN
+```
+
+Replace `YOUR_GITHUB_LOGIN` with your known account login. Before creating a token,
+read [GitHub permissions](providers/github.md).
+
+During `provider add`:
+
+1. Review the official release and agree to its local execution.
+2. Enter the organization names to inspect.
+3. Choose `keychain://github-main/token` for local credential storage, or an `env://` reference for existing secret tooling.
+4. Review and approve the provider instance and its credential references.
+
+The login command above stores a token in the OS keychain. For an environment
+reference, supply the value outside Permesh and skip `auth login`. Never paste
+actual credentials into setup settings, command arguments or `permesh.yaml`.
+
+Use `--version 0.1.0` on add to select the currently published GitHub release
+explicitly; `--id github-other` creates a differently named instance.
+Providers run as your user, without a sandbox. Checksums verify catalog bytes;
+they do not verify publisher signatures. [Guided setup and automation](provider-setup.md)
+explain the review steps and noninteractive answers.
+
+## Link accounts to a person
+
+GitHub public profile emails are not verified evidence. A login query selects a
+unique account; an email query needs a verified identity assertion or an explicit
+mapping to the account’s immutable numeric ID.
+
+Add mappings using the [identity resolution guide](identity-resolution.md).
+Aliases link accounts; they do not establish active lifecycle status. For real
+orphan review, configure an authoritative identity source. [Google Directory](providers/google.md)
+is implemented as an unpublished source candidate; check [availability](providers.md)
+before planning a deployment around it.
+
+## Keep the workspace useful
+
+```bash
+permesh provider list
+permesh provider status
+permesh admins
+permesh doctor --details
+```
+
+`doctor --details` is a current-source feature that adds actionable diagnostics.
+Use `permesh --help`, `permesh provider --help` and `permesh auth --help` for options.
+Permesh finds `permesh.yaml` in parent directories; `--config FILE` selects another
+workspace explicitly.
+
+Queries do not rewrite configuration or change provider state. Adding providers
+rewrites YAML formatting, so review the Git diff. `init` never overwrites an
+existing workspace. Share configuration with your team and keep credentials local;
+see [team workflows](team-workflows.md) for portable platform pins and approvals.
+
+For existing built-in configurations, use the explicit [GitHub](github-migration.md)
+or [Google](google-migration.md) migration. Do not create duplicate instances to
+work around migration: account aliases rely on stable instance IDs.
 
 ## Live validation
 
@@ -37,44 +137,7 @@ Organization and account names, resource identifiers, access counts, credentials
 
 This historical bundled-adapter smoke test does not qualify the separate external executable. It is not release qualification or proof of exhaustive effective access. Live team inheritance, pagination, denied permissions, token revocation, and native credential-store behavior still require dedicated acceptance exercises. See the [release gates](releasing.md).
 
-## Connect GitHub
-
-```bash
-permesh init --organization Acme
-permesh provider add github
-permesh auth login github-main
-permesh doctor
-permesh user YOUR_GITHUB_LOGIN
-```
-
-Add downloads the newest compatible official package, asks whether to trust its
-native code, collects settings and credential references, then asks you to approve
-that instance. Authentication remains separate. Use `--version VERSION` to choose
-an exact release and `--id ID` to choose an instance name.
-
-During setup, supply organization names and a token reference such as
-`keychain://github-main/token`; `auth login` then stores the token in the native
-keychain. For `env://PERMESH_GITHUB_TOKEN`, inject that variable through existing
-secret tooling and skip `auth login`. Never put token values in arguments or
-configuration.
-
-Checksums verify bytes against the public catalog; this does not verify publisher
-signatures. Native providers run as your user and are not sandboxed. The workspace
-pins the current host's executable digest; the same pin does not automatically
-select packages for other operating systems or architectures. See [guided setup
-and automation](provider-setup.md) and [packages](provider-packages.md).
-
-Existing `type: github` workspaces must use [explicit migration](github-migration.md).
-Legacy parsing remains available, but health checks, queries and credential commands
-refuse legacy GitHub instances before accessing credentials or the network.
-
-The GitHub adapter cannot prove public profile email ownership. Use `permesh user LOGIN` to select one unique account; explicitly map `alice@example.com` to the account's numeric immutable ID for canonical lookup. Login changes preserve the native identity; configured login-based aliases are not supported.
-
-Run `permesh --help`, `permesh provider --help`, or `permesh auth --help` to discover commands. `--config FILE` selects another workspace. Parent search makes the same config available in nested directories.
-
-No query writes files or changes provider state. `provider add` explicitly rewrites YAML formatting; review its diff. `init` never overwrites an existing file. Do not edit a config simultaneously with `provider add`.
-
-The external packaged GitHub adapter separately passed credential delivery, health
-and privileged-access parity against the bundled adapter in a read-only exercise.
-No live reports or credentials were retained. This confirms the exercised paths,
-not exhaustive visibility of every GitHub access mechanism.
+The current packaged CLI and external GitHub candidate also passed read-only
+health, privileged-access and account-query acceptance on macOS Apple Silicon.
+No credentials or raw access reports were retained. This validates the exercised
+paths, not every access mechanism or another provider’s live behavior.
