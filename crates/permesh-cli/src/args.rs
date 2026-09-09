@@ -91,6 +91,13 @@ pub enum Command {
         #[command(subcommand)]
         command: crate::identity_command::IdentityCommand,
     },
+    /// Inspect who has observed access to a selected resource.
+    Resource(crate::resource_command::ResourceArgs),
+    /// Evaluate focused local access review rules without changing infrastructure.
+    Policy {
+        #[command(subcommand)]
+        command: crate::policy_command::PolicyCommand,
+    },
     /// Assess, plan and verify a departure review without changing provider access.
     Offboard {
         #[command(subcommand)]

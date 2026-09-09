@@ -4,6 +4,9 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add resource-centric inspection and focused local review policies. Policy findings
+  use exit 6; incomplete and failed collections retain precedence without hiding findings.
+
 - Add explicit private snapshots, offline inspection and source-scoped diffs with
   independent format version 1. Changed visibility, failed collection and older
   exports never imply revoked access. Existing provider wire schemas are unchanged.

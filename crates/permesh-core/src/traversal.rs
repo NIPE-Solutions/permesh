@@ -11,13 +11,30 @@ pub(crate) fn paths<'a>(
     accounts: impl IntoIterator<Item = &'a Account>,
     privileged_only: bool,
 ) -> Result<Vec<AccessPath>, DomainError> {
+    filtered_paths(snapshots, accounts, privileged_only, None)
+}
+pub(crate) fn paths_for_resource<'a>(
+    snapshots: &[Snapshot],
+    accounts: impl IntoIterator<Item = &'a Account>,
+    resource: &EntityKey,
+) -> Result<Vec<AccessPath>, DomainError> {
+    filtered_paths(snapshots, accounts, false, Some(resource))
+}
+fn filtered_paths<'a>(
+    snapshots: &[Snapshot],
+    accounts: impl IntoIterator<Item = &'a Account>,
+    privileged_only: bool,
+    resource: Option<&EntityKey>,
+) -> Result<Vec<AccessPath>, DomainError> {
     let mut grants: BTreeMap<&Subject, Vec<&Grant>> = BTreeMap::new();
     let mut edges: BTreeMap<&Subject, Vec<&Membership>> = BTreeMap::new();
     let mut groups = BTreeMap::new();
     let mut resources = BTreeMap::new();
     for s in snapshots {
         for g in &s.grants {
-            if !privileged_only || g.privilege != Privilege::Standard {
+            if (!privileged_only || g.privilege != Privilege::Standard)
+                && resource.is_none_or(|key| g.resource == *key)
+            {
                 grants.entry(&g.subject).or_default().push(g);
             }
         }

@@ -241,3 +241,15 @@ Cancellation/internal failures may terminate the command before a detailed repor
 is returned. Numeric exits remain the command-level outcome contract. Consumers
 should tolerate future additive codes and must not infer a remote authentication
 failure from a generic protocol or timeout code.
+
+## Resource and policy review version 1
+
+New `resource` and `policy_check` commands use the schema-1 envelope with their own `resource_review_version: 1` and `policy_review_version: 1` result markers. Existing schema-2 inspection contracts are unchanged. Their record fields are mapped explicitly from the core; resource records reuse the separately defined snapshot-format-1 record shapes, never domain serialization implicitly.
+
+Resource selection returns `resources` and `selection_required`. A selected resource returns `resource`, `accounts` with explicit identity resolution, `access` paths, original `source_grants`, `unresolved_group_grants`, `provider_complete`, counts and observation bounds. `path_count`, `unique_source_grant_count` and `unique_account_count` are distinct; none is a count of effective permissions. Each path has original `grant` plus derived path `certainty`.
+
+Policy results contain selected `rules`, bounded deterministic `checks`, finding/not-evaluable/excepted counts, collection and evaluation completeness, `clean`, review time and observation bounds. Check states are `pass`, `finding`, `not_evaluable` or `excepted`. Excepted rows retain `evidence_state: finding` and the exact local exception assertion. `clean` is false when findings, uncertainty or accepted exceptions exist. Zero exit status with accepted exceptions means no unaccepted findings, not an unqualified clean review.
+
+Policy exit codes: 0 complete evaluation without unaccepted findings; 2 invalid policy/input; 3 all captured providers failed; 4 partial collection, missing required coverage or a not-evaluable check; 5 internal/output failure; 6 findings with complete evaluation; 130 cancellation. Errors/cancellation are handled first, then precedence is 3 > 4 > 6 > 0. A specific finding remains in the report even when exit 3 or 4 takes precedence. Resource selection ambiguity uses 2; absence uses 1 only when collection is complete, otherwise 3/4 retains the uncertainty. Existing user/admins/orphaned inspection exit behavior is unchanged.
+
+See [resource and local policy review](resource-policies.md) for declarative policy fields and exact exception semantics.
