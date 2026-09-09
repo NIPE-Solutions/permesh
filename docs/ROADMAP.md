@@ -56,6 +56,9 @@ artifact qualification, publication and live tenant acceptance.
 
 ## Access-review candidate status
 
+The next CLI candidate is [0.1.0-alpha.3](releases/0.1.0-alpha.3.md),
+currently unpublished. Published alpha.2 assets remain unchanged.
+
 The unpublished source program implements the following bounded workflows. Its
 PRs are integrated and checked separately; publication is a later decision.
 

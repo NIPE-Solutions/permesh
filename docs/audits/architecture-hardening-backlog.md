@@ -185,7 +185,7 @@ artifacts.
 
 | Remaining gate | Concrete prerequisite and acceptance evidence |
 | --- | --- |
-| Release candidates | Five-target CLI and 35-provider trial packages passed the checks above. Select a new CLI prerelease version, build the exact reviewed release revisions, verify same-run provenance and exercise packaged host/provider setup before publication. Trial packages do not imply published assets or catalog entries. |
+| Release candidates | Five-target CLI and 35-provider trial packages passed the checks above. CLI 0.1.0-alpha.3 is selected as the next unpublished candidate; build the exact reviewed release revisions, verify same-run provenance and exercise packaged host/provider setup before publication. Trial packages do not imply published assets or catalog entries. |
 | GitHub breadth | An authorized tenant and least-privilege credential for API-path/visibility comparisons beyond the limited local health/status/account acceptance. No other provider inherits this result. |
 | Google / Cloudflare / AWS IAM | Authorized tenants/accounts, explicit scopes and credentials; compare visible source records and document omitted permissions. Google browser flow needs desktop acceptance too. |
 | GitLab / Entra | Authorized scoped GitLab groups/projects and read_api PAT; an Entra tenant and permitted Graph application credential. Verify pagination, tenant binding, membership visibility and unsupported-role boundaries against real APIs. |
