@@ -78,3 +78,15 @@ fn rejects_more_than_16_notifications_and_empty_recipient_list() {
             .is_err()
     );
 }
+
+#[test]
+fn on_filter_accepts_unexplained_access() {
+    let config = parse(
+        "check:\n  notifications:\n    - {id: hook, type: webhook, url: 'env://HOOK', on: [unexplained_access, missing_access]}\n",
+    )
+    .unwrap();
+    assert_eq!(
+        config.check.unwrap().notifications[0].on,
+        vec![FindingKind::UnexplainedAccess, FindingKind::MissingAccess]
+    );
+}

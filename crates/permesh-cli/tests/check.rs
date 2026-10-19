@@ -457,3 +457,82 @@ fn inconclusive_comparison_explains_itself_in_human_output() {
     assert!(text.contains("New admins: not compared"), "{text}");
     assert!(text.contains("provider_set_changed"), "{text}");
 }
+
+const BACKEND: &str = "profile: backend\ngrants:\n  - {instance: demo, group: team-10}\n  - {instance: demo, role: Read, resource: repo-21}\n";
+fn with_profiles(dir: &Path, people: &[&str], enforce: bool) {
+    fs::create_dir_all(dir.join("profiles")).unwrap();
+    fs::create_dir_all(dir.join("people")).unwrap();
+    fs::write(dir.join("profiles/backend.yaml"), BACKEND).unwrap();
+    for (n, identity) in people.iter().enumerate() {
+        fs::write(
+            dir.join(format!("people/{n}.yaml")),
+            format!("identity: {identity}\nprofiles: [backend]\n"),
+        )
+        .unwrap();
+    }
+    if enforce {
+        let mut config = fs::read_to_string(dir.join("permesh.yaml")).unwrap();
+        config.push_str("profiles:\n  enforce: true\n");
+        fs::write(dir.join("permesh.yaml"), config).unwrap();
+    }
+}
+fn profile_check(dir: &Path) -> (Option<i32>, serde_json::Value) {
+    let output = run(dir, &["check", "--out", "out", "--no-notify", "--json"]);
+    (output.status.code(), report(&output)["result"].clone())
+}
+
+#[test]
+fn check_without_profiles_shows_not_compared() {
+    let dir = demo();
+    let (_, result) = profile_check(dir.path());
+    assert_eq!(result["profiles"], "not_configured");
+    assert!(result["counts"].get("unexplained_access").is_none());
+    let summary = fs::read_to_string(dir.path().join("out/summary.md")).unwrap();
+    assert!(
+        summary.contains("Unexplained access: not compared"),
+        "{summary}"
+    );
+}
+
+#[test]
+fn report_only_profiles_do_not_change_exit_code() {
+    let dir = demo();
+    with_profiles(
+        dir.path(),
+        &["bob@example.com", "nobody@example.com"],
+        false,
+    );
+    let (code, result) = profile_check(dir.path());
+    // Same exit as the baseline demo (departed access); an unknown person does not
+    // make a report-only comparison incomplete the run.
+    assert_eq!(code, Some(6), "{result}");
+    assert_eq!(result["complete"], true);
+    assert_eq!(result["counts"]["unexplained_access"], 1);
+    assert_eq!(result["counts"]["missing_access"], 2);
+    assert_eq!(result["profiles"]["enforce"], false);
+    assert_eq!(result["profiles"]["complete"], false);
+    let summary = fs::read_to_string(dir.path().join("out/summary.md")).unwrap();
+    assert!(
+        summary.contains("Unexplained access (report-only): 1"),
+        "{summary}"
+    );
+    assert!(!summary.contains("bob"), "{summary}");
+}
+
+#[test]
+fn enforced_profiles_raise_findings() {
+    let dir = demo();
+    with_profiles(dir.path(), &["bob@example.com"], true);
+    let (code, result) = profile_check(dir.path());
+    assert_eq!(code, Some(6), "{result}");
+    assert_eq!(result["profiles"]["enforce"], true);
+    assert_eq!(result["counts"]["unexplained_access"], 1);
+    let summary = fs::read_to_string(dir.path().join("out/summary.md")).unwrap();
+    assert!(summary.contains("Unexplained access: 1"), "{summary}");
+    // Enforced comparisons count toward completeness.
+    let dir = demo();
+    with_profiles(dir.path(), &["nobody@example.com"], true);
+    let (code, result) = profile_check(dir.path());
+    assert_eq!(code, Some(4), "{result}");
+    assert_eq!(result["complete"], false);
+}

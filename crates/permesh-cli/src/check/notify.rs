@@ -10,10 +10,13 @@ use std::time::Duration;
 
 pub const DELIVERY_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Send only when a selected kind has a nonzero count (any kind when `on` is empty).
+/// Send only when a selected kind has a nonzero count (any kind when `on` is empty,
+/// except report-only profile kinds, which must be selected explicitly).
 pub fn selected(n: &Notification, report: &CheckReport) -> bool {
     if n.on.is_empty() {
-        report.counts.values().any(|c| *c > 0)
+        report.counts.iter().any(|(k, c)| {
+            *c > 0 && (report.profiles.enforced() || !super::report::PROFILE_KINDS.contains(k))
+        })
     } else {
         n.on.iter().any(|k| report.count(*k) > 0)
     }
@@ -52,6 +55,37 @@ fn detail_lines(report: &CheckReport) -> String {
             f["resource"].as_str().unwrap_or_default()
         ));
     }
+    for f in report.profiles.findings() {
+        let via: Vec<&str> = f["via"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        let target = match f["group"].as_str() {
+            Some(group) => format!("member of {group}"),
+            None => format!(
+                "{} on {}",
+                f["role"].as_str().unwrap_or_default(),
+                f["resource"].as_str().unwrap_or_default()
+            ),
+        };
+        out.push_str(&format!(
+            "- {}: {} {target} ({}){}\n",
+            if f["kind"] == "missing_access" {
+                "Missing access"
+            } else {
+                "Unexplained access"
+            },
+            f["identity"].as_str().unwrap_or_default(),
+            f["instance"].as_str().unwrap_or_default(),
+            if via.is_empty() {
+                String::new()
+            } else {
+                format!(" via {}", via.join(" > "))
+            }
+        ));
+    }
     out
 }
 
@@ -81,6 +115,7 @@ pub fn payload(n: &Notification, report: &CheckReport) -> Value {
                 body["departed"] = json!(report.departed);
                 body["change_details"] = json!(report.changes);
                 body["findings"] = json!(report.findings);
+                body["profile_findings"] = json!(report.profiles.findings());
             }
             body
         }
@@ -302,6 +337,7 @@ mod tests {
                 json!({"rule":"external_privileged","account":"104","resource":"acme/payments-api","state":"finding"}),
             ],
             policy: json!({}),
+            profiles: crate::check::report::Profiles::NotConfigured,
             notifications: vec![],
             run_url: None,
             files: Files {
@@ -326,6 +362,62 @@ mod tests {
             Channel::TeamsWebhook { url: url.clone() },
             Channel::Webhook { url },
         ]
+    }
+
+    fn profiled(enforce: bool) -> CheckReport {
+        let mut report = report();
+        report.counts.insert(FindingKind::UnexplainedAccess, 1);
+        report.counts.insert(FindingKind::MissingAccess, 1);
+        report.profiles = crate::check::report::Profiles::Compared {
+            enforce,
+            complete: true,
+            value: json!({"identities":[{"identity":"bob@example.com","missing":[{"state":"finding","entry":{"kind":"group","instance":"demo","group":"team-10"},"reason":"not_observed"},{"state":"cannot_tell","entry":{"kind":"group","instance":"demo","group":"team-11"},"reason":"instance_not_observable"}],"unexplained":[{"state":"finding","instance":"demo","account":"101","resource":"repo-21","resource_name":"acme/infrastructure","role":"Admin","grant_id":"grant-3","via":["team-10"]},{"state":"excepted","instance":"demo","account":"101","resource":"repo-20","role":"Read","grant_id":"grant-9","via":[]}]}]}),
+        };
+        report
+    }
+
+    #[test]
+    fn report_only_profile_counts_are_not_review_items() {
+        assert_eq!(profiled(false).review_items(), report().review_items());
+        assert_eq!(profiled(true).review_items(), report().review_items() + 2);
+    }
+
+    #[test]
+    fn report_only_profile_counts_do_not_trigger_unfiltered_notifications() {
+        let mut quiet = profiled(false);
+        for kind in [FindingKind::DepartedWithAccess, FindingKind::PolicyFinding] {
+            quiet.counts.insert(kind, 0);
+        }
+        let all = notification(channels().remove(0), false, vec![]);
+        assert!(!selected(&all, &quiet));
+        let explicit = notification(
+            channels().remove(0),
+            false,
+            vec![FindingKind::UnexplainedAccess],
+        );
+        assert!(selected(&explicit, &quiet));
+    }
+
+    #[test]
+    fn detail_payload_lists_profile_findings_without_names_in_summary() {
+        let hook = channels().remove(2);
+        let body = payload(&notification(hook.clone(), true, vec![]), &profiled(false));
+        assert_eq!(
+            body["profile_findings"],
+            json!([
+                {"identity":"bob@example.com","kind":"missing_access","instance":"demo","group":"team-10","via":[]},
+                {"identity":"bob@example.com","kind":"unexplained_access","instance":"demo","resource":"repo-21","role":"Admin","via":["team-10"]}
+            ])
+        );
+        let plain = payload(&notification(hook, false, vec![]), &profiled(false)).to_string();
+        assert!(!plain.contains("bob@example.com"), "{plain}");
+        let slack = payload(
+            &notification(channels().remove(0), true, vec![]),
+            &profiled(false),
+        )
+        .to_string();
+        assert!(slack.contains("bob@example.com"), "{slack}");
+        assert!(slack.contains("via team-10"), "{slack}");
     }
 
     #[test]
