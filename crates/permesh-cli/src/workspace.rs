@@ -75,6 +75,7 @@ pub fn init(cli: &Cli, demo: bool, organization: &Option<String>) -> Result<Outc
             sources,
             ..Default::default()
         },
+        check: None,
     };
     let yaml = to_yaml(&config)?;
     Config::from_bytes(yaml.as_bytes())?;
