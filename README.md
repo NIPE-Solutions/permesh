@@ -177,11 +177,10 @@ and existing binary trust remains stored. Alpha.2 legacy approval records also
 remain stored, but alpha.3's scoped fingerprint v2 does not accept them: review
 and explicitly approve each configured external provider once before querying.
 
-Alpha.3 can install catalog packages for all seven providers. Guided `provider add`
-supports GitHub, Google, Cloudflare and AWS IAM. GitLab, Entra and AWS Identity
-Center use `provider install`, followed by the explicit native external trust,
-setup and approval flow with negotiated discovery; alpha.3 does not expose guided
-`provider add` variants for those three.
+Current source supports guided `provider add` for all seven providers. The
+published alpha.3 supports it for GitHub, Google, Cloudflare and AWS IAM; with
+alpha.3, GitLab, Entra and AWS Identity Center use `provider install` followed by
+the explicit external trust, setup and approval flow.
 Need an internal system? [Build your own provider](docs/provider-development.md)
 without changing Permesh core.
 

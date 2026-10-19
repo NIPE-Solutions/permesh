@@ -104,7 +104,7 @@ fn create_file(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
 pub fn add(cli: &Cli, args: &AddProvider) -> Result<Outcome, AppError> {
     if args.version.is_some() || args.answers.is_some() || args.accept_risk || args.portable {
         return Err(AppError::input(
-            "--version, --answers, --accept-risk and --portable require provider add github, google, cloudflare or aws",
+            "--version, --answers, --accept-risk and --portable require provider add with an official provider: github, google, cloudflare, aws, gitlab, entra or aws-identity-center",
         ));
     }
     if args.provider_type != "external" {

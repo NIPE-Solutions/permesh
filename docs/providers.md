@@ -27,7 +27,8 @@ New adapters have separate candidate checks; see the
 The public catalog contains all 35 target-specific 0.2.0 entries. Exact public
 downloads, idempotent updates, catalog parsing and native digest selection passed
 for all seven providers. Guided portable add passed for GitHub, Google, Cloudflare
-and AWS IAM; GitLab, Entra and Identity Center use explicit external trust/setup.
+and AWS IAM. Current source extends guided `provider add` to GitLab, Entra and
+Identity Center; alpha.3 uses explicit external trust/setup for those three.
 Follow the [GitHub guide](providers/github.md)
 and [Google identity source guide](providers/google.md) for setup and limitations.
 

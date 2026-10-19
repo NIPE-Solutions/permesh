@@ -97,10 +97,7 @@ pub async fn run(
         command: ProviderCommand::Add(args),
     } = &cli.command
     {
-        if matches!(
-            args.provider_type.as_str(),
-            "github" | "google" | "cloudflare" | "aws"
-        ) {
+        if crate::guided_add::OFFICIAL_GUIDED.contains(&args.provider_type.as_str()) {
             return crate::guided_add::run(cli, args, blocking, cancellation).await;
         }
         return workspace::add(cli, args);
