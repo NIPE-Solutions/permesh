@@ -32,9 +32,10 @@ These may change between releases without a migration guide.
 - Provider protocol v1 and the provider SDK (still draft; see
   [provider protocol](provider-protocol.md)).
 - `provider dev` commands.
-- Everything added for scheduled checks, notifications, access profiles, people
-  files, check reports and joiner/mover/leaver plans, until a second stability
-  declaration after that work lands.
+- `permesh check`, its `check.json` report and `summary.md`, the `check` section of
+  `permesh.yaml` (notifications) and `init --starter`.
+- Everything still to come for access profiles, people files and joiner/mover/leaver
+  plans, until a second stability declaration after that work lands.
 
 ## Provider maturity
 
