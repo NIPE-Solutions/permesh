@@ -98,6 +98,26 @@ fn roles_observable(input: &ProfileInput, instance: &str) -> bool {
         && (observable(input, instance, "memberships") || !observable(input, instance, "groups"))
 }
 
+/// Accounts attributed to exactly one canonical identity, and how many are ambiguous.
+fn owned_accounts<'a>(
+    index: &'a IdentityIndex<'a>,
+) -> (BTreeMap<&'a str, Vec<&'a Account>>, usize) {
+    let mut owned: BTreeMap<&str, Vec<&Account>> = BTreeMap::new();
+    let mut ambiguous = 0usize;
+    for (key, account) in &index.accounts {
+        match index.candidates.get(key) {
+            Some(ids) if ids.len() == 1 => {
+                if let Some(id) = ids.first() {
+                    owned.entry(id.as_str()).or_default().push(*account);
+                }
+            }
+            Some(_) => ambiguous += 1,
+            None => {}
+        }
+    }
+    (owned, ambiguous)
+}
+
 pub fn compare_profiles(
     snapshots: &[Snapshot],
     aliases: &Aliases,
@@ -143,20 +163,7 @@ pub fn compare_profiles(
         }
     }
     let assignments_complete = unresolved_assignments.is_empty();
-    // Accounts attributed to exactly one canonical identity.
-    let mut owned: BTreeMap<&str, Vec<&Account>> = BTreeMap::new();
-    let mut ambiguous_accounts = 0usize;
-    for (key, account) in &index.accounts {
-        match index.candidates.get(key) {
-            Some(ids) if ids.len() == 1 => {
-                if let Some(id) = ids.first() {
-                    owned.entry(id.as_str()).or_default().push(*account);
-                }
-            }
-            Some(_) => ambiguous_accounts += 1,
-            None => {}
-        }
-    }
+    let (owned, ambiguous_accounts) = owned_accounts(&index);
     let mut identities = Vec::new();
     let mut complete = assignments_complete;
     for (id, profiles) in &assigned {
@@ -285,5 +292,130 @@ pub fn compare_profiles(
         unresolved_members,
         unresolved_assignments,
         complete,
+    })
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct SuggestedEntry {
+    pub entry: ExpectedEntry,
+    /// Display name only; never a key.
+    pub label: String,
+    pub count: usize,
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct Suggestion {
+    pub group: Group,
+    pub members: usize,
+    pub unresolved_members: usize,
+    pub entries: Vec<SuggestedEntry>,
+}
+fn label(name: &str) -> String {
+    name.chars().filter(|c| !c.is_control()).collect()
+}
+
+/// Draft profile entries shared by the resolved members of one group (direct or
+/// nested): group memberships first, then roles no suggested group explains.
+pub fn suggest_profile(
+    snapshots: &[Snapshot],
+    aliases: &Aliases,
+    group: &EntityKey,
+    min_percent: u8,
+) -> Result<Suggestion, DomainError> {
+    if min_percent == 0 || min_percent > 100 {
+        return Err(DomainError::Identifier);
+    }
+    let selected_group = snapshots
+        .iter()
+        .flat_map(|s| s.groups.iter())
+        .find(|g| g.key == *group)
+        .ok_or(DomainError::NotFound)?
+        .clone();
+    let index = IdentityIndex::build(snapshots, aliases)?;
+    let graph = MembershipGraph::new(snapshots);
+    let (owned, _) = owned_accounts(&index);
+    let mut members = BTreeSet::new();
+    let mut unresolved_members = 0usize;
+    for key in index.accounts.keys() {
+        if !graph.reachable(key)?.contains(group) {
+            continue;
+        }
+        match index.resolve(key) {
+            IdentityResolution::Resolved { identity } => {
+                members.insert(identity.id);
+            }
+            _ => unresolved_members += 1,
+        }
+    }
+    let total = members.len();
+    let keep = |count: usize| count * 100 >= usize::from(min_percent) * total;
+    let names: BTreeMap<&EntityKey, &str> = snapshots
+        .iter()
+        .flat_map(|s| {
+            s.groups
+                .iter()
+                .map(|g| (&g.key, g.name.as_str()))
+                .chain(s.resources.iter().map(|r| (&r.key, r.name.as_str())))
+        })
+        .collect();
+    let mut group_counts: BTreeMap<EntityKey, usize> = BTreeMap::new();
+    let mut member_paths = Vec::new();
+    for id in &members {
+        let accounts = owned.get(id.as_str()).cloned().unwrap_or_default();
+        let mut reached = BTreeSet::new();
+        for account in &accounts {
+            reached.extend(graph.reachable(&account.key)?);
+        }
+        for key in reached {
+            *group_counts.entry(key).or_default() += 1;
+        }
+        member_paths.push(paths(snapshots, accounts.iter().copied(), false)?);
+    }
+    let chosen: BTreeSet<EntityKey> = group_counts
+        .iter()
+        .filter(|(_, count)| keep(**count))
+        .map(|(key, _)| key.clone())
+        .collect();
+    let mut role_counts: BTreeMap<(EntityKey, String), usize> = BTreeMap::new();
+    for access in &member_paths {
+        let held: BTreeSet<(EntityKey, String)> = access
+            .iter()
+            .filter(|p| !p.groups.iter().any(|g| chosen.contains(&g.key)))
+            .map(|p| (p.resource.key.clone(), p.grant.role.clone()))
+            .collect();
+        for role in held {
+            *role_counts.entry(role).or_default() += 1;
+        }
+    }
+    let name = |key: &EntityKey| label(names.get(key).copied().unwrap_or_default());
+    let mut entries: Vec<SuggestedEntry> = chosen
+        .iter()
+        .map(|key| SuggestedEntry {
+            entry: ExpectedEntry::Group {
+                instance: key.provider.clone(),
+                group: key.id.clone(),
+            },
+            label: name(key),
+            count: group_counts[key],
+        })
+        .collect();
+    entries.extend(
+        role_counts
+            .into_iter()
+            .filter(|(_, count)| keep(*count))
+            .map(|((resource, role), count)| SuggestedEntry {
+                label: name(&resource),
+                entry: ExpectedEntry::Role {
+                    instance: resource.provider,
+                    role,
+                    resource: resource.id,
+                },
+                count,
+            }),
+    );
+    Ok(Suggestion {
+        group: selected_group,
+        members: total,
+        unresolved_members,
+        entries,
     })
 }

@@ -375,3 +375,84 @@ fn unassigned_humans_count_as_not_covered() {
     let result = compare(&[fixture()], &input(backend(), &[ALICE]));
     assert_eq!(result.not_covered, 3);
 }
+
+/// Former (102) joins team-10 and also holds Read on repo-21, like alice.
+fn two_member_team() -> Snapshot {
+    let mut s = fixture();
+    member(&mut s, Subject::Account(key("102")), "team-10");
+    grant(
+        &mut s,
+        "grant-9",
+        Subject::Account(key("102")),
+        "repo-21",
+        "Read",
+    );
+    s
+}
+
+#[test]
+fn suggest_from_team_includes_team_and_shared_direct_roles() {
+    let s = two_member_team();
+    let suggestion = suggest_profile(&[s], &Aliases::new(), &key("team-10"), 100).unwrap();
+    assert_eq!(suggestion.members, 2);
+    let entries: Vec<_> = suggestion
+        .entries
+        .iter()
+        .map(|e| (&e.entry, e.count))
+        .collect();
+    assert_eq!(entries, vec![(&team(), 2), (&role("Read", "repo-21"), 2)]);
+    assert_eq!(suggestion.entries[0].label, "team/backend");
+    assert_eq!(suggestion.entries[1].label, "acme/infra");
+}
+
+#[test]
+fn threshold_filters_entries() {
+    let mut s = two_member_team();
+    grant(
+        &mut s,
+        "grant-8",
+        Subject::Account(key("100")),
+        "repo-20",
+        "Admin",
+    );
+    let at = |pct| {
+        suggest_profile(
+            std::slice::from_ref(&s),
+            &Aliases::new(),
+            &key("team-10"),
+            pct,
+        )
+        .unwrap()
+        .entries
+        .into_iter()
+        .map(|e| e.entry)
+        .collect::<Vec<_>>()
+    };
+    assert!(!at(100).contains(&role("Admin", "repo-20")));
+    assert!(at(50).contains(&role("Admin", "repo-20")));
+}
+
+#[test]
+fn unresolved_members_are_counted_not_used() {
+    let mut s = two_member_team();
+    s.accounts.push(Account {
+        key: key("200"),
+        login: "stranger".into(),
+        kind: IdentityKind::Human,
+        affiliation: Affiliation::Unknown,
+        status: IdentityStatus::Unknown,
+        verified_emails: vec![],
+    });
+    member(&mut s, Subject::Account(key("200")), "team-10");
+    let suggestion = suggest_profile(&[s], &Aliases::new(), &key("team-10"), 100).unwrap();
+    assert_eq!((suggestion.members, suggestion.unresolved_members), (2, 1));
+}
+
+#[test]
+fn unknown_group_is_not_found() {
+    assert!(matches!(
+        suggest_profile(&[fixture()], &Aliases::new(), &key("nope"), 100),
+        Err(DomainError::NotFound)
+    ));
+    assert!(suggest_profile(&[fixture()], &Aliases::new(), &key("team-10"), 0).is_err());
+}
