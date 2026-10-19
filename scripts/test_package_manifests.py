@@ -93,6 +93,21 @@ class PackageManifests(unittest.TestCase):
         with self.assertRaises(ValueError):
             manifests.read_checksums(self.sums, VERSION)
 
+    def test_script_creates_missing_output_directory(self):
+        self.out.rmdir()
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.out / "permesh.rb").is_file())
+
+    def test_non_ascii_checksum_fails_cleanly(self):
+        name = f"permesh-{VERSION}-aarch64-apple-darwin.tar.gz"
+        (self.sums / f"{name}.sha256").write_bytes("\u00e4  x\n".encode("utf-8"))
+        with self.assertRaises(ValueError):
+            manifests.read_checksums(self.sums, VERSION)
+        result = self.run_script()
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

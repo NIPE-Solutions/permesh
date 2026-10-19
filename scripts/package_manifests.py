@@ -107,6 +107,7 @@ def main(argv=None):
         return 1
     formula = homebrew_formula(args.version, sums)
     manifest = json.dumps(scoop_manifest(args.version, sums), indent=2) + "\n"
+    args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "permesh.rb").write_text(formula, encoding="utf-8")
     (args.out / "permesh.json").write_text(manifest, encoding="utf-8")
     return 0
