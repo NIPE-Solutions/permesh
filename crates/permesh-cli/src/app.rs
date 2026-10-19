@@ -132,7 +132,15 @@ pub async fn run(
             let mut providers: Vec<_> = config
                 .providers
                 .iter()
-                .map(|p| serde_json::json!({"id":p.id,"type":collection::kind(p)}))
+                .map(|p| {
+                    let provider = p.external.as_ref().map(|e| e.provider.as_str());
+                    serde_json::json!({
+                        "id": p.id,
+                        "type": collection::kind(p),
+                        "provider": provider,
+                        "live_tested": provider.map(crate::qualification::live_tested),
+                    })
+                })
                 .collect();
             providers.sort_by_key(|v| v["id"].as_str().unwrap_or_default().to_string());
             Outcome::new("provider_list", serde_json::json!({"providers":providers}))

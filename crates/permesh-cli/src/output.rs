@@ -94,9 +94,14 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         writeln!(out, "Providers")?;
         if let Some(providers) = result["providers"].as_array() {
             for p in providers {
+                let label = if p["live_tested"] == false {
+                    " (untested against live tenants)"
+                } else {
+                    ""
+                };
                 writeln!(
                     out,
-                    "  {} {dot} {}",
+                    "  {} {dot} {}{label}",
                     safe(field(p, "id")),
                     safe(field(p, "type"))
                 )?;

@@ -29,6 +29,7 @@ mod provider_development;
 mod provider_diagnostics;
 mod provider_migration;
 mod provider_operation;
+mod qualification;
 mod remote_secrets;
 mod report;
 mod resource_command;

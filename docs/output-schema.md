@@ -78,7 +78,7 @@ When any authority is absent or partial, every observed account has reason `unas
 
 ## Other results
 
-`provider_list`: `{providers: [{id,type}]}`. `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add` for bundled/manual instances: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
+`provider_list`: `{providers: [{id,type,provider,live_tested}]}`; `provider` is the external provider ID (`null` for built-ins) and `live_tested` says whether that official provider has recorded live tenant acceptance (`null` for built-ins). `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add` for bundled/manual instances: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
 
 ## Error envelope
 
