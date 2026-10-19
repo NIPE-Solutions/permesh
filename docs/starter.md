@@ -25,6 +25,13 @@ reference, run `permesh check --out out` once locally, and push.
 
 ## How CI stays safe
 
+Use a **private** configuration repository. Full reports are CI artifacts, and on a
+public repository anyone signed in can download them. The GitLab pipeline also
+limits artifacts to developers (`artifacts: access: developer`).
+
+- CI installs the Permesh release pinned by `PERMESH_VERSION` and
+  `PERMESH_ARCHIVE_SHA256`. On GitHub it also verifies the release's build
+  provenance with `gh attestation verify`.
 - CI installs the official packages and trusts only binaries whose digests match
   the pins committed in `permesh.yaml`; review and approval fail otherwise. Changing
   what CI runs therefore needs a reviewed change to `permesh.yaml`.
@@ -32,7 +39,10 @@ reference, run `permesh check --out out` once locally, and push.
 - Full reports and snapshots stay as private CI artifacts for 90 days. The issue
   only ever contains the counts-only `summary.md`.
 - The previous snapshot is used as a baseline only if that run completed
-  collection (exit 0 or 6).
+  collection (exit 0 or 6). On GitHub it must come from this workflow, on the
+  default branch, in this repository, so a branch or fork can't plant a baseline
+  that hides a new admin. On GitLab, exit 6 is an allowed failure (shown as a
+  warning) so that the baseline keeps advancing while findings are open.
 
 The workflows need a Permesh release that includes `permesh check`. The version is
 set by `PERMESH_VERSION` at the top of each workflow file.

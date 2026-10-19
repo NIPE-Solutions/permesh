@@ -49,8 +49,10 @@ check:
 - Only `permesh check` sends notifications; other commands never do.
 
 The generic webhook body is
-`{"check_report_version":1,"status":…,"complete":…,"counts":{…},"run_url":…}`, plus
-`departed`, `changes` and `findings` when `detail` is true.
+`{"check_report_version":1,"status":…,"complete":…,"counts":{…},"changes":{"state":…,"reasons":[…]},"run_url":…}`.
+`changes.state` is `no_baseline`, `inconclusive` or `compared`; change counts are only
+present when it is `compared`. With `detail`, the body also includes
+`departed`, `change_details` and `findings`.
 
 Issues in the configuration repository are created by the [starter](starter.md)
 workflows, not by Permesh itself.

@@ -223,7 +223,11 @@ fn build(
     };
     let comparable = !matches!(changes, Changes::Inconclusive { .. });
     let complete = collection_complete && artifact.complete() && evaluation_complete && comparable;
-    let mut counts: BTreeMap<FindingKind, usize> = ALL_KINDS.iter().map(|k| (*k, 0)).collect();
+    let mut counts: BTreeMap<FindingKind, usize> = ALL_KINDS
+        .iter()
+        .filter(|k| !report::DIFF_KINDS.contains(k))
+        .map(|k| (*k, 0))
+        .collect();
     counts.insert(FindingKind::DepartedWithAccess, departed.len());
     counts.insert(FindingKind::PolicyFinding, findings.len());
     counts.insert(FindingKind::ProviderFailed, failed);
@@ -276,6 +280,7 @@ fn result_value(report: &CheckReport) -> Result<Value, AppError> {
     let mut value =
         serde_json::to_value(report).map_err(|_| AppError::new(5, "Cannot format check report"))?;
     value["status"] = json!(report.status());
+    value["changes_state"] = report.changes.state();
     Ok(value)
 }
 

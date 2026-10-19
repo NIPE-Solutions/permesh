@@ -74,11 +74,12 @@ pub fn payload(n: &Notification, report: &CheckReport) -> Value {
                 "status": report.status(),
                 "complete": report.complete,
                 "counts": report.counts,
+                "changes": report.changes.state(),
                 "run_url": report.run_url,
             });
             if n.detail {
                 body["departed"] = json!(report.departed);
-                body["changes"] = json!(report.changes);
+                body["change_details"] = json!(report.changes);
                 body["findings"] = json!(report.findings);
             }
             body
@@ -282,6 +283,7 @@ mod tests {
     fn report() -> CheckReport {
         let mut counts: std::collections::BTreeMap<_, _> = crate::check::report::ALL_KINDS
             .iter()
+            .filter(|k| !crate::check::report::DIFF_KINDS.contains(k))
             .map(|k| (*k, 0))
             .collect();
         counts.insert(FindingKind::DepartedWithAccess, 1);
@@ -346,6 +348,13 @@ mod tests {
             let body = payload(&notification(channel, true, vec![]), &report()).to_string();
             assert!(body.contains("former-dev"), "{body}");
         }
+    }
+
+    #[test]
+    fn detail_payload_keeps_change_state() {
+        let body = payload(&notification(channels().remove(2), true, vec![]), &report());
+        assert_eq!(body["changes"]["state"], "no_baseline");
+        assert_eq!(body["change_details"], "no_baseline");
     }
 
     #[test]
@@ -427,5 +436,18 @@ mod tests {
         }
         let error = email_message(&n, &report()).err().unwrap();
         assert!(!error.contains("not an address"));
+    }
+
+    #[test]
+    fn default_generic_payload_says_whether_changes_were_compared() {
+        let body = payload(
+            &notification(channels().remove(2), false, vec![]),
+            &report(),
+        );
+        assert_eq!(
+            body["changes"],
+            json!({"state": "no_baseline", "reasons": []})
+        );
+        assert!(body["counts"].get("new_admin").is_none(), "{body}");
     }
 }

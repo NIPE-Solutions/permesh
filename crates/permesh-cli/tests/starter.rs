@@ -132,3 +132,57 @@ fn starter_workflows_are_valid_yaml_and_gate_the_baseline() {
         "{script}"
     );
 }
+
+#[test]
+fn github_workflow_passes_actionlint_when_available() {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/starter/.github/workflows/permesh-check.yml");
+    match Command::new("actionlint").arg(&file).output() {
+        Ok(output) => assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        ),
+        Err(_) => eprintln!("actionlint not installed; skipped"),
+    }
+    let github = yaml(".github/workflows/permesh-check.yml");
+    assert!(!github["env"].to_string().contains("runner."));
+}
+
+#[test]
+fn github_baseline_comes_only_from_this_workflow_on_the_default_branch() {
+    let text = String::from_utf8(example(".github/workflows/permesh-check.yml")).unwrap();
+    for needle in [
+        "head_branch",
+        "head_repository_id",
+        ".github/workflows/permesh-check.yml",
+        "gh attestation verify",
+        "PERMESH_ARCHIVE_SHA256",
+    ] {
+        assert!(text.contains(needle), "{needle}");
+    }
+}
+
+#[test]
+fn gitlab_findings_keep_baseline_and_issue_jobs_running() {
+    let gitlab = yaml(".gitlab-ci.yml");
+    assert_eq!(
+        gitlab["permesh-check"]["allow_failure"]["exit_codes"],
+        serde_json::json!([6])
+    );
+    assert_eq!(gitlab["permesh-check"]["artifacts"]["access"], "developer");
+    assert_eq!(
+        gitlab["permesh-baseline"]["artifacts"]["access"],
+        "developer"
+    );
+    assert!(gitlab["permesh-issue"]["when"].is_null());
+    assert_eq!(gitlab["permesh-issue"]["rules"][0]["when"], "always");
+    let text = String::from_utf8(example(".gitlab-ci.yml")).unwrap();
+    assert!(text.contains("PERMESH_ARCHIVE_SHA256"));
+}
+
+#[test]
+fn starter_docs_require_a_private_repository() {
+    let readme = String::from_utf8(example("README.md")).unwrap();
+    assert!(readme.contains("private repository"), "{readme}");
+}

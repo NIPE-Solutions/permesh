@@ -14,6 +14,13 @@ pub const ALL_KINDS: [FindingKind; 7] = [
     FindingKind::ProviderFailed,
     FindingKind::Incomplete,
 ];
+/// Kinds that only exist when a run was compared with a baseline. They are absent
+/// (shown as "not compared"), never zero, when no comparison happened.
+pub const DIFF_KINDS: [FindingKind; 3] = [
+    FindingKind::NewAdmin,
+    FindingKind::RemovedAdmin,
+    FindingKind::NoLongerObserved,
+];
 /// Kinds that ask a person to review something; they make the check exit 6.
 pub const REVIEW_KINDS: [FindingKind; 4] = [
     FindingKind::DepartedWithAccess,
@@ -76,6 +83,19 @@ pub struct CheckReport {
     pub files: Files,
 }
 
+impl Changes {
+    /// Non-identifying comparison state, safe for counts-only messages.
+    pub fn state(&self) -> Value {
+        match self {
+            Self::NoBaseline => serde_json::json!({"state": "no_baseline", "reasons": []}),
+            Self::Inconclusive { reasons } => {
+                serde_json::json!({"state": "inconclusive", "reasons": reasons})
+            }
+            Self::Compared { .. } => serde_json::json!({"state": "compared", "reasons": []}),
+        }
+    }
+}
+
 impl CheckReport {
     pub fn count(&self, kind: FindingKind) -> usize {
         self.counts.get(&kind).copied().unwrap_or(0)
@@ -106,11 +126,33 @@ pub fn label(kind: FindingKind) -> &'static str {
     }
 }
 
-fn changes_line(changes: &Changes) -> &'static str {
-    match changes {
-        Changes::NoBaseline => "no previous run to compare with",
-        Changes::Inconclusive { .. } => "inconclusive; the previous run is not comparable",
-        Changes::Compared { .. } => "compared with the previous run",
+fn changes_line(state: &Value) -> String {
+    match state["state"].as_str() {
+        Some("compared") => "compared with the previous run".into(),
+        Some("inconclusive") => {
+            let reasons: Vec<_> = state["reasons"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect();
+            format!(
+                "inconclusive; the previous run is not comparable ({})",
+                reasons.join(", ")
+            )
+        }
+        _ => "no previous run to compare with".into(),
+    }
+}
+fn count_text(counts: &Value, kind: FindingKind) -> String {
+    let key = serde_json::to_value(kind).unwrap_or_default();
+    match counts
+        .get(key.as_str().unwrap_or_default())
+        .and_then(Value::as_u64)
+    {
+        Some(count) => count.to_string(),
+        None if DIFF_KINDS.contains(&kind) => "not compared".into(),
+        None => "0".into(),
     }
 }
 
@@ -121,7 +163,12 @@ pub fn summary_markdown(report: &CheckReport) -> String {
         if kind == FindingKind::Incomplete {
             continue;
         }
-        out.push_str(&format!("- {}: {}\n", label(kind), report.count(kind)));
+        let counts = serde_json::to_value(&report.counts).unwrap_or_default();
+        out.push_str(&format!(
+            "- {}: {}\n",
+            label(kind),
+            count_text(&counts, kind)
+        ));
     }
     out.push_str(&format!(
         "\nCollection complete: {}\n",
@@ -130,7 +177,10 @@ pub fn summary_markdown(report: &CheckReport) -> String {
     if !report.departed_assessed {
         out.push_str("Departures not assessed: no authoritative identity source.\n");
     }
-    out.push_str(&format!("Changes: {}\n", changes_line(&report.changes)));
+    out.push_str(&format!(
+        "Changes: {}\n",
+        changes_line(&report.changes.state())
+    ));
     if let Some(url) = &report.run_url {
         out.push_str(&format!("Run: {url}\n"));
     }
@@ -145,14 +195,20 @@ pub fn write(out: &mut dyn std::io::Write, result: &Value) -> std::io::Result<()
         safe(result["status"].as_str().unwrap_or_default())
     )?;
     for kind in ALL_KINDS {
-        let key = serde_json::to_value(kind).unwrap_or_default();
-        let count = result["counts"][key.as_str().unwrap_or_default()]
-            .as_u64()
-            .unwrap_or(0);
         if kind != FindingKind::Incomplete {
-            writeln!(out, "  {}: {count}", label(kind))?;
+            writeln!(
+                out,
+                "  {}: {}",
+                label(kind),
+                count_text(&result["counts"], kind)
+            )?;
         }
     }
+    writeln!(
+        out,
+        "  Changes: {}",
+        safe(&changes_line(&result["changes_state"]))
+    )?;
     if result["departed_assessed"] == false {
         writeln!(
             out,

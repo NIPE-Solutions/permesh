@@ -407,3 +407,53 @@ fn on_filter_skips_unmatched_channel() {
         true
     );
 }
+
+#[test]
+fn without_baseline_change_counts_are_not_compared_rather_than_zero() {
+    let dir = demo();
+    let output = run(
+        dir.path(),
+        &["check", "--out", "out", "--no-notify", "--json"],
+    );
+    let counts = &report(&output)["result"]["counts"];
+    for kind in ["new_admin", "removed_admin", "no_longer_observed"] {
+        assert!(counts.get(kind).is_none(), "{kind} present: {counts}");
+    }
+    let summary = fs::read_to_string(dir.path().join("out/summary.md")).unwrap();
+    assert!(summary.contains("- New admins: not compared"), "{summary}");
+    assert!(!summary.contains("New admins: 0"), "{summary}");
+    let human = run(
+        dir.path(),
+        &["check", "--out", "out", "--no-notify", "--overwrite"],
+    );
+    let text = String::from_utf8(human.stdout).unwrap();
+    assert!(text.contains("New admins: not compared"), "{text}");
+    assert!(
+        text.contains("Changes: no previous run to compare with"),
+        "{text}"
+    );
+}
+
+#[test]
+fn inconclusive_comparison_explains_itself_in_human_output() {
+    let dir = demo();
+    let snapshot = baseline(dir.path());
+    let text = serde_json::to_string(&snapshot)
+        .unwrap()
+        .replace("\"demo\"", "\"other\"");
+    fs::write(dir.path().join("previous.json"), text).unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "check",
+            "--out",
+            "b",
+            "--previous",
+            "previous.json",
+            "--no-notify",
+        ],
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("New admins: not compared"), "{text}");
+    assert!(text.contains("provider_set_changed"), "{text}");
+}

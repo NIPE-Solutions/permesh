@@ -36,7 +36,9 @@ Departures need an authoritative identity source, such as Google Workspace with
 `--authoritative`. Without one, the report says "Departures not assessed" instead of
 showing zero.
 
-Without `--previous`, the report says there was nothing to compare with. When the
+Without `--previous`, the report says there was nothing to compare with, and the
+three change counts read "not compared" (they are left out of `counts` in JSON)
+rather than zero. When the
 previous snapshot is not comparable (different providers, configuration or capture
 order), the comparison is marked **inconclusive** and the run is incomplete. It
 never reports "no changes" in that case.
@@ -57,7 +59,7 @@ clean. Notification failures never change the exit code.
 ## Files
 
 `snapshot.json` and `check.json` contain sensitive access metadata: keep them as
-private CI artifacts, not in Git. `summary.md` contains counts only and is safe to
+CI artifacts of a **private** repository, never in Git or in a public project. `summary.md` contains counts only and is safe to
 post in an issue. Use `snapshot.json` as the next run's `--previous`, but only from
 runs that exited 0 or 6, because incomplete runs make poor baselines.
 
