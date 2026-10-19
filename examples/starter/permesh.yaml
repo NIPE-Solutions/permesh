@@ -15,3 +15,9 @@ providers: []
 #       type: slack_webhook
 #       url: env://PERMESH_SLACK_WEBHOOK
 #       on: [departed_with_access, new_admin]
+# Optional access profiles (profiles/ and people/, see docs/profiles.md).
+# Report-only until enforce is true; then profile findings fail the check.
+# profiles:
+#   enforce: false
+#   directory_groups:
+#     - {instance: google, group: GROUP_ID, profiles: [backend]}

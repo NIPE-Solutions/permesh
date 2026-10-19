@@ -197,3 +197,15 @@ fn directory_group_must_name_known_profile() {
     let dir = workspace(section, &[]);
     assert!(load(dir.path()).is_err());
 }
+
+#[test]
+fn readme_only_directories_are_not_configured() {
+    let dir = workspace(
+        "",
+        &[
+            ("profiles/README.md", "# x\n"),
+            ("people/README.md", "# x\n"),
+        ],
+    );
+    assert!(load(dir.path()).unwrap().is_none());
+}

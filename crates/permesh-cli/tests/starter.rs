@@ -2,13 +2,15 @@
 #![allow(clippy::unwrap_used)]
 use std::{fs, path::Path, process::Command};
 
-const FILES: [&str; 8] = [
+const FILES: [&str; 10] = [
     "permesh.yaml",
     "README.md",
     ".gitignore",
     "ci/providers.txt",
     "ci/bootstrap.sh",
     "policies/review-policy.json",
+    "profiles/README.md",
+    "people/README.md",
     ".github/workflows/permesh-check.yml",
     ".gitlab-ci.yml",
 ];
@@ -185,4 +187,15 @@ fn gitlab_findings_keep_baseline_and_issue_jobs_running() {
 fn starter_docs_require_a_private_repository() {
     let readme = String::from_utf8(example("README.md")).unwrap();
     assert!(readme.contains("private repository"), "{readme}");
+}
+
+#[test]
+fn starter_ships_report_only_profiles() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(init(dir.path(), "Acme").status.success());
+    let config = permesh_config::Config::load(&dir.path().join("permesh.yaml")).unwrap();
+    let profiles = permesh_config::profiles::load_profiles(dir.path(), &config).unwrap();
+    assert!(profiles.is_none_or(|p| !p.enforce));
+    let template = String::from_utf8(example("permesh.yaml")).unwrap();
+    assert!(template.contains("#   enforce: false"), "{template}");
 }

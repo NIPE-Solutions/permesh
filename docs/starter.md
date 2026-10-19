@@ -16,6 +16,7 @@ This writes the same files as [`examples/starter`](../examples/starter/README.md
 | `ci/providers.txt` | Provider versions CI installs |
 | `ci/bootstrap.sh` | Trusts and approves the pinned providers on a fresh runner |
 | `policies/review-policy.json` | Review rules for `permesh check` |
+| `profiles/`, `people/` | Optional [access profiles](profiles.md); report-only until `profiles.enforce: true` |
 | `.github/workflows/permesh-check.yml` | Weekly GitHub Actions run |
 | `.gitlab-ci.yml` | The same for GitLab pipeline schedules |
 

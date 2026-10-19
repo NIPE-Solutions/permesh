@@ -257,7 +257,11 @@ pub fn load_profiles(root: &Path, config: &Config) -> Result<Option<ProfileSet>>
     let instances: BTreeSet<&str> = config.providers.iter().map(|p| p.id.as_str()).collect();
     let profile_files = read_dir::<Profile>(root, "profiles", MAX_PROFILES)?;
     let people_files = read_dir::<Person>(root, "people", MAX_PEOPLE)?;
-    if profile_files.is_none() && people_files.is_none() && config.profiles.is_none() {
+    // Directories holding only READMEs (as in the starter) are not a configuration.
+    if profile_files.as_ref().is_none_or(Vec::is_empty)
+        && people_files.as_ref().is_none_or(Vec::is_empty)
+        && config.profiles.is_none()
+    {
         return Ok(None);
     }
     let mut profiles = BTreeMap::new();

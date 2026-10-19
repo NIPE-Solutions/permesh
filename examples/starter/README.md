@@ -31,6 +31,14 @@ public repositories anyone signed in can download them.
 6. **Commit and push.** The workflow in `.github/workflows/permesh-check.yml`
    (or `.gitlab-ci.yml`) runs every Monday and can be started by hand.
 
+## Optional: expected access
+
+Describe what each role should have in `profiles/` and assign people in `people/`
+(see the READMEs there). The weekly check then also lists access nobody explains,
+including access through nested groups. It stays report-only until you set
+`profiles: {enforce: true}` in `permesh.yaml`. Run `permesh profile check` to see the
+details locally.
+
 ## What the scheduled run does
 
 - Installs the pinned Permesh release (digest and, on GitHub, build provenance
