@@ -103,6 +103,8 @@ pub enum Command {
         #[command(subcommand)]
         command: crate::offboard::OffboardCommand,
     },
+    /// Run one scheduled review: snapshot, compare, evaluate, report and notify.
+    Check(crate::check::CheckArgs),
     /// Save or inspect explicit local access snapshots.
     Snapshot {
         #[command(subcommand)]

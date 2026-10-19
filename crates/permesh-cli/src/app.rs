@@ -29,6 +29,9 @@ pub async fn run(
     if let Command::Offboard { command } = &cli.command {
         return crate::offboard::run(cli, command, blocking, cancellation).await;
     }
+    if let Command::Check(args) = &cli.command {
+        return crate::check::run(cli, args, blocking, cancellation).await;
+    }
     if let Command::Snapshot { command } = &cli.command {
         return crate::snapshot_command::run(cli, command, blocking, cancellation).await;
     }

@@ -9,6 +9,7 @@ mod blocking;
 mod browser_flow;
 mod browser_login;
 mod cancellation;
+mod check;
 mod collection;
 mod completion;
 mod distribution;

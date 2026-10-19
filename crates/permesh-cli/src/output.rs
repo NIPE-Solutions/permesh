@@ -78,6 +78,8 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         crate::provider_development::write(&mut out, result)?;
     } else if report.command == "resource" {
         crate::resource_command::write(&mut out, result)?;
+    } else if report.command == "check" {
+        crate::check::report::write(&mut out, result)?;
     } else if report.command == "policy_check" {
         crate::policy_command::write(&mut out, result)?;
     } else if report.command.starts_with("offboard_") {
