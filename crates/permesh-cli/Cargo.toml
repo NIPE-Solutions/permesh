@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 reqwest.workspace = true
+lettre.workspace = true
 url = "2"
 bytes = "1"
 getrandom = "0.4"

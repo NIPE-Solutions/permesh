@@ -73,7 +73,22 @@ See [identity matching](docs/identity-resolution.md) and [privileged access](doc
 
 ## Review access regularly
 
-Take a snapshot, take another later, and compare:
+Run one command on a schedule. It takes a snapshot, compares it with the last run,
+applies review rules and writes a report:
+
+```bash
+permesh check --out out --previous last/snapshot.json
+```
+
+It exits 6 when someone departed but still has access, someone became an admin
+(including through a team), or a rule finds something, and 4 when a provider
+couldn't be fully read. Summaries can go to Slack, Teams, a webhook or email,
+with counts only unless you opt in. `permesh init --starter` sets up a
+configuration repository with weekly GitHub Actions or GitLab CI runs. See
+[scheduled checks](docs/check.md), [notifications](docs/notifications.md) and the
+[starter](docs/starter.md).
+
+To compare by hand, take a snapshot, take another later, and compare:
 
 ```bash
 permesh snapshot create --output before.json

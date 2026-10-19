@@ -1,0 +1,17 @@
+# Permesh workspace. Shared in Git; contains no tokens. See docs/starter.md.
+version: 1
+organization:
+  name: "Example organization"
+# Add providers locally, pinning every platform your team and CI use:
+#   permesh provider add github --portable
+#   permesh provider add google --portable --authoritative
+# Then list the same versions in ci/providers.txt. Credential references such as
+# env://PERMESH_GITHUB_TOKEN are filled from CI secrets.
+providers: []
+# Optional notifications from scheduled checks (counts only unless detail: true):
+# check:
+#   notifications:
+#     - id: slack
+#       type: slack_webhook
+#       url: env://PERMESH_SLACK_WEBHOOK
+#       on: [departed_with_access, new_admin]

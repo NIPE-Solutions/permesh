@@ -19,6 +19,34 @@ use time::OffsetDateTime;
 #[path = "policy_config.rs"]
 mod config;
 use config::{Policy, Rule};
+/// Rules `permesh check` evaluates when no policy file is given.
+pub(crate) const DEFAULT_RULES: [&str; 3] =
+    ["inactive_access", "external_privileged", "machine_owner"];
+/// A validated policy document, opaque outside this module.
+pub(crate) struct LoadedPolicy(Policy);
+impl LoadedPolicy {
+    /// Load and validate a policy file, or the default rules without annotations.
+    pub(crate) fn load(path: Option<&std::path::Path>) -> Result<Self, AppError> {
+        let policy: Policy = match path {
+            Some(path) => artifact::load_document(path)?,
+            None => serde_json::from_value(json!({"version": 1, "rules": DEFAULT_RULES}))
+                .map_err(|_| AppError::new(5, "Invalid default policy"))?,
+        };
+        policy.validate()?;
+        Ok(Self(policy))
+    }
+    pub(crate) fn rules(&self) -> Value {
+        json!(self.0.rules)
+    }
+    /// Same evaluation as `policy check`: (result, exit code, evaluation complete).
+    pub(crate) fn evaluate(
+        &self,
+        artifact: &Artifact,
+        now: OffsetDateTime,
+    ) -> Result<(Value, u8, bool), AppError> {
+        evaluate(&self.0, artifact, now)
+    }
+}
 #[derive(Clone, clap::Subcommand)]
 pub enum PolicyCommand {
     Check {

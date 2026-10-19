@@ -127,6 +127,8 @@ in shared configuration repositories. See [secrets](secrets.md).
 
 CI can supply named `env://` references through its existing secret store. It
 must explicitly establish the same registration and workspace approval boundaries.
+The [starter](starter.md) `ci/bootstrap.sh` does this on each fresh runner and only
+succeeds for binaries matching the committed pins.
 Do not commit local approval records or tokens to make CI work. Package updates
 are explicit and do not adopt new workspace pins automatically.
 

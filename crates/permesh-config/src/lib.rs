@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
 mod aws_profile;
+mod check;
 pub use aws_profile::AwsProfile;
+pub use check::{Channel, CheckConfig, FindingKind, Notification};
 mod credential_resolvers;
 mod data;
 pub use credential_resolvers::CredentialResolver;
@@ -50,6 +52,9 @@ pub struct Config {
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]
     pub identity: IdentityConfig,
+    /// Experimental scheduled-check settings (ADR 0032).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check: Option<CheckConfig>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -266,6 +271,9 @@ impl Config {
                     }
                 }
             }
+        }
+        if let Some(check) = &self.check {
+            check::validate(check)?;
         }
         Ok(())
     }

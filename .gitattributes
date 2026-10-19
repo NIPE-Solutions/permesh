@@ -1,3 +1,6 @@
 # Protocol fixtures are compared byte-for-byte on every platform.
 examples/external-provider/discovery.ndjson text eol=lf
 crates/permesh-provider-protocol/tests/fixtures/negotiated-v1.ndjson text eol=lf
+
+# Starter files are written verbatim by `init --starter`; shell scripts need LF.
+examples/starter/** text eol=lf

@@ -59,6 +59,9 @@ pub enum Command {
     Init {
         #[arg(long)]
         demo: bool,
+        /// Write a starter layout with scheduled CI checks.
+        #[arg(long, conflicts_with = "demo")]
+        starter: bool,
         #[arg(long)]
         organization: Option<String>,
     },
@@ -103,6 +106,8 @@ pub enum Command {
         #[command(subcommand)]
         command: crate::offboard::OffboardCommand,
     },
+    /// Run one scheduled review: snapshot, compare, evaluate, report and notify.
+    Check(crate::check::CheckArgs),
     /// Save or inspect explicit local access snapshots.
     Snapshot {
         #[command(subcommand)]

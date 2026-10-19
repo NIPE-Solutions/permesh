@@ -4,6 +4,15 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add experimental `permesh check`: one unattended review run that writes a snapshot,
+  a JSON report and a counts-only summary. It compares with a previous snapshot,
+  including admin access gained through groups, and exits 6 when something needs
+  review. See [scheduled checks](docs/check.md).
+- Add optional check notifications to Slack, Microsoft Teams, a generic webhook or
+  email, counts only by default ([ADR 0032](docs/adr/0032-explicit-check-notifications.md)).
+- Add `permesh init --starter` with GitHub Actions and GitLab CI workflows for
+  weekly checks ([starter](docs/starter.md)).
+
 - Guided `provider add` now supports GitLab, Entra ID and AWS Identity Center.
 - `provider list` reports each external provider's ID and whether it has recorded
   live tenant acceptance (`provider`, `live_tested`); human output marks untested
