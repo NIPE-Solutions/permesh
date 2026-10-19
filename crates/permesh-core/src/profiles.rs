@@ -98,11 +98,16 @@ fn roles_observable(input: &ProfileInput, instance: &str) -> bool {
         && (observable(input, instance, "memberships") || !observable(input, instance, "groups"))
 }
 
-/// Accounts attributed to exactly one canonical identity, and how many are ambiguous.
-fn owned_accounts<'a>(
-    index: &'a IdentityIndex<'a>,
-) -> (BTreeMap<&'a str, Vec<&'a Account>>, usize) {
+/// Accounts attributed to exactly one canonical identity, the instances where an
+/// identity also claims an ambiguous account, and how many accounts are ambiguous.
+type Owned<'a> = (
+    BTreeMap<&'a str, Vec<&'a Account>>,
+    BTreeMap<&'a str, BTreeSet<&'a str>>,
+    usize,
+);
+fn owned_accounts<'a>(index: &'a IdentityIndex<'a>) -> Owned<'a> {
     let mut owned: BTreeMap<&str, Vec<&Account>> = BTreeMap::new();
+    let mut claimed: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     let mut ambiguous = 0usize;
     for (key, account) in &index.accounts {
         match index.candidates.get(key) {
@@ -111,11 +116,19 @@ fn owned_accounts<'a>(
                     owned.entry(id.as_str()).or_default().push(*account);
                 }
             }
-            Some(_) => ambiguous += 1,
+            Some(ids) => {
+                ambiguous += 1;
+                for id in ids {
+                    claimed
+                        .entry(id.as_str())
+                        .or_default()
+                        .insert(key.provider.as_str());
+                }
+            }
             None => {}
         }
     }
-    (owned, ambiguous)
+    (owned, claimed, ambiguous)
 }
 
 pub fn compare_profiles(
@@ -131,7 +144,7 @@ pub fn compare_profiles(
         .collect();
     let mut assigned: BTreeMap<String, BTreeSet<String>> = input.people.clone();
     let mut unresolved_assignments = Vec::new();
-    let mut unresolved_members = 0usize;
+    let mut unresolved_members = BTreeSet::new();
     for mapping in &input.directory_groups {
         let group = EntityKey::new(&mapping.instance, &mapping.group);
         let reason = if !observable(input, &mapping.instance, "memberships") {
@@ -158,14 +171,17 @@ pub fn compare_profiles(
                     .entry(identity.id)
                     .or_default()
                     .extend(mapping.profiles.iter().cloned()),
-                _ => unresolved_members += 1,
+                _ => {
+                    unresolved_members.insert(key);
+                }
             }
         }
     }
     let assignments_complete = unresolved_assignments.is_empty();
-    let (owned, ambiguous_accounts) = owned_accounts(&index);
+    let (owned, claimed, ambiguous_accounts) = owned_accounts(&index);
     let mut identities = Vec::new();
-    let mut complete = assignments_complete;
+    // Assigned members without a resolved identity were never compared.
+    let mut complete = assignments_complete && unresolved_members.is_empty();
     for (id, profiles) in &assigned {
         let mut comparison = IdentityComparison {
             identity: id.clone(),
@@ -255,6 +271,12 @@ pub fn compare_profiles(
             }
             let (state, reason) = if !visible {
                 (EntryState::CannotTell, "instance_not_observable")
+            } else if claimed
+                .get(id.as_str())
+                .is_some_and(|instances| instances.contains(instance.as_str()))
+            {
+                // An account this person may own was not attributed; it could hold the entry.
+                (EntryState::CannotTell, "ambiguous_account")
             } else if !accounts.iter().any(|a| a.key.provider == *instance) {
                 (EntryState::Finding, "no_mapped_account")
             } else {
@@ -266,6 +288,8 @@ pub fn compare_profiles(
                 reason,
             });
         }
+        // Access of an unattributed account is hidden from both claimants.
+        complete &= !claimed.contains_key(id.as_str());
         complete &= comparison
             .missing
             .iter()
@@ -289,7 +313,7 @@ pub fn compare_profiles(
         identities,
         not_covered,
         ambiguous_accounts,
-        unresolved_members,
+        unresolved_members: unresolved_members.len(),
         unresolved_assignments,
         complete,
     })
@@ -332,7 +356,7 @@ pub fn suggest_profile(
         .clone();
     let index = IdentityIndex::build(snapshots, aliases)?;
     let graph = MembershipGraph::new(snapshots);
-    let (owned, _) = owned_accounts(&index);
+    let (owned, _, _) = owned_accounts(&index);
     let mut members = BTreeSet::new();
     let mut unresolved_members = 0usize;
     for key in index.accounts.keys() {

@@ -78,7 +78,11 @@ resolved: a profile Permesh could not see might explain it.
 People files that name an unknown identity are reported as `not_found`, and
 identities with conflicting records as `ambiguous`. Both make the comparison
 incomplete instead of guessing. Accounts claimed by two identities are counted in
-`ambiguous_accounts` and attributed to neither.
+`ambiguous_accounts` and attributed to neither; for each claimant, entries in that
+provider become `cannot_tell` (reason `ambiguous_account`) and the comparison is
+incomplete, because the unattributed account could hold or hide access. Directory
+group members without one identity are counted in `unresolved_members` and also
+make the comparison incomplete.
 
 ## Draft a profile from a team
 

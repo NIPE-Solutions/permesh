@@ -314,7 +314,17 @@ fn draft(name: &str, suggestion: &core::Suggestion) -> Result<String, AppError> 
             },
         };
         let entry = serde_json::to_string(&entry)
-            .map_err(|_| AppError::new(5, "Cannot encode profile draft"))?;
+            .map_err(|_| AppError::new(5, "Cannot encode profile draft"))?
+            .chars()
+            .map(|c| {
+                // Keep IDs visible as reviewed: escape what the terminal would hide or reorder.
+                if safe(&c.to_string()) == c.to_string() {
+                    c.to_string()
+                } else {
+                    format!("\\u{:04x}", u32::from(c))
+                }
+            })
+            .collect::<String>();
         text.push_str(&format!(
             "  - {entry}  # {}: {} of {} members\n",
             safe(&suggested.label),
@@ -390,6 +400,21 @@ pub fn write(out: &mut impl Write, result: &Value) -> io::Result<()> {
         counts["cannot_tell"],
         counts["excepted"],
     )?;
+    // Uncompared evidence stays visible, never folded into a clean count.
+    for (key, what) in [
+        (
+            "ambiguous_accounts",
+            "accounts claimed by more than one identity (not attributed)",
+        ),
+        (
+            "unresolved_members",
+            "directory group members without one identity (not compared)",
+        ),
+    ] {
+        if counts[key].as_u64().unwrap_or(0) > 0 {
+            writeln!(out, "  {} {what}", counts[key])?;
+        }
+    }
     for identity in result["identities"].as_array().into_iter().flatten() {
         writeln!(
             out,
@@ -460,4 +485,42 @@ pub fn write(out: &mut impl Write, result: &Value) -> io::Result<()> {
         )?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn draft_escapes_invisible_and_bidi_characters_in_ids() {
+        let suggestion = core::Suggestion {
+            group: core::Group {
+                key: core::EntityKey::new("demo", "team-10"),
+                name: "team".into(),
+            },
+            members: 1,
+            unresolved_members: 0,
+            entries: vec![core::SuggestedEntry {
+                entry: core::ExpectedEntry::Role {
+                    instance: "demo".into(),
+                    role: "Read\u{202e}X\u{9b}\u{7f}".into(),
+                    resource: "repo-21".into(),
+                },
+                label: "infra".into(),
+                count: 1,
+            }],
+        };
+        let text = draft("backend", &suggestion).unwrap();
+        assert!(
+            text.contains(r#""role":"Read\u202eX\u009b\u007f""#),
+            "{text}"
+        );
+        assert!(
+            text.chars()
+                .all(|c| c == '\n' || crate::output::safe(&c.to_string()) == c.to_string())
+        );
+        let parsed: serde_json::Value = permesh_config::parse_setup_value(&text).unwrap();
+        assert_eq!(parsed["grants"][0]["role"], "Read\u{202e}X\u{9b}\u{7f}");
+    }
 }

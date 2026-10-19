@@ -456,3 +456,59 @@ fn unknown_group_is_not_found() {
     ));
     assert!(suggest_profile(&[fixture()], &Aliases::new(), &key("team-10"), 0).is_err());
 }
+
+fn bob_claimed_by_alice() -> Aliases {
+    let mut aliases = Aliases::new();
+    aliases
+        .entry(ALICE.to_string())
+        .or_default()
+        .insert("demo".into(), vec!["101".into()]);
+    aliases
+}
+
+#[test]
+fn ambiguous_account_makes_claimants_cannot_tell_and_incomplete() {
+    let result = compare_profiles(
+        &[fixture()],
+        &bob_claimed_by_alice(),
+        &input(backend(), &[BOB]),
+    )
+    .unwrap();
+    let bob = of(&result, BOB);
+    assert_eq!(bob.missing.len(), 2);
+    for missing in &bob.missing {
+        assert_eq!(missing.state, EntryState::CannotTell);
+        assert_eq!(missing.reason, "ambiguous_account");
+    }
+    assert!(!result.complete);
+    // Even with nothing expected, hidden access means the comparison cannot be clean.
+    let result = compare_profiles(
+        &[fixture()],
+        &bob_claimed_by_alice(),
+        &input(vec![], &[BOB]),
+    )
+    .unwrap();
+    assert!(!result.complete);
+}
+
+#[test]
+fn unresolved_directory_member_is_counted_once_and_incomplete() {
+    let mut s = fixture();
+    s.groups.push(Group {
+        key: key("team-11"),
+        name: "team/ops".into(),
+    });
+    member(&mut s, Subject::Account(key("101")), "team-10");
+    member(&mut s, Subject::Account(key("101")), "team-11");
+    let mut input = input(backend(), &[]);
+    for group in ["team-10", "team-11"] {
+        input.directory_groups.push(DirectoryAssignment {
+            instance: "demo".into(),
+            group: group.into(),
+            profiles: vec!["backend".into()],
+        });
+    }
+    let result = compare_profiles(&[s], &bob_claimed_by_alice(), &input).unwrap();
+    assert_eq!(result.unresolved_members, 1);
+    assert!(!result.complete);
+}

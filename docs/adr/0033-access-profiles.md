@@ -28,10 +28,11 @@ access.
   that no assigned entry explains is reported with the group route (`via`) and
   certainty. A group entry explains every path through that group.
 - **Uncertain identity never assigns access.** Accounts claimed by more than one
-  identity are not attributed (`ambiguous_accounts`). People files naming an
+  identity are not attributed (`ambiguous_accounts`); their claimants' entries in
+  that instance are `cannot_tell` and the comparison is incomplete. People files naming an
   unknown identity are `not_found`; conflicting records are `ambiguous`; both make
   the comparison incomplete. Directory-group members without a resolved identity
-  are counted as `unresolved_members`. An unresolved directory mapping turns every
+  are counted as `unresolved_members` and make the comparison incomplete. An unresolved directory mapping turns every
   unexplained entry into `cannot_tell`, because a hidden profile could explain it.
 - **Exceptions are policy version 2.** `unexplained_access` is valid only in
   `exceptions`: a membership scope `{instance, account, group}` accepts every path

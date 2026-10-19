@@ -282,3 +282,27 @@ fn unknown_group_exits_1() {
         Some(1)
     );
 }
+
+#[test]
+fn ambiguous_alias_is_incomplete_and_shown() {
+    let dir = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let config = fs::read_to_string(dir.path().join("permesh.yaml")).unwrap();
+    let config = config.replace(
+        "aliases: {}",
+        "aliases:\n    alice@example.com:\n      demo: ['101']",
+    );
+    fs::write(dir.path().join("permesh.yaml"), config).unwrap();
+    let (code, result) = check(dir.path(), &[]);
+    assert_eq!(code, Some(4), "{result}");
+    assert_eq!(result["counts"]["ambiguous_accounts"], 1);
+    let output = run(dir.path(), &["profile", "check"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("1 accounts claimed by more than one identity"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("ambiguous account"), "{stdout}");
+}
