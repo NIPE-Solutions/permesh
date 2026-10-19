@@ -33,6 +33,16 @@ CI uses cargo-deny 0.20.2 and cargo-audit 0.22.2, observed published 2026-07-09 
 
 The MIT text was obtained from [SPDX's MIT license text](https://github.com/spdx/license-list-data/blob/main/text/MIT.txt), with the project copyright holder substituted. Project licensing is [MIT](../LICENSE); dependency licenses and their required notices remain their own. The original MIT OR Apache-2.0 choice, whose Apache text came from the [Apache Software Foundation](https://www.apache.org/licenses/LICENSE-2.0.txt), is superseded for the current project by [ADR 0013](adr/0013-mit-license.md). Earlier revisions retain their original license terms.
 
+## SMTP notifications (2026-10-19)
+
+`lettre` 0.11 provides email delivery for `permesh check` notifications
+([ADR 0032](adr/0032-explicit-check-notifications.md)). It is built without default
+features: `builder`, `smtp-transport`, `tokio1`, `tokio1-rustls`,
+`rustls-platform-verifier` and `aws-lc-rs`, reusing the workspace's existing rustls,
+aws-lc-rs and platform-verifier stack instead of native-tls. Its
+`quoted_printable` 0.5.2 dependency is 0BSD and has a version-scoped exception in
+`deny.toml`.
+
 ## Advisory exceptions (2026-10-19)
 
 `deny.toml` and `.cargo/audit.toml` ignore exactly three advisories:

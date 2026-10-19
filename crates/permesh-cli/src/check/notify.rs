@@ -151,8 +151,93 @@ async fn send(
             let url = endpoint(&resolve(url, pool).await?)?;
             post(url, &payload(n, report)).await
         }
-        Channel::Email { .. } => Err("email delivery is not available in this build"),
+        Channel::Email { .. } => send_email(n, report, pool).await,
     }
+}
+
+/// SMTP always uses TLS: implicit on 465, required STARTTLS everywhere else.
+#[derive(Debug, PartialEq, Eq)]
+pub enum TlsMode {
+    Implicit,
+    StartTlsRequired,
+}
+pub fn tls_mode(port: u16) -> TlsMode {
+    if port == 465 {
+        TlsMode::Implicit
+    } else {
+        TlsMode::StartTlsRequired
+    }
+}
+
+fn subject(report: &CheckReport) -> String {
+    match report.status() {
+        "incomplete" => "Permesh check: incomplete".into(),
+        "clean" => "Permesh check: clean".into(),
+        _ => format!("Permesh check: {} findings", report.review_items()),
+    }
+}
+
+pub fn email_message(
+    n: &Notification,
+    report: &CheckReport,
+) -> Result<lettre::Message, &'static str> {
+    let Channel::Email { from, to, .. } = &n.channel else {
+        return Err("not an email channel");
+    };
+    let mut builder = lettre::Message::builder()
+        .from(from.parse().map_err(|_| "invalid email sender address")?)
+        .subject(subject(report))
+        .header(lettre::message::header::ContentType::TEXT_PLAIN);
+    for recipient in to {
+        builder = builder.to(recipient
+            .parse()
+            .map_err(|_| "invalid email recipient address")?);
+    }
+    builder
+        .body(text(n, report))
+        .map_err(|_| "cannot build email message")
+}
+
+async fn send_email(
+    n: &Notification,
+    report: &CheckReport,
+    pool: &BlockingPool,
+) -> Result<(), &'static str> {
+    use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
+    let Channel::Email {
+        smtp_host,
+        smtp_port,
+        username,
+        password,
+        ..
+    } = &n.channel
+    else {
+        return Err("not an email channel");
+    };
+    let message = email_message(n, report)?;
+    let password = resolve(password, pool).await?;
+    let builder = match tls_mode(*smtp_port) {
+        TlsMode::Implicit => AsyncSmtpTransport::<Tokio1Executor>::relay(smtp_host),
+        TlsMode::StartTlsRequired => {
+            AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(smtp_host)
+        }
+    }
+    .map_err(|_| "invalid SMTP host")?;
+    let transport = builder
+        .port(*smtp_port)
+        .credentials(lettre::transport::smtp::authentication::Credentials::new(
+            username.clone(),
+            password,
+        ))
+        .timeout(Some(DELIVERY_TIMEOUT))
+        .build();
+    transport.send(message).await.map(|_| ()).map_err(|e| {
+        if e.is_timeout() {
+            "endpoint timed out"
+        } else {
+            "SMTP server could not be reached or rejected the message"
+        }
+    })
 }
 
 pub async fn deliver_all(
@@ -188,6 +273,7 @@ pub async fn deliver_all(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::check::report::{Changes, Files};
@@ -296,5 +382,50 @@ mod tests {
         assert!(endpoint("https://hooks.example.com/x").is_ok());
         assert!(endpoint("http://127.0.0.1:9/x").is_ok());
         assert!(endpoint("ftp://example.com").is_err());
+    }
+
+    fn email(detail: bool) -> Notification {
+        notification(
+            Channel::Email {
+                smtp_host: "smtp.example.com".into(),
+                smtp_port: 587,
+                username: "permesh".into(),
+                password: "env://SMTP".into(),
+                from: "Permesh <permesh@example.com>".into(),
+                to: vec!["it@example.com".into()],
+            },
+            detail,
+            vec![],
+        )
+    }
+
+    #[test]
+    fn email_message_has_counts_subject_and_no_names() {
+        let message = email_message(&email(false), &report()).unwrap();
+        let raw = String::from_utf8(message.formatted()).unwrap();
+        assert!(raw.contains("Subject: Permesh check: 2 findings"), "{raw}");
+        assert!(raw.contains("Departed people with access: 1"), "{raw}");
+        assert!(!raw.contains("former-dev"), "{raw}");
+        let detailed =
+            String::from_utf8(email_message(&email(true), &report()).unwrap().formatted()).unwrap();
+        assert!(detailed.contains("former-dev"));
+    }
+
+    #[test]
+    fn email_never_uses_plaintext_transport() {
+        assert_eq!(tls_mode(465), TlsMode::Implicit);
+        for port in [25, 587, 2525] {
+            assert_eq!(tls_mode(port), TlsMode::StartTlsRequired);
+        }
+    }
+
+    #[test]
+    fn invalid_email_addresses_fail_without_echoing_them() {
+        let mut n = email(false);
+        if let Channel::Email { to, .. } = &mut n.channel {
+            *to = vec!["not an address".into()];
+        }
+        let error = email_message(&n, &report()).err().unwrap();
+        assert!(!error.contains("not an address"));
     }
 }

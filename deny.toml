@@ -16,6 +16,12 @@ allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "CDLA-Permis
 crate = "zlib-rs@0.6.7"
 allow = ["Zlib"]
 
+# Email quoted-printable encoder for SMTP notifications (ADR 0032); 0BSD is
+# public-domain-equivalent with no notice requirement, scoped to this exact release.
+[[licenses.exceptions]]
+crate = "quoted_printable@0.5.2"
+allow = ["0BSD"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
