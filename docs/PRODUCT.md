@@ -29,9 +29,9 @@ Alpha.2 cannot parse the new negotiated-discovery catalog metadata and must be
 upgraded before using the current catalog; CLI replacement leaves installed pins unchanged.
 Existing trust and legacy approval records remain stored, but alpha.3 requires a
 fresh provider review and explicit scoped approval before execution.
-Alpha.3 package installation supports all seven providers, while guided
-`provider add` supports GitHub, Google, Cloudflare and AWS IAM. GitLab, Entra and
-Identity Center require the explicit external trust/setup path after installation.
+Alpha.3 package installation supports all seven providers, while its guided
+`provider add` supports GitHub, Google, Cloudflare and AWS IAM. Current source
+extends guided `provider add` to GitLab, Entra and Identity Center.
 AWS currently inventories IAM policy attachments using
 named credentials, without native profile/SSO loading or effective-policy evaluation.
 No mutation APIs, policy engine, web UI, provisioning, HR system, SSO, password

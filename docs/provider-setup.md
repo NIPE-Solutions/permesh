@@ -190,3 +190,16 @@ Queries and health use the explicitly selected discovery contract. Official guid
 add carries the verified package selection into workspace configuration. For
 separately trusted negotiated-v1 binaries, pass `--discovery-protocol negotiated-v1`
 to setup; the advanced workflow defaults to legacy for existing binaries. [Package installation and explicit updates](provider-packages.md) store untrusted binaries; use explicit binary trust before setup. Automatic updates and dynamic provider-driven setup steps remain deferred.
+
+## GitLab, Entra and AWS Identity Center
+
+Current source guides these the same way as the other official providers:
+
+```bash
+permesh provider add gitlab               # origin defaults to https://gitlab.com
+permesh provider add entra                # Entra tenant ID, optional service principals
+permesh provider add aws-identity-center  # instance ARN, identity store, account scope
+```
+
+Each form comes from the provider package itself. For noninteractive use, pass
+`--answers FILE --accept-risk` as with the other providers.

@@ -78,7 +78,7 @@ When any authority is absent or partial, every observed account has reason `unas
 
 ## Other results
 
-`provider_list`: `{providers: [{id,type}]}`. `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add` for bundled/manual instances: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
+`provider_list`: `{providers: [{id,type,provider,live_tested}]}`; `provider` is the external provider ID (`null` for built-ins) and `live_tested` says whether an official provider with that ID has recorded [live tenant acceptance](live-acceptance.md) (`null` for built-ins). It is keyed by provider ID only and does not verify that the configured binary is the official package; use `provider external review` for that. `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add` for bundled/manual instances: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
 
 ## Error envelope
 
@@ -98,6 +98,7 @@ Errors deliberately omit raw arguments, YAML snippets, tokens, provider response
 | 3 | All requested providers failed, or credential operation failed |
 | 4 | Some results available, but collection/credential checks incomplete |
 | 5 | Internal or output error |
+| 6 | Review findings were established (for example by `policy check`) |
 | 130 | Cancelled by Ctrl+C |
 
 A broken stdout pipe exits cleanly with 0, following Unix pipeline conventions. A partial provider takes precedence over not-found, since missing data cannot establish absence. Schema changes are intentional and recorded in CHANGELOG; output schema, workspace schema and plugin protocol versions are independent.

@@ -1,5 +1,28 @@
 # Install Permesh
 
+## Package managers
+
+> **Pending publication:** the Homebrew tap and Scoop bucket are generated but not
+> yet published. Until they are, use the archives below.
+
+```bash
+# macOS and Linux
+brew install NIPE-Solutions/permesh/permesh
+```
+
+```powershell
+# Windows
+scoop bucket add permesh https://github.com/NIPE-Solutions/scoop-permesh
+scoop install permesh
+```
+
+Both install the same release archives listed below, pinned by SHA-256. A Homebrew
+formula install does not mark the binary as downloaded from the Internet, so macOS
+does not show a Gatekeeper prompt; the binary itself is still not code-signed or
+notarized. Scoop on Windows has not yet been tested on a real machine.
+
+## Release archives
+
 Download an archive and its adjacent `.sha256` file from the [0.1.0-alpha.3 release](https://github.com/NIPE-Solutions/permesh/releases/tag/v0.1.0-alpha.3). Choose your OS and CPU:
 
 | System | Target | Archive |

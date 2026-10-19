@@ -4,17 +4,17 @@ The provider boundary is read-only. Adapters supply capabilities, health and
 normalized observations; core owns identity matching and graph traversal.
 Provider output goes through the host's validated protocol.
 
-| Provider | Scope | Availability |
-| --- | --- | --- |
-| Demo | Synthetic accounts, authoritative identities, resources, groups, memberships and grants; no secrets or network | Bundled; `init --demo` |
-| Inventory | Explicit pinned JSON identity inventory with declared scope, provenance and freshness; no network | Built into published alpha.3; [inventory contract](identity-inventory.md) |
-| GitHub | Organization/repository observations, teams, memberships and observed grants; no claim of complete effective authorization | External 0.1.0 and 0.2.0 evaluation releases are catalog-installable; limited 0.2.0 live acceptance |
-| Google | Customer-wide directory accounts and optionally authoritative identities; no resource grants or groups | External 0.2.0 evaluation release is catalog-installable; live tenant qualification pending |
-| Cloudflare | Account-access observations with conservative policy and visibility handling | External 0.2.0 evaluation release is catalog-installable; live tenant qualification pending |
-| AWS IAM | IAM users, roles, groups and policy attachments in one commercial account; no effective-permission or administrator analysis | External 0.2.0 evaluation release is catalog-installable; live account qualification pending |
-| GitLab | Reviewed groups/projects, direct membership and collapsed inherited/shared access observations with native levels | External 0.2.0 evaluation release is catalog-installable; live GitLab qualification pending |
-| Microsoft Entra ID | Verified tenant-bound directory accounts/identities, groups, direct memberships and optional service principals; no Azure RBAC or PIM | External 0.2.0 evaluation release is catalog-installable; live tenant qualification pending |
-| AWS Identity Center | Explicit instance/store and account scope; groups, provisioned permission sets and assignments, optionally scoped Organizations names | External 0.2.0 evaluation release is catalog-installable; live account qualification pending |
+| Provider | Scope | Availability | Live tested |
+| --- | --- | --- | --- |
+| Demo | Synthetic accounts, authoritative identities, resources, groups, memberships and grants; no secrets or network | Bundled; `init --demo` | n/a |
+| Inventory | Explicit pinned JSON identity inventory with declared scope, provenance and freshness; no network | Built into published alpha.3; [inventory contract](identity-inventory.md) | n/a |
+| GitHub | Organization/repository observations, teams, memberships and observed grants; no claim of complete effective authorization | External 0.1.0 and 0.2.0 evaluation releases are catalog-installable; limited 0.2.0 live acceptance | Yes (limited) |
+| Google | Customer-wide directory accounts and optionally authoritative identities; no resource grants or groups | External 0.2.0 evaluation release is catalog-installable; live tenant qualification pending | Not yet |
+| Cloudflare | Account-access observations with conservative policy and visibility handling | External 0.2.0 evaluation release is catalog-installable; live tenant qualification pending | Not yet |
+| AWS IAM | IAM users, roles, groups and policy attachments in one commercial account; no effective-permission or administrator analysis | External 0.2.0 evaluation release is catalog-installable; live account qualification pending | Not yet |
+| GitLab | Reviewed groups/projects, direct membership and collapsed inherited/shared access observations with native levels | External 0.2.0 evaluation release is catalog-installable; live GitLab qualification pending | Not yet |
+| Microsoft Entra ID | Verified tenant-bound directory accounts/identities, groups, direct memberships and optional service principals; no Azure RBAC or PIM | External 0.2.0 evaluation release is catalog-installable; live tenant qualification pending | Not yet |
+| AWS Identity Center | Explicit instance/store and account scope; groups, provisioned permission sets and assignments, optionally scoped Organizations names | External 0.2.0 evaluation release is catalog-installable; live account qualification pending | Not yet |
 
 Official external source is maintained in
 [permesh-providers](https://github.com/NIPE-Solutions/permesh-providers).
@@ -27,7 +27,8 @@ New adapters have separate candidate checks; see the
 The public catalog contains all 35 target-specific 0.2.0 entries. Exact public
 downloads, idempotent updates, catalog parsing and native digest selection passed
 for all seven providers. Guided portable add passed for GitHub, Google, Cloudflare
-and AWS IAM; GitLab, Entra and Identity Center use explicit external trust/setup.
+and AWS IAM. Current source extends guided `provider add` to GitLab, Entra and
+Identity Center; alpha.3 uses explicit external trust/setup for those three.
 Follow the [GitHub guide](providers/github.md)
 and [Google identity source guide](providers/google.md) for setup and limitations.
 

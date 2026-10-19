@@ -149,7 +149,7 @@ pub enum ProviderCommand {
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {
-    #[arg(value_parser=["github", "google", "cloudflare", "aws", "external"], help="Provider type; official providers guide package trust and setup")]
+    #[arg(value_parser=crate::guided_add::OFFICIAL_GUIDED.into_iter().chain(["external"]).collect::<Vec<_>>(), help="Provider type; official providers guide package trust and setup")]
     pub provider_type: String,
     #[arg(long, value_enum, default_value_t = DiscoveryProtocol::Legacy, help = "Discovery contract for advanced external configuration; official packages use catalog metadata")]
     pub discovery_protocol: DiscoveryProtocol,

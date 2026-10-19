@@ -809,3 +809,26 @@ async fn portable_decline_and_setup_failure_retain_explicit_continuation() {
         assert_eq!(fs::read(&sandbox.config).unwrap(), original);
     }
 }
+
+#[test]
+fn new_official_providers_parse_and_reach_guided_setup() {
+    for provider in ["gitlab", "entra", "aws-identity-center"] {
+        let cli = Cli::try_parse_from([
+            "permesh",
+            "provider",
+            "add",
+            provider,
+            "--answers",
+            "answers.yaml",
+        ])
+        .unwrap_or_else(|error| panic!("{provider}: {error}"));
+        let crate::args::Command::Provider {
+            command: crate::args::ProviderCommand::Add(args),
+        } = &cli.command
+        else {
+            panic!()
+        };
+        let setup = setup_args(args).unwrap_or_else(|error| panic!("{}", error.message));
+        assert_eq!(setup.provider, provider);
+    }
+}

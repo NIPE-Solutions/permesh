@@ -21,9 +21,8 @@ Nothing here declares the SDK or protocol stable.
   workspace approval, bounded communication, cancellation and partial results.
 - Explicit provider installation/updates and guided add/setup, declarative setup
   forms, keychain/environment references and provider-described browser login.
-  Catalog installation supports seven providers; guided `provider add` supports
-  GitHub, Google, Cloudflare and AWS IAM. GitLab, Entra and Identity Center use
-  explicit external trust/setup after installation.
+  Catalog installation and guided `provider add` support all seven providers in
+  current source; alpha.3 guides GitHub, Google, Cloudflare and AWS IAM only.
 - Negotiated v1 discovery/health in the host and official emitters. Verified
   package compatibility propagates to guided setup; advanced setup/migration
   has an explicit selector. Existing legacy metadata remains unchanged.
@@ -88,6 +87,9 @@ See the [implementation and qualification gap map](audits/architecture-hardening
 for validation evidence and remaining prerequisites.
 
 ## Release and adoption gates
+
+- The [stability declaration](stability.md) defines which surfaces are stable
+  for the beta line and which remain experimental.
 
 - The exact alpha.3 candidate passed signed-artifact verification, local provider
   package/setup/trust/approval/pin checks, and limited authorized GitHub queries;
