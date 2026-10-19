@@ -16,7 +16,7 @@ use permesh_core::{self as core, OrphanReason};
 use report::{ALL_KINDS, Changes, CheckReport, Files, ProviderLine};
 use serde_json::{Value, json};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
 };
 use time::OffsetDateTime;
@@ -110,6 +110,77 @@ fn departures(artifact: &Artifact) -> Result<(bool, Vec<Value>), AppError> {
     Ok((true, departed))
 }
 
+type AdminKey = (core::EntityKey, core::EntityKey);
+/// Known privileged (account, resource) pairs, including access derived through groups.
+fn admins(artifact: &Artifact) -> Result<BTreeMap<AdminKey, Value>, AppError> {
+    let (snapshots, aliases) = crate::resource_command::domain(artifact);
+    let result = core::query_admins(&snapshots, &aliases)?;
+    let logins: BTreeMap<_, _> = result
+        .accounts
+        .iter()
+        .map(|a| (&a.account.key, a.account.login.as_str()))
+        .collect();
+    let mut admins = BTreeMap::new();
+    for path in &result.access {
+        admins
+            .entry((path.account.clone(), path.resource.key.clone()))
+            .or_insert_with(|| {
+                json!({
+                    "instance": path.account.provider,
+                    "account": path.account.id,
+                    "login": logins.get(&path.account).copied().unwrap_or_default(),
+                    "resource": path.resource.key.id,
+                    "resource_name": path.resource.name,
+                    "role": path.grant.role,
+                })
+            });
+    }
+    Ok(admins)
+}
+fn only_in(a: &BTreeMap<AdminKey, Value>, b: &BTreeMap<AdminKey, Value>) -> Vec<Value> {
+    a.iter()
+        .filter(|(k, _)| !b.contains_key(*k))
+        .map(|(_, v)| v.clone())
+        .collect()
+}
+fn accounts(entries: &[Value]) -> usize {
+    entries
+        .iter()
+        .map(|e| (e["instance"].to_string(), e["account"].to_string()))
+        .collect::<BTreeSet<_>>()
+        .len()
+}
+/// Compare with a baseline. Any inconclusive provider makes the whole comparison
+/// inconclusive: partial "no changes" would read as a clean result.
+fn changes(before: &Artifact, after: &Artifact) -> Result<Changes, AppError> {
+    let comparison = artifact::diff::compare(before, after)?;
+    if !comparison.inconclusive.is_empty() {
+        let reasons: BTreeSet<_> = comparison
+            .inconclusive
+            .iter()
+            .map(|g| g.reason.to_owned())
+            .collect();
+        return Ok(Changes::Inconclusive {
+            reasons: reasons.into_iter().collect(),
+        });
+    }
+    let (old, new) = (admins(before)?, admins(after)?);
+    let no_longer_observed = comparison
+        .changes
+        .iter()
+        .filter(|c| {
+            c.entity_kind == "identities"
+                && matches!(c.change, artifact::diff::ChangeKind::NoLongerObserved)
+        })
+        .map(|c| json!({"instance": c.instance, "identity": c.before.as_ref().map(|b| b["id"].clone())}))
+        .collect();
+    Ok(Changes::Compared {
+        new_admins: only_in(&new, &old),
+        removed_admins: only_in(&old, &new),
+        no_longer_observed,
+    })
+}
+
 fn exit_code(all_failed: bool, complete: bool, review_items: usize) -> u8 {
     if all_failed {
         3
@@ -124,6 +195,7 @@ fn exit_code(all_failed: bool, complete: bool, review_items: usize) -> u8 {
 
 fn build(
     artifact: &Artifact,
+    previous: Option<&Artifact>,
     policy: &LoadedPolicy,
     collection_complete: bool,
     args: &CheckArgs,
@@ -144,12 +216,27 @@ fn build(
         .filter(|p| p.state == State::Failed)
         .count();
     let all_failed = !artifact.providers.is_empty() && failed == artifact.providers.len();
-    let complete = collection_complete && artifact.complete() && evaluation_complete;
+    let changes = match previous {
+        Some(previous) => changes(previous, artifact)?,
+        None => Changes::NoBaseline,
+    };
+    let comparable = !matches!(changes, Changes::Inconclusive { .. });
+    let complete = collection_complete && artifact.complete() && evaluation_complete && comparable;
     let mut counts: BTreeMap<FindingKind, usize> = ALL_KINDS.iter().map(|k| (*k, 0)).collect();
     counts.insert(FindingKind::DepartedWithAccess, departed.len());
     counts.insert(FindingKind::PolicyFinding, findings.len());
     counts.insert(FindingKind::ProviderFailed, failed);
     counts.insert(FindingKind::Incomplete, usize::from(!complete));
+    if let Changes::Compared {
+        new_admins,
+        removed_admins,
+        no_longer_observed,
+    } = &changes
+    {
+        counts.insert(FindingKind::NewAdmin, accounts(new_admins));
+        counts.insert(FindingKind::RemovedAdmin, accounts(removed_admins));
+        counts.insert(FindingKind::NoLongerObserved, no_longer_observed.len());
+    }
     let report = CheckReport {
         check_report_version: 1,
         complete,
@@ -169,7 +256,7 @@ fn build(
                 limitations: p.limitations.clone(),
             })
             .collect(),
-        changes: Changes::NoBaseline,
+        changes,
         departed,
         findings,
         policy: json!({"rules": policy.rules()}),
@@ -211,8 +298,12 @@ pub async fn run(
     cancelled(cancel)?;
     check_output(cli, &args.out, args.overwrite)?;
     let policy_path = args.policy.clone();
-    let policy = pool
-        .run(move || LoadedPolicy::load(policy_path.as_deref()))
+    let previous_path = args.previous.clone();
+    let (policy, previous) = pool
+        .run(move || -> Result<_, AppError> {
+            let previous = previous_path.as_deref().map(artifact::load).transpose()?;
+            Ok((LoadedPolicy::load(policy_path.as_deref())?, previous))
+        })
         .await??;
     let (mut outcome, artifact) = crate::snapshot_command::capture(cli, pool, cancel).await?;
     cancelled(cancel)?;
@@ -229,7 +320,13 @@ pub async fn run(
                 owned.overwrite,
                 &token,
             )?;
-            let (report, all_failed) = build(&artifact, &policy, collection_complete, &owned)?;
+            let (report, all_failed) = build(
+                &artifact,
+                previous.as_ref(),
+                &policy,
+                collection_complete,
+                &owned,
+            )?;
             let code = exit_code(all_failed, report.complete, report.review_items());
             write_report(&owned.out, &report, owned.overwrite, &token)?;
             let summary = report::summary_markdown(&report);

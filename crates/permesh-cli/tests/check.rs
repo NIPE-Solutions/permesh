@@ -143,3 +143,116 @@ fn explicit_policy_file_is_used_and_departed_is_independent_of_it() {
         serde_json::json!(["external_privileged"])
     );
 }
+
+/// Run once into `a/`, then return the saved snapshot for editing as a baseline.
+fn baseline(dir: &Path) -> serde_json::Value {
+    run(dir, &["check", "--out", "a", "--no-notify"]);
+    serde_json::from_slice(&fs::read(dir.join("a/snapshot.json")).unwrap()).unwrap()
+}
+fn save(dir: &Path, name: &str, snapshot: &serde_json::Value) {
+    fs::write(dir.join(name), serde_json::to_vec_pretty(snapshot).unwrap()).unwrap();
+}
+fn check_against(dir: &Path, previous: &str) -> (Option<i32>, serde_json::Value) {
+    let output = run(
+        dir,
+        &[
+            "check",
+            "--out",
+            "b",
+            "--previous",
+            previous,
+            "--no-notify",
+            "--json",
+        ],
+    );
+    (output.status.code(), report(&output)["result"].clone())
+}
+
+#[test]
+fn identical_baseline_reports_no_admin_changes() {
+    let dir = demo();
+    baseline(dir.path());
+    let (code, result) = check_against(dir.path(), "a/snapshot.json");
+    assert_eq!(code, Some(6));
+    let compared = &result["changes"]["compared"];
+    assert_eq!(compared["new_admins"], serde_json::json!([]));
+    assert_eq!(compared["removed_admins"], serde_json::json!([]));
+    assert_eq!(result["counts"]["new_admin"], 0);
+}
+
+#[test]
+fn new_admin_grant_is_reported() {
+    let dir = demo();
+    let mut snapshot = baseline(dir.path());
+    let grants = snapshot["providers"][0]["data"]["grants"]
+        .as_array_mut()
+        .unwrap();
+    let before = grants.len();
+    grants.retain(|g| g["privilege"] != "admin" && g["privilege"] != "owner");
+    assert!(grants.len() < before, "demo has an admin grant");
+    save(dir.path(), "previous.json", &snapshot);
+    let (code, result) = check_against(dir.path(), "previous.json");
+    assert_eq!(code, Some(6));
+    assert_eq!(result["counts"]["new_admin"], 1);
+    let added = &result["changes"]["compared"]["new_admins"][0];
+    assert_eq!(added["login"], "bob-admin");
+}
+
+#[test]
+fn vanished_identity_is_needs_review_not_departed() {
+    let dir = demo();
+    let mut snapshot = baseline(dir.path());
+    let identities = snapshot["providers"][0]["data"]["identities"]
+        .as_array_mut()
+        .unwrap();
+    let mut extra = identities[0].clone();
+    extra["id"] = "vanished@example.com".into();
+    extra["verified_emails"] = serde_json::json!(["vanished@example.com"]);
+    identities.push(extra);
+    save(dir.path(), "previous.json", &snapshot);
+    let (_, result) = check_against(dir.path(), "previous.json");
+    assert_eq!(result["counts"]["no_longer_observed"], 1);
+    assert_eq!(result["counts"]["departed_with_access"], 1);
+}
+
+#[test]
+fn different_provider_set_is_inconclusive_not_unchanged() {
+    let dir = demo();
+    let mut snapshot = baseline(dir.path());
+    let text = serde_json::to_string(&snapshot)
+        .unwrap()
+        .replace("\"demo\"", "\"other\"");
+    snapshot = serde_json::from_str(&text).unwrap();
+    save(dir.path(), "previous.json", &snapshot);
+    let (code, result) = check_against(dir.path(), "previous.json");
+    assert_eq!(code, Some(4));
+    assert_eq!(result["complete"], false);
+    let reasons = result["changes"]["inconclusive"]["reasons"]
+        .as_array()
+        .unwrap();
+    assert!(
+        reasons.iter().any(|r| r == "provider_set_changed"),
+        "{reasons:?}"
+    );
+    let summary = fs::read_to_string(dir.path().join("b/summary.md")).unwrap();
+    assert!(summary.contains("inconclusive"), "{summary}");
+}
+
+#[test]
+fn missing_previous_file_is_input_error() {
+    let dir = demo();
+    let output = run(
+        dir.path(),
+        &[
+            "check",
+            "--out",
+            "b",
+            "--previous",
+            "nope.json",
+            "--no-notify",
+            "--json",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(!dir.path().join("b").exists());
+}
