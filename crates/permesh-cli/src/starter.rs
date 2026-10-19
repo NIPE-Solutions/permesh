@@ -3,7 +3,7 @@
 use crate::{error::AppError, report::Outcome};
 use std::{fs, path::Path};
 
-const TEMPLATE_ORGANIZATION: &str = "  name: \"Example organization\"\n";
+const TEMPLATE_ORGANIZATION: &str = "  name: \"Example organization\"";
 const FILES: [(&str, &str); 8] = [
     (
         "permesh.yaml",
@@ -43,11 +43,16 @@ fn workspace(organization: &str) -> Result<String, AppError> {
     // A JSON string is a valid YAML double-quoted scalar.
     let quoted = serde_json::to_string(organization)
         .map_err(|_| AppError::input("Invalid organization name"))?;
-    let yaml = FILES[0]
-        .1
-        .replacen(TEMPLATE_ORGANIZATION, &format!("  name: {quoted}\n"), 1);
+    let yaml = substitute(FILES[0].1, &quoted)
+        .ok_or_else(|| AppError::new(5, "Starter template is missing its organization line"))?;
     permesh_config::Config::from_bytes(yaml.as_bytes())?;
     Ok(yaml)
+}
+
+fn substitute(template: &str, quoted: &str) -> Option<String> {
+    template
+        .contains(TEMPLATE_ORGANIZATION)
+        .then(|| template.replacen(TEMPLATE_ORGANIZATION, &format!("  name: {quoted}"), 1))
 }
 
 pub fn init(root: &Path, organization: &str) -> Result<Outcome, AppError> {
@@ -94,4 +99,23 @@ pub fn init(root: &Path, organization: &str) -> Result<Outcome, AppError> {
             "next": "permesh provider add github --portable; see README.md",
         }),
     )
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn organization_is_substituted_with_crlf_line_endings() {
+        let template = FILES[0].1.replace("\r\n", "\n").replace('\n', "\r\n");
+        let yaml = substitute(&template, "\"Acme\"").unwrap();
+        assert!(yaml.contains("name: \"Acme\""), "{yaml}");
+        assert!(!yaml.contains("Example organization"));
+    }
+
+    #[test]
+    fn missing_template_marker_is_an_error() {
+        assert!(substitute("organization: {}\n", "\"Acme\"").is_none());
+    }
 }
