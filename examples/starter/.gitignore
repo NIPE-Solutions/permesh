@@ -1,0 +1,4 @@
+# Check output and snapshots contain sensitive access metadata.
+out/
+baseline/
+*.snapshot.json

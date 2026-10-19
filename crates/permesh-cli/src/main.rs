@@ -42,6 +42,7 @@ mod setup_output;
 mod setup_prompt;
 mod setup_workspace;
 mod snapshot_command;
+mod starter;
 mod workspace;
 use clap::Parser;
 use error::AppError;

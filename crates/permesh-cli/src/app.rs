@@ -82,7 +82,23 @@ pub async fn run(
     {
         return crate::setup::run(cli, args, blocking, cancellation).await;
     }
-    if let Command::Init { demo, organization } = &cli.command {
+    if let Command::Init {
+        starter: true,
+        organization,
+        ..
+    } = &cli.command
+    {
+        let organization = organization
+            .clone()
+            .unwrap_or_else(|| "My organization".into());
+        return blocking
+            .run(move || crate::starter::init(std::path::Path::new("."), &organization))
+            .await?;
+    }
+    if let Command::Init {
+        demo, organization, ..
+    } = &cli.command
+    {
         let owned_cli = cli.clone();
         let demo = *demo;
         let organization = organization.clone();

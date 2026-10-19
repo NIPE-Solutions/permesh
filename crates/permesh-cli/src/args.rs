@@ -59,6 +59,9 @@ pub enum Command {
     Init {
         #[arg(long)]
         demo: bool,
+        /// Write a starter layout with scheduled CI checks.
+        #[arg(long, conflicts_with = "demo")]
+        starter: bool,
         #[arg(long)]
         organization: Option<String>,
     },

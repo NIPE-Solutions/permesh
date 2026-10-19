@@ -1,0 +1,95 @@
+# Scheduled Permesh access check. See docs: https://github.com/NIPE-Solutions/permesh/blob/main/docs/starter.md
+name: Permesh check
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+  actions: read
+concurrency:
+  group: permesh-check
+  cancel-in-progress: false
+env:
+  # A Permesh release that includes `permesh check`.
+  PERMESH_VERSION: "0.1.0-alpha.4"
+  PERMESH_DATA_DIR: ${{ runner.temp }}/permesh-state
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Permesh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="permesh-${PERMESH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          gh release download "v${PERMESH_VERSION}" -R NIPE-Solutions/permesh -p "$archive" -p "$archive.sha256"
+          sha256sum -c "$archive.sha256"
+          mkdir -p "$RUNNER_TEMP/permesh-bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/permesh-bin"
+          echo "$RUNNER_TEMP/permesh-bin" >> "$GITHUB_PATH"
+      - name: Trust and approve pinned providers
+        run: sh ci/bootstrap.sh
+      - name: Fetch the previous baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=permesh-baseline&per_page=20" \
+            --jq '[.artifacts[] | select(.expired == false)][0].id // empty')
+          if [ -n "$id" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > baseline.zip
+            mkdir -p baseline && unzip -q baseline.zip -d baseline
+          else
+            echo "No baseline yet; this run will not compare changes."
+          fi
+      - name: Run check
+        id: check
+        env:
+          # Map each credential reference in permesh.yaml (env://NAME) to a repository secret.
+          PERMESH_GITHUB_TOKEN: ${{ secrets.PERMESH_GITHUB_TOKEN }}
+          PERMESH_GOOGLE_TOKEN: ${{ secrets.PERMESH_GOOGLE_TOKEN }}
+          PERMESH_SLACK_WEBHOOK: ${{ secrets.PERMESH_SLACK_WEBHOOK }}
+        run: |
+          set +e
+          previous=""
+          [ -f baseline/snapshot.json ] && previous="--previous baseline/snapshot.json"
+          # shellcheck disable=SC2086
+          permesh check --out out --policy policies/review-policy.json $previous \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+      - name: Keep the full report (sensitive)
+        if: always() && hashFiles('out/check.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: permesh-check-${{ github.run_id }}
+          path: out/
+          retention-days: 90
+      - name: Keep the baseline for the next run
+        if: steps.check.outputs.code == '0' || steps.check.outputs.code == '6'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: permesh-baseline
+          path: out/snapshot.json
+          retention-days: 90
+      - name: Update the review issue (counts only)
+        if: always() && hashFiles('out/summary.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE: ${{ steps.check.outputs.code }}
+        run: |
+          issue=$(gh issue list --label permesh-check --state open --json number --jq '.[0].number // empty')
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body-file out/summary.md
+          elif [ "$CODE" != "0" ]; then
+            gh label create permesh-check --color B60205 --description "Permesh access check" 2>/dev/null || true
+            gh issue create --title "Permesh access check needs review" --label permesh-check --body-file out/summary.md
+          fi
+      - name: Report result
+        if: always()
+        env:
+          CODE: ${{ steps.check.outputs.code }}
+        run: exit "${CODE:-5}"
