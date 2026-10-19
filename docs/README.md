@@ -10,7 +10,8 @@ connects them to a resource. Choose a starting point below.
 3. [Understand identity matching](identity-resolution.md): connect a provider login to a canonical identity safely.
 4. [Check provider coverage](providers.md): know what is available and what each adapter can prove.
 
-Documentation on `main` follows current source. Published alpha.2 has earlier
+Documentation on `main` follows current source. [Release status and upgrade
+notes](status.md) describe what the published release includes. Published alpha.2 has earlier
 contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 [upgrade notes](migrations/domain-schema-2.md) when comparing versions.
 
