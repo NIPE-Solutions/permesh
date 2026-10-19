@@ -88,6 +88,9 @@ for validation evidence and remaining prerequisites.
 
 ## Release and adoption gates
 
+- The [stability declaration](stability.md) defines which surfaces are stable
+  for the beta line and which remain experimental.
+
 - The exact alpha.3 candidate passed signed-artifact verification, local provider
   package/setup/trust/approval/pin checks, and limited authorized GitHub queries;
   see [release evidence](releases/0.1.0-alpha.3.md). Public 0.2.0 installation,

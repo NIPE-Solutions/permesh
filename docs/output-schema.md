@@ -98,6 +98,7 @@ Errors deliberately omit raw arguments, YAML snippets, tokens, provider response
 | 3 | All requested providers failed, or credential operation failed |
 | 4 | Some results available, but collection/credential checks incomplete |
 | 5 | Internal or output error |
+| 6 | Review findings were established (for example by `policy check`) |
 | 130 | Cancelled by Ctrl+C |
 
 A broken stdout pipe exits cleanly with 0, following Unix pipeline conventions. A partial provider takes precedence over not-found, since missing data cannot establish absence. Schema changes are intentional and recorded in CHANGELOG; output schema, workspace schema and plugin protocol versions are independent.

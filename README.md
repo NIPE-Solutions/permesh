@@ -146,7 +146,8 @@ cargo install --path crates/permesh-cli --locked
 ```
 
 Permesh is alpha software; the current release is 0.1.0-alpha.3. See
-[release status and upgrade notes](docs/status.md).
+[release status and upgrade notes](docs/status.md) and what is
+[stable](docs/stability.md).
 
 ## How it stays safe
 

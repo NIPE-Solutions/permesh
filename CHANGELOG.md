@@ -4,6 +4,17 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Guided `provider add` now supports GitLab, Entra ID and AWS Identity Center.
+- `provider list` reports each external provider's ID and whether it has recorded
+  live tenant acceptance (`provider`, `live_tested`); human output marks untested
+  providers.
+- Declare the [beta stability line](docs/stability.md): stable configuration,
+  JSON schemas, exit codes and review file formats, with a migration policy.
+- Add a Homebrew formula and Scoop manifest generator for release archives, and
+  a live tenant acceptance runbook.
+- Rewrite the README around access workflows; release and upgrade notes move to
+  [release status](docs/status.md).
+
 - Add explicitly selected temporary AWS shared-credentials profiles with
   account/role-bound provider settings; no automatic credential chain or helper execution.
 

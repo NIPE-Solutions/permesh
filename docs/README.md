@@ -11,7 +11,8 @@ connects them to a resource. Choose a starting point below.
 4. [Check provider coverage](providers.md): know what is available and what each adapter can prove.
 
 Documentation on `main` follows current source. [Release status and upgrade
-notes](status.md) describe what the published release includes. Published alpha.2 has earlier
+notes](status.md) describe what the published release includes; [stability](stability.md)
+says which formats are stable. Published alpha.2 has earlier
 contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 [upgrade notes](migrations/domain-schema-2.md) when comparing versions.
 
