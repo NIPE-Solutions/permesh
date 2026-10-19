@@ -24,6 +24,10 @@ pub enum FindingKind {
     DepartedWithAccess,
     NoLongerObserved,
     PolicyFinding,
+    /// Access no declared profile explains (`profiles` section, ADR 0033).
+    UnexplainedAccess,
+    /// Declared profile entries not observed for an assigned person.
+    MissingAccess,
     Incomplete,
     ProviderFailed,
 }

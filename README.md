@@ -88,6 +88,11 @@ configuration repository with weekly GitHub Actions or GitLab CI runs. See
 [scheduled checks](docs/check.md), [notifications](docs/notifications.md) and the
 [starter](docs/starter.md).
 
+Declare what each role should have in `profiles/` and `people/`, and
+`permesh profile check` lists access nobody explains, including access through
+nested groups, with the route that grants it. `permesh profile suggest` drafts a
+profile from an existing team. See [access profiles](docs/profiles.md).
+
 To compare by hand, take a snapshot, take another later, and compare:
 
 ```bash

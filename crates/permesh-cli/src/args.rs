@@ -101,6 +101,11 @@ pub enum Command {
         #[command(subcommand)]
         command: crate::policy_command::PolicyCommand,
     },
+    /// Compare declared access profiles with observed access, or draft a profile.
+    Profile {
+        #[command(subcommand)]
+        command: crate::profile_command::ProfileCommand,
+    },
     /// Assess, plan and verify a departure review without changing provider access.
     Offboard {
         #[command(subcommand)]

@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
 //! Check report version 1 (experimental). `summary.md` carries counts only.
 use permesh_config::FindingKind;
-use serde::Serialize;
-use serde_json::Value;
+use serde::{Serialize, Serializer};
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
-pub const ALL_KINDS: [FindingKind; 7] = [
+pub const ALL_KINDS: [FindingKind; 9] = [
     FindingKind::DepartedWithAccess,
     FindingKind::NewAdmin,
     FindingKind::RemovedAdmin,
     FindingKind::NoLongerObserved,
     FindingKind::PolicyFinding,
+    FindingKind::UnexplainedAccess,
+    FindingKind::MissingAccess,
     FindingKind::ProviderFailed,
     FindingKind::Incomplete,
 ];
@@ -21,7 +23,11 @@ pub const DIFF_KINDS: [FindingKind; 3] = [
     FindingKind::RemovedAdmin,
     FindingKind::NoLongerObserved,
 ];
+/// Kinds that only exist when profiles were compared; report-only unless enforced.
+pub const PROFILE_KINDS: [FindingKind; 2] =
+    [FindingKind::UnexplainedAccess, FindingKind::MissingAccess];
 /// Kinds that ask a person to review something; they make the check exit 6.
+/// Profile kinds join them only when `profiles.enforce` is set.
 pub const REVIEW_KINDS: [FindingKind; 4] = [
     FindingKind::DepartedWithAccess,
     FindingKind::NewAdmin,
@@ -41,6 +47,63 @@ pub enum Changes {
         removed_admins: Vec<Value>,
         no_longer_observed: Vec<Value>,
     },
+}
+
+/// Profile comparison state: `"not_configured"` or the `profile check` result.
+#[derive(Clone, Debug)]
+pub enum Profiles {
+    NotConfigured,
+    Compared {
+        enforce: bool,
+        complete: bool,
+        value: Value,
+    },
+}
+impl Serialize for Profiles {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::NotConfigured => serializer.serialize_str("not_configured"),
+            Self::Compared { value, .. } => value.serialize(serializer),
+        }
+    }
+}
+impl Profiles {
+    pub fn enforced(&self) -> bool {
+        matches!(self, Self::Compared { enforce: true, .. })
+    }
+    /// Detail data: profile rows in state `finding`, one line each.
+    pub fn findings(&self) -> Vec<Value> {
+        let Self::Compared { value, .. } = self else {
+            return vec![];
+        };
+        let mut rows = Vec::new();
+        for identity in value["identities"].as_array().into_iter().flatten() {
+            let id = &identity["identity"];
+            let findings = |key: &str| {
+                identity[key]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|r| r["state"] == "finding")
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            for row in findings("missing") {
+                let entry = &row["entry"];
+                let mut item = json!({"identity": id, "kind": "missing_access", "instance": entry["instance"], "via": []});
+                for key in ["group", "resource", "role"] {
+                    if entry[key].is_string() {
+                        item[key] = entry[key].clone();
+                    }
+                }
+                rows.push(item);
+            }
+            for row in findings("unexplained") {
+                rows.push(json!({"identity": id, "kind": "unexplained_access", "instance": row["instance"], "resource": row["resource"], "role": row["role"], "via": row["via"]}));
+            }
+        }
+        rows
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -78,6 +141,7 @@ pub struct CheckReport {
     /// Detail data: policy checks in state `finding`, other than `inactive_access`.
     pub findings: Vec<Value>,
     pub policy: Value,
+    pub profiles: Profiles,
     pub notifications: Vec<Delivery>,
     pub run_url: Option<String>,
     pub files: Files,
@@ -101,7 +165,12 @@ impl CheckReport {
         self.counts.get(&kind).copied().unwrap_or(0)
     }
     pub fn review_items(&self) -> usize {
-        REVIEW_KINDS.iter().map(|k| self.count(*k)).sum()
+        let profiles = if self.profiles.enforced() {
+            PROFILE_KINDS.iter().map(|k| self.count(*k)).sum()
+        } else {
+            0
+        };
+        REVIEW_KINDS.iter().map(|k| self.count(*k)).sum::<usize>() + profiles
     }
     pub fn status(&self) -> &'static str {
         if !self.complete {
@@ -121,8 +190,19 @@ pub fn label(kind: FindingKind) -> &'static str {
         FindingKind::RemovedAdmin => "Removed admins",
         FindingKind::NoLongerObserved => "No longer observed (needs review)",
         FindingKind::PolicyFinding => "Policy findings",
+        FindingKind::UnexplainedAccess => "Unexplained access",
+        FindingKind::MissingAccess => "Missing expected access",
         FindingKind::ProviderFailed => "Providers that failed",
         FindingKind::Incomplete => "Incomplete collection",
+    }
+}
+
+/// Report-only profile kinds say so wherever counts are shown.
+fn kind_label(kind: FindingKind, report_only: bool) -> String {
+    if PROFILE_KINDS.contains(&kind) && report_only {
+        format!("{} (report-only)", label(kind))
+    } else {
+        label(kind).to_owned()
     }
 }
 
@@ -151,7 +231,9 @@ fn count_text(counts: &Value, kind: FindingKind) -> String {
         .and_then(Value::as_u64)
     {
         Some(count) => count.to_string(),
-        None if DIFF_KINDS.contains(&kind) => "not compared".into(),
+        None if DIFF_KINDS.contains(&kind) || PROFILE_KINDS.contains(&kind) => {
+            "not compared".into()
+        }
         None => "0".into(),
     }
 }
@@ -166,7 +248,10 @@ pub fn summary_markdown(report: &CheckReport) -> String {
         let counts = serde_json::to_value(&report.counts).unwrap_or_default();
         out.push_str(&format!(
             "- {}: {}\n",
-            label(kind),
+            kind_label(
+                kind,
+                matches!(report.profiles, Profiles::Compared { enforce: false, .. })
+            ),
             count_text(&counts, kind)
         ));
     }
@@ -199,7 +284,7 @@ pub fn write(out: &mut dyn std::io::Write, result: &Value) -> std::io::Result<()
             writeln!(
                 out,
                 "  {}: {}",
-                label(kind),
+                kind_label(kind, result["profiles"]["enforce"] == false),
                 count_text(&result["counts"], kind)
             )?;
         }

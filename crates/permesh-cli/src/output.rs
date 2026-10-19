@@ -23,6 +23,20 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         serde_json::to_writer_pretty(&mut out, report)?;
         return writeln!(out);
     }
+    if report.command == "profile_suggest" {
+        // Bare YAML so the draft can be redirected into profiles/.
+        if !report.complete {
+            eprintln!(
+                "Capture incomplete: the draft may miss shared access. Review before committing."
+            );
+        }
+        return out.write_all(
+            report.result["draft"]
+                .as_str()
+                .unwrap_or_default()
+                .as_bytes(),
+        );
+    }
     let colors = !matches!(color, Color::Never)
         && std::env::var_os("NO_COLOR").is_none()
         && std::env::var("TERM").ok().as_deref() != Some("dumb")
@@ -80,6 +94,8 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         crate::resource_command::write(&mut out, result)?;
     } else if report.command == "check" {
         crate::check::report::write(&mut out, result)?;
+    } else if report.command == "profile_check" {
+        crate::profile_command::write(&mut out, result)?;
     } else if report.command == "policy_check" {
         crate::policy_command::write(&mut out, result)?;
     } else if report.command.starts_with("offboard_") {

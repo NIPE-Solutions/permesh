@@ -4,7 +4,7 @@ use crate::{error::AppError, report::Outcome};
 use std::{fs, path::Path};
 
 const TEMPLATE_ORGANIZATION: &str = "  name: \"Example organization\"";
-const FILES: [(&str, &str); 8] = [
+const FILES: [(&str, &str); 10] = [
     (
         "permesh.yaml",
         include_str!("../../../examples/starter/permesh.yaml"),
@@ -28,6 +28,14 @@ const FILES: [(&str, &str); 8] = [
     (
         "policies/review-policy.json",
         include_str!("../../../examples/starter/policies/review-policy.json"),
+    ),
+    (
+        "profiles/README.md",
+        include_str!("../../../examples/starter/profiles/README.md"),
+    ),
+    (
+        "people/README.md",
+        include_str!("../../../examples/starter/people/README.md"),
     ),
     (
         ".github/workflows/permesh-check.yml",

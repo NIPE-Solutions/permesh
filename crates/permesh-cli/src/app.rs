@@ -23,6 +23,9 @@ pub async fn run(
     if let Command::Policy { command } = &cli.command {
         return crate::policy_command::run(cli, command, blocking, cancellation).await;
     }
+    if let Command::Profile { command } = &cli.command {
+        return crate::profile_command::run(cli, command, blocking, cancellation).await;
+    }
     if let Command::Identity { command } = &cli.command {
         return crate::identity_command::run(cli, command, blocking, cancellation).await;
     }

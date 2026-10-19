@@ -2,6 +2,7 @@
 //! Strict, bounded workspace schema. YAML is data, never executable configuration.
 mod aws_profile;
 mod check;
+pub mod profiles;
 pub use aws_profile::AwsProfile;
 pub use check::{Channel, CheckConfig, FindingKind, Notification};
 mod credential_resolvers;
@@ -43,6 +44,8 @@ pub enum Error {
     NotFound,
     #[error("cannot serialize workspace configuration")]
     Serialize,
+    #[error("{file}: {source}")]
+    File { file: String, source: Box<Error> },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -55,6 +58,9 @@ pub struct Config {
     /// Experimental scheduled-check settings (ADR 0032).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub check: Option<CheckConfig>,
+    /// Experimental access-profile settings (ADR 0033).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profiles: Option<profiles::ProfilesConfig>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -271,6 +277,10 @@ impl Config {
                     }
                 }
             }
+        }
+        if let Some(section) = &self.profiles {
+            let instances = self.providers.iter().map(|p| p.id.as_str()).collect();
+            profiles::validate(section, &instances)?;
         }
         if let Some(check) = &self.check {
             check::validate(check)?;

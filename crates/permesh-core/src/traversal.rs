@@ -172,3 +172,39 @@ pub(crate) fn sort_paths(access: &mut [AccessPath]) {
             })
     });
 }
+
+/// Membership edges only, independent of grants: answers "is this account in that
+/// group, directly or nested?" even when the group grants nothing observed.
+pub(crate) struct MembershipGraph<'a> {
+    edges: BTreeMap<&'a Subject, Vec<&'a EntityKey>>,
+}
+impl<'a> MembershipGraph<'a> {
+    pub(crate) fn new(snapshots: &'a [Snapshot]) -> Self {
+        let mut edges: BTreeMap<&Subject, Vec<&EntityKey>> = BTreeMap::new();
+        for s in snapshots {
+            for m in &s.memberships {
+                edges.entry(&m.member).or_default().push(&m.group);
+            }
+        }
+        Self { edges }
+    }
+    pub(crate) fn reachable(
+        &self,
+        account: &EntityKey,
+    ) -> Result<BTreeSet<EntityKey>, DomainError> {
+        let start = Subject::Account(account.clone());
+        let mut seen = BTreeSet::new();
+        let mut pending: Vec<&EntityKey> = self.edges.get(&start).cloned().unwrap_or_default();
+        while let Some(group) = pending.pop() {
+            if seen.len() >= MAX_PATH_STEPS {
+                return Err(DomainError::PathLimit);
+            }
+            if seen.insert(group.clone())
+                && let Some(parents) = self.edges.get(&Subject::Group(group.clone()))
+            {
+                pending.extend(parents.iter().copied());
+            }
+        }
+        Ok(seen)
+    }
+}

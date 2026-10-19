@@ -12,6 +12,13 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
   email, counts only by default ([ADR 0032](docs/adr/0032-explicit-check-notifications.md)).
 - Add `permesh init --starter` with GitHub Actions and GitLab CI workflows for
   weekly checks ([starter](docs/starter.md)).
+- Add experimental access profiles: `permesh profile check` compares declared
+  `profiles/` and `people/` files with observed access and reports missing and
+  unexplained access, including the group route; `permesh profile suggest` drafts
+  a profile from a group. `permesh check` reports profile counts, report-only unless
+  `profiles.enforce: true`. Policy files gain `version: 2` with `unexplained_access`
+  exceptions ([access profiles](docs/profiles.md),
+  [ADR 0033](docs/adr/0033-access-profiles.md)).
 
 - Guided `provider add` now supports GitLab, Entra ID and AWS Identity Center.
 - `provider list` reports each external provider's ID and whether it has recorded

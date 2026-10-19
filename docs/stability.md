@@ -34,8 +34,11 @@ These may change between releases without a migration guide.
 - `provider dev` commands.
 - `permesh check`, its `check.json` report and `summary.md`, the `check` section of
   `permesh.yaml` (notifications) and `init --starter`.
-- Everything still to come for access profiles, people files and joiner/mover/leaver
-  plans, until a second stability declaration after that work lands.
+- [Access profiles](profiles.md): `profile check`, `profile suggest`, the
+  `profiles/` and `people/` files, the `profiles` section of `permesh.yaml`, the
+  profile counts in `check`, and policy file `version: 2` exceptions.
+- Everything still to come for joiner/mover/leaver plans, until a second stability
+  declaration after that work lands.
 
 ## Provider maturity
 

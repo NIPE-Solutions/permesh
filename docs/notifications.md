@@ -32,7 +32,7 @@ check:
 | --- | --- |
 | `type` | `slack_webhook`, `teams_webhook` (plain text), `webhook` (JSON) or `email` |
 | `url`, `password` | An `env://` or `keychain://` reference, never the value itself |
-| `on` | Send only when one of these counts is nonzero: `departed_with_access`, `new_admin`, `removed_admin`, `no_longer_observed`, `policy_finding`, `incomplete`, `provider_failed`. Empty means send when any count is nonzero. |
+| `on` | Send only when one of these counts is nonzero: `departed_with_access`, `new_admin`, `removed_admin`, `no_longer_observed`, `policy_finding`, `unexplained_access`, `missing_access`, `incomplete`, `provider_failed`. Empty means send when any count is nonzero, except report-only profile counts, which must be listed explicitly. |
 | `detail` | `false` (default): counts only. `true`: also logins and resource names. |
 
 ## Privacy and safety
@@ -52,7 +52,9 @@ The generic webhook body is
 `{"check_report_version":1,"status":…,"complete":…,"counts":{…},"changes":{"state":…,"reasons":[…]},"run_url":…}`.
 `changes.state` is `no_baseline`, `inconclusive` or `compared`; change counts are only
 present when it is `compared`. With `detail`, the body also includes
-`departed`, `change_details` and `findings`.
+`departed`, `change_details`, `findings` and `profile_findings`
+(`[{identity, kind, instance, group | resource and role, via}]`); text channels get one
+line per profile finding.
 
 Issues in the configuration repository are created by the [starter](starter.md)
 workflows, not by Permesh itself.

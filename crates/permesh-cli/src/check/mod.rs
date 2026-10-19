@@ -13,8 +13,9 @@ use crate::{
     report::Outcome,
 };
 use permesh_config::FindingKind;
+use permesh_config::profiles::ProfileSet;
 use permesh_core::{self as core, OrphanReason};
-use report::{ALL_KINDS, Changes, CheckReport, Files, ProviderLine};
+use report::{ALL_KINDS, Changes, CheckReport, Files, Profiles, ProviderLine};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -198,11 +199,24 @@ fn build(
     artifact: &Artifact,
     previous: Option<&Artifact>,
     policy: &LoadedPolicy,
+    profiles: Option<&ProfileSet>,
     collection_complete: bool,
     args: &CheckArgs,
 ) -> Result<(CheckReport, bool), AppError> {
-    let (policy_result, _, evaluation_complete) =
-        policy.evaluate(artifact, OffsetDateTime::now_utc())?;
+    let now = OffsetDateTime::now_utc();
+    let (policy_result, _, evaluation_complete) = policy.evaluate(artifact, now)?;
+    let profiles = match profiles {
+        Some(set) => {
+            let input = crate::profile_command::input(set, artifact);
+            let review = crate::profile_command::review(set, &input, artifact, policy, now)?;
+            Profiles::Compared {
+                enforce: set.enforce,
+                complete: review.complete,
+                value: review.value,
+            }
+        }
+        None => Profiles::NotConfigured,
+    };
     let findings: Vec<Value> = policy_result["checks"]
         .as_array()
         .into_iter()
@@ -222,16 +236,34 @@ fn build(
         None => Changes::NoBaseline,
     };
     let comparable = !matches!(changes, Changes::Inconclusive { .. });
-    let complete = collection_complete && artifact.complete() && evaluation_complete && comparable;
+    // Report-only profiles never make a run incomplete; enforced ones do.
+    let profiles_complete = match &profiles {
+        Profiles::Compared {
+            enforce: true,
+            complete,
+            ..
+        } => *complete,
+        _ => true,
+    };
+    let complete = collection_complete
+        && artifact.complete()
+        && evaluation_complete
+        && comparable
+        && profiles_complete;
     let mut counts: BTreeMap<FindingKind, usize> = ALL_KINDS
         .iter()
-        .filter(|k| !report::DIFF_KINDS.contains(k))
+        .filter(|k| !report::DIFF_KINDS.contains(k) && !report::PROFILE_KINDS.contains(k))
         .map(|k| (*k, 0))
         .collect();
     counts.insert(FindingKind::DepartedWithAccess, departed.len());
     counts.insert(FindingKind::PolicyFinding, findings.len());
     counts.insert(FindingKind::ProviderFailed, failed);
     counts.insert(FindingKind::Incomplete, usize::from(!complete));
+    if let Profiles::Compared { value, .. } = &profiles {
+        let count = |key: &str| value["counts"][key].as_u64().unwrap_or(0) as usize;
+        counts.insert(FindingKind::UnexplainedAccess, count("unexplained"));
+        counts.insert(FindingKind::MissingAccess, count("missing"));
+    }
     if let Changes::Compared {
         new_admins,
         removed_admins,
@@ -265,6 +297,7 @@ fn build(
         departed,
         findings,
         policy: json!({"rules": policy.rules()}),
+        profiles,
         notifications: vec![],
         run_url: args.run_url.clone(),
         files: Files {
@@ -303,16 +336,22 @@ pub async fn run(
 ) -> Result<Outcome, AppError> {
     cancelled(cancel)?;
     check_output(cli, &args.out, args.overwrite)?;
-    let notifications = permesh_config::Config::load(&crate::workspace::path(cli)?)?
+    let workspace = crate::workspace::path(cli)?;
+    let notifications = permesh_config::Config::load(&workspace)?
         .check
         .map(|c| c.notifications)
         .unwrap_or_default();
     let policy_path = args.policy.clone();
     let previous_path = args.previous.clone();
-    let (policy, previous) = pool
+    let (policy, previous, profiles) = pool
         .run(move || -> Result<_, AppError> {
             let previous = previous_path.as_deref().map(artifact::load).transpose()?;
-            Ok((LoadedPolicy::load(policy_path.as_deref())?, previous))
+            let profiles = crate::profile_command::load(&workspace)?;
+            Ok((
+                LoadedPolicy::load(policy_path.as_deref())?,
+                previous,
+                profiles,
+            ))
         })
         .await??;
     let (mut outcome, artifact) = crate::snapshot_command::capture(cli, pool, cancel).await?;
@@ -334,6 +373,7 @@ pub async fn run(
                 &artifact,
                 previous.as_ref(),
                 &policy,
+                profiles.as_ref(),
                 collection_complete,
                 &owned,
             )?;

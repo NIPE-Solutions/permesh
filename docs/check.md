@@ -31,6 +31,7 @@ CI run) to the summary and notifications.
 | No longer observed (needs review) | An identity seen last time is missing from a comparable, complete collection. This is **not** treated as a departure. |
 | Policy findings | Findings of the selected rules other than `inactive_access`, which is already counted as a departure. |
 | Providers that failed | Providers that returned nothing usable. |
+| Unexplained access / Missing expected access | Differences from declared [access profiles](profiles.md). Report-only unless `profiles.enforce: true`; "not compared" when no profiles are configured. |
 
 Departures need an authoritative identity source, such as Google Workspace with
 `--authoritative`. Without one, the report says "Departures not assessed" instead of
@@ -54,7 +55,8 @@ never reports "no changes" in that case.
 | 2 | Invalid input, such as an unreadable `--previous` or policy file |
 
 Incomplete takes precedence over findings, so a partly read run is never called
-clean. Notification failures never change the exit code.
+clean. Profile findings and an incomplete profile comparison count only with
+`profiles.enforce: true`. Notification failures never change the exit code.
 
 ## Files
 
