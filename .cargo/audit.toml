@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+# Mirrors deny.toml advisory exceptions; see docs/DEPENDENCIES.md.
+[advisories]
+ignore = [
+    "RUSTSEC-2026-0370", # zvariant_derive unmaintained (merged into zbus 6); Linux keyring stack only
+    "RUSTSEC-2026-0371", # zbus_names unmaintained (merged into zbus 6); Linux keyring stack only
+    "RUSTSEC-2026-0372", # zvariant unmaintained (merged into zbus 6); Linux keyring stack only
+]
