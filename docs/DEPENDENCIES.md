@@ -33,6 +33,19 @@ CI uses cargo-deny 0.20.2 and cargo-audit 0.22.2, observed published 2026-07-09 
 
 The MIT text was obtained from [SPDX's MIT license text](https://github.com/spdx/license-list-data/blob/main/text/MIT.txt), with the project copyright holder substituted. Project licensing is [MIT](../LICENSE); dependency licenses and their required notices remain their own. The original MIT OR Apache-2.0 choice, whose Apache text came from the [Apache Software Foundation](https://www.apache.org/licenses/LICENSE-2.0.txt), is superseded for the current project by [ADR 0013](adr/0013-mit-license.md). Earlier revisions retain their original license terms.
 
+## Advisory exceptions (2026-10-19)
+
+`deny.toml` and `.cargo/audit.toml` ignore exactly three advisories:
+RUSTSEC-2026-0370 (`zvariant_derive`), RUSTSEC-2026-0371 (`zbus_names`) and
+RUSTSEC-2026-0372 (`zvariant`). All three are *unmaintained* notices, not
+vulnerabilities: the crates were merged into zbus 6. They are reached only through
+the Linux credential store (keyring 4.2 → zbus-secret-service-keyring-store 1.0 →
+secret-service 5.2 → zbus 5), and no released keyring stack uses zbus 6 yet.
+Remove the exceptions when keyring migrates. The same review updated rustls to
+0.23.46, quinn-proto to 0.11.19 and zip to 9.0.5 to resolve the vulnerability
+advisories published since alpha.3. Permesh's package extraction never called the
+affected `ZipArchive::extract` and already rejected symlinks.
+
 ## Local verification record
 
 On 2026-09-08, cargo-deny 0.20.2 reported advisories, bans, licenses and sources OK for the then-current 294-dependency lockfile. Duplicate base64 0.22/0.23 and syn 2/3 were the only warnings: they arise from independently versioned HTTP/YAML and macro dependencies, and are not suppressed. cargo-audit 0.22.2 completed successfully with `--deny warnings` against 1,242 fetched RustSec advisories. Re-run both on the final release revision; this record is not native-platform CI or a security audit.

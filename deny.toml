@@ -1,6 +1,11 @@
 # Review the complete workspace graph, including platform-specific dependencies.
 [advisories]
-ignore = []
+# Each exception names its advisory and why it cannot be resolved yet; see docs/DEPENDENCIES.md.
+ignore = [
+    { id = "RUSTSEC-2026-0370", reason = "Unmaintained notice, not a vulnerability: merged into zbus 6. Reached only through keyring 4.2 -> zbus-secret-service-keyring-store 1.0 -> secret-service 5.2 -> zbus 5 on Linux; no released keyring stack uses zbus 6 yet. Remove when keyring migrates." },
+    { id = "RUSTSEC-2026-0371", reason = "Unmaintained notice, not a vulnerability: merged into zbus 6. Reached only through keyring 4.2 -> zbus-secret-service-keyring-store 1.0 -> secret-service 5.2 -> zbus 5 on Linux; no released keyring stack uses zbus 6 yet. Remove when keyring migrates." },
+    { id = "RUSTSEC-2026-0372", reason = "Unmaintained notice, not a vulnerability: merged into zbus 6. Reached only through keyring 4.2 -> zbus-secret-service-keyring-store 1.0 -> secret-service 5.2 -> zbus 5 on Linux; no released keyring stack uses zbus 6 yet. Remove when keyring migrates." },
+]
 
 [licenses]
 confidence-threshold = 0.93
