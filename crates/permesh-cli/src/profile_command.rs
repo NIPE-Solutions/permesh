@@ -31,6 +31,21 @@ pub enum ProfileCommand {
         #[arg(long)]
         policy: Option<PathBuf>,
     },
+    /// Draft a profile from the access a group's members share; prints YAML to review.
+    Suggest {
+        /// Group as INSTANCE:GROUP_ID.
+        #[arg(long)]
+        group: String,
+        /// Profile name for the draft.
+        #[arg(long)]
+        name: String,
+        /// Include entries shared by at least this percentage of members.
+        #[arg(long, default_value_t = 100, value_parser = clap::value_parser!(u8).range(1..=100))]
+        min_percent: u8,
+        /// Read a saved snapshot offline instead of running fresh discovery.
+        #[arg(long)]
+        snapshot: Option<PathBuf>,
+    },
 }
 
 /// A profile comparison ready for reports; `findings` excludes excepted and unknown rows.
@@ -204,7 +219,26 @@ pub async fn run(
     pool: &BlockingPool,
     cancel: &Cancellation,
 ) -> Result<Outcome, AppError> {
-    let ProfileCommand::Check { snapshot, policy } = command;
+    let (snapshot, policy) = match command {
+        ProfileCommand::Check { snapshot, policy } => (snapshot, policy),
+        ProfileCommand::Suggest {
+            group,
+            name,
+            min_percent,
+            snapshot,
+        } => {
+            return suggest(
+                cli,
+                group,
+                name,
+                *min_percent,
+                snapshot.as_deref(),
+                pool,
+                cancel,
+            )
+            .await;
+        }
+    };
     cancelled(cancel)?;
     let workspace = crate::workspace::path(cli)?;
     let policy = policy.clone();
@@ -237,6 +271,103 @@ pub async fn run(
         0
     };
     outcome.report.result = review.value;
+    Ok(outcome)
+}
+
+fn parse_group(value: &str) -> Result<core::EntityKey, AppError> {
+    match value.split_once(':') {
+        Some((instance, id)) if !instance.is_empty() && !id.is_empty() => {
+            Ok(core::EntityKey::new(instance, id))
+        }
+        _ => Err(AppError::input("--group must be INSTANCE:GROUP_ID")),
+    }
+}
+
+/// YAML draft: entries as JSON flow mappings (valid YAML), labels only in comments.
+fn draft(name: &str, suggestion: &core::Suggestion) -> Result<String, AppError> {
+    use crate::output::safe;
+    let group = safe(&suggestion.group.name);
+    let mut text = format!(
+        "# Draft from {} group {group}: {} members ({} unresolved, excluded). Review before committing.\nprofile: {name}\n",
+        safe(&suggestion.group.key.provider),
+        suggestion.members,
+        suggestion.unresolved_members,
+    );
+    if suggestion.entries.is_empty() {
+        text.push_str("grants: []\n");
+        return Ok(text);
+    }
+    text.push_str("grants:\n");
+    for suggested in &suggestion.entries {
+        let entry = match suggested.entry.clone() {
+            core::ExpectedEntry::Group { instance, group } => {
+                ProfileEntry::Group { instance, group }
+            }
+            core::ExpectedEntry::Role {
+                instance,
+                role,
+                resource,
+            } => ProfileEntry::Role {
+                instance,
+                role,
+                resource,
+            },
+        };
+        let entry = serde_json::to_string(&entry)
+            .map_err(|_| AppError::new(5, "Cannot encode profile draft"))?;
+        text.push_str(&format!(
+            "  - {entry}  # {}: {} of {} members\n",
+            safe(&suggested.label),
+            suggested.count,
+            suggestion.members
+        ));
+    }
+    Ok(text)
+}
+
+async fn suggest(
+    cli: &Cli,
+    group: &str,
+    name: &str,
+    min_percent: u8,
+    snapshot: Option<&Path>,
+    pool: &BlockingPool,
+    cancel: &Cancellation,
+) -> Result<Outcome, AppError> {
+    let group = parse_group(group)?;
+    if !permesh_config::profiles::valid_name(name) {
+        return Err(AppError::input(
+            "--name must be letters, digits, '-' or '_' (at most 128)",
+        ));
+    }
+    let name = name.to_owned();
+    let (mut outcome, artifact) =
+        crate::resource_command::input(cli, snapshot, pool, cancel).await?;
+    cancelled(cancel)?;
+    let complete = artifact.complete();
+    let result = pool
+        .run(move || -> Result<_, AppError> {
+            let (snapshots, aliases) = crate::resource_command::domain(&artifact);
+            let suggestion = core::suggest_profile(&snapshots, &aliases, &group, min_percent)?;
+            if suggestion.members == 0 {
+                return Err(AppError::input(
+                    "The group has no members attributed to an identity; nothing to suggest",
+                ));
+            }
+            Ok(json!({
+                "profile_suggestion_version": 1,
+                "group": {"instance": suggestion.group.key.provider, "id": suggestion.group.key.id, "name": suggestion.group.name},
+                "members": suggestion.members,
+                "unresolved_members": suggestion.unresolved_members,
+                "entries": suggestion.entries,
+                "draft": draft(&name, &suggestion)?,
+            }))
+        })
+        .await??;
+    outcome.report.command = "profile_suggest".into();
+    outcome.report.complete = complete;
+    outcome.report.result = result;
+    outcome.code = if complete { 0 } else { 4 };
     Ok(outcome)
 }
 

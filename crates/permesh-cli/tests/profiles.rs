@@ -193,3 +193,92 @@ fn human_output_lists_people_and_routes() {
         assert!(stdout.contains(text), "{text} in {stdout}");
     }
 }
+
+fn suggest(dir: &Path, extra: &[&str]) -> Output {
+    let mut args = vec!["profile", "suggest", "--name", "backend"];
+    args.extend_from_slice(extra);
+    run(dir, &args)
+}
+
+#[test]
+fn suggest_prints_draft_that_loads_as_profile() {
+    let dir = demo(&[]);
+    let output = suggest(dir.path(), &["--group", "demo:team-10"]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.starts_with("# Draft from demo group team/backend: 1 members (0 unresolved, excluded). Review before committing.\n"), "{stdout}");
+    assert!(
+        stdout.contains("# team/backend: 1 of 1 members"),
+        "{stdout}"
+    );
+    fs::create_dir_all(dir.path().join("profiles")).unwrap();
+    fs::write(dir.path().join("profiles/backend.yaml"), &stdout).unwrap();
+    fs::create_dir_all(dir.path().join("people")).unwrap();
+    fs::write(
+        dir.path().join("people/alice.yaml"),
+        person("alice@example.com", "backend"),
+    )
+    .unwrap();
+    let (code, result) = check(dir.path(), &[]);
+    assert_eq!(code, Some(0), "{result}");
+}
+
+#[test]
+fn suggest_json_has_counts() {
+    let dir = demo(&[]);
+    let output = suggest(dir.path(), &["--group", "demo:team-10", "--json"]);
+    assert_eq!(output.status.code(), Some(0));
+    let result = &report(&output)["result"];
+    assert_eq!(result["profile_suggestion_version"], 1);
+    assert_eq!(result["group"]["id"], "team-10");
+    assert_eq!(result["members"], 1);
+    assert_eq!(result["unresolved_members"], 0);
+    let entries = result["entries"].as_array().unwrap();
+    assert!(
+        entries.iter().any(|e| e["entry"]["kind"] == "group"
+            && e["entry"]["group"] == "team-10"
+            && e["count"] == 1),
+        "{result}"
+    );
+    assert!(
+        result["draft"]
+            .as_str()
+            .unwrap()
+            .contains("profile: backend")
+    );
+}
+
+#[test]
+fn bad_group_argument_is_input_error() {
+    let dir = demo(&[]);
+    for group in ["team-10", ":team-10", "demo:"] {
+        assert_eq!(
+            suggest(dir.path(), &["--group", group]).status.code(),
+            Some(2),
+            "{group}"
+        );
+    }
+    let output = run(
+        dir.path(),
+        &[
+            "profile",
+            "suggest",
+            "--group",
+            "demo:team-10",
+            "--name",
+            "bad name",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+}
+
+#[test]
+fn unknown_group_exits_1() {
+    let dir = demo(&[]);
+    assert_eq!(
+        suggest(dir.path(), &["--group", "demo:team-99"])
+            .status
+            .code(),
+        Some(1)
+    );
+}

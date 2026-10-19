@@ -125,6 +125,11 @@ pub struct ProfileSet {
     pub directory_groups: Vec<DirectoryGroup>,
 }
 
+/// Whether `name` is usable as a profile name.
+pub fn valid_name(name: &str) -> bool {
+    valid_id(name)
+}
+
 pub(crate) fn validate(config: &ProfilesConfig, instances: &BTreeSet<&str>) -> Result<()> {
     if config.directory_groups.len() > MAX_DIRECTORY_GROUPS {
         return Err(invalid("too many profile directory groups"));
