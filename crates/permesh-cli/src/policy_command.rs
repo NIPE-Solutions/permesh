@@ -38,7 +38,6 @@ impl LoadedPolicy {
     /// The unexpired `unexplained_access` exception covering this path, if any:
     /// a membership scope matches every path from the account through the group,
     /// a grant scope matches only the direct path to that grant.
-    #[allow(dead_code)] // TEMP: used by profile check (Task 5)
     pub(crate) fn unexplained_exception(
         &self,
         path: &core::AccessPath,
