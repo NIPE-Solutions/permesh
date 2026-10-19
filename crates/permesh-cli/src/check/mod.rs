@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! `permesh check`: one unattended review run (experimental report format).
 //! Collect a snapshot, evaluate policy and departures, write files, then notify.
+pub mod notify;
 pub mod report;
 use crate::{
     args::Cli,
@@ -297,6 +298,10 @@ pub async fn run(
 ) -> Result<Outcome, AppError> {
     cancelled(cancel)?;
     check_output(cli, &args.out, args.overwrite)?;
+    let notifications = permesh_config::Config::load(&crate::workspace::path(cli)?)?
+        .check
+        .map(|c| c.notifications)
+        .unwrap_or_default();
     let policy_path = args.policy.clone();
     let previous_path = args.previous.clone();
     let (policy, previous) = pool
@@ -339,6 +344,15 @@ pub async fn run(
             Ok((report, code))
         })
         .await??;
+    // The access result and its files are fixed; delivery can only add its own status.
+    let mut report = report;
+    if !notifications.is_empty() {
+        report.notifications =
+            notify::deliver_all(&notifications, &report, !args.no_notify, pool, cancel).await;
+        let (out, token, saved) = (args.out.clone(), cancel.clone(), report.clone());
+        pool.run(move || write_report(&out, &saved, true, &token))
+            .await??;
+    }
     outcome.report.command = "check".into();
     outcome.report.complete = report.complete;
     outcome.report.result = result_value(&report)?;

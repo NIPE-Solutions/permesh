@@ -256,3 +256,154 @@ fn missing_previous_file_is_input_error() {
     assert_eq!(output.status.code(), Some(2));
     assert!(!dir.path().join("b").exists());
 }
+
+fn with_hook(dir: &Path, extra: &str) {
+    let path = dir.join("permesh.yaml");
+    let mut config = fs::read_to_string(&path).unwrap();
+    config.push_str(&format!(
+        "check:\n  notifications:\n    - {{id: hook, type: webhook, url: 'env://PERMESH_TEST_HOOK'{extra}}}\n"
+    ));
+    fs::write(path, config).unwrap();
+}
+/// Loopback listener: answers 200 (or never, when `hang`) and returns the request body.
+fn listener(hang: bool) -> (String, std::thread::JoinHandle<String>) {
+    use std::io::{BufRead, BufReader, Read, Write};
+    let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/hook", server.local_addr().unwrap());
+    let handle = std::thread::spawn(move || {
+        server.set_nonblocking(true).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let stream = loop {
+            match server.accept() {
+                Ok((stream, _)) => break stream,
+                Err(_) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                Err(_) => return String::new(),
+            }
+        };
+        stream.set_nonblocking(false).unwrap();
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut length = 0;
+        loop {
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                length = v.trim().parse().unwrap();
+            }
+            if line == "\r\n" {
+                break;
+            }
+        }
+        let mut body = vec![0; length];
+        reader.read_exact(&mut body).unwrap();
+        if hang {
+            std::thread::sleep(std::time::Duration::from_secs(15));
+        } else {
+            let mut stream = stream;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+                .unwrap();
+        }
+        String::from_utf8(body).unwrap()
+    });
+    (url, handle)
+}
+fn run_env(dir: &Path, args: &[&str], hook: Option<&str>) -> Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_permesh"));
+    command
+        .current_dir(dir)
+        .env("NO_COLOR", "1")
+        .env("PERMESH_DATA_DIR", dir.join("state"))
+        .env_remove("PERMESH_TEST_HOOK")
+        .args(args);
+    if let Some(hook) = hook {
+        command.env("PERMESH_TEST_HOOK", hook);
+    }
+    command.output().unwrap()
+}
+
+#[test]
+fn delivers_summary_to_configured_webhook() {
+    let dir = demo();
+    with_hook(dir.path(), "");
+    let (url, handle) = listener(false);
+    let output = run_env(dir.path(), &["check", "--out", "out", "--json"], Some(&url));
+    assert_eq!(output.status.code(), Some(6));
+    let body: serde_json::Value = serde_json::from_str(&handle.join().unwrap()).unwrap();
+    assert_eq!(body["counts"]["departed_with_access"], 1);
+    assert!(!body.to_string().contains("former-dev"));
+    let saved: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("out/check.json")).unwrap()).unwrap();
+    assert_eq!(saved["notifications"][0]["delivered"], true);
+    assert_eq!(
+        report(&output)["result"]["notifications"][0]["delivered"],
+        true
+    );
+}
+
+#[test]
+fn unset_webhook_reference_fails_softly() {
+    let dir = demo();
+    with_hook(dir.path(), "");
+    let output = run_env(dir.path(), &["check", "--out", "out", "--json"], None);
+    assert_eq!(output.status.code(), Some(6));
+    let delivery = &report(&output)["result"]["notifications"][0];
+    assert_eq!(delivery["delivered"], false);
+    assert_eq!(delivery["skipped"], false);
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!text.contains("PERMESH_TEST_HOOK"), "{text}");
+    assert!(!text.contains("127.0.0.1"), "{text}");
+}
+
+#[test]
+fn hanging_endpoint_times_out() {
+    let dir = demo();
+    with_hook(dir.path(), "");
+    let (url, _handle) = listener(true);
+    let started = std::time::Instant::now();
+    let output = run_env(dir.path(), &["check", "--out", "out", "--json"], Some(&url));
+    assert!(started.elapsed() < std::time::Duration::from_secs(20));
+    assert_eq!(output.status.code(), Some(6));
+    let delivery = &report(&output)["result"]["notifications"][0];
+    assert_eq!(delivery["delivered"], false);
+    assert!(
+        delivery["reason"].as_str().unwrap().contains("timed out"),
+        "{delivery}"
+    );
+}
+
+#[test]
+fn no_notify_skips_all_channels() {
+    let dir = demo();
+    with_hook(dir.path(), "");
+    let output = run_env(
+        dir.path(),
+        &["check", "--out", "out", "--no-notify", "--json"],
+        Some("http://127.0.0.1:9/never"),
+    );
+    assert_eq!(output.status.code(), Some(6));
+    assert_eq!(
+        report(&output)["result"]["notifications"][0]["skipped"],
+        true
+    );
+}
+
+#[test]
+fn on_filter_skips_unmatched_channel() {
+    let dir = demo();
+    with_hook(dir.path(), ", on: [new_admin]");
+    let output = run_env(
+        dir.path(),
+        &["check", "--out", "out", "--json"],
+        Some("http://127.0.0.1:9/never"),
+    );
+    assert_eq!(
+        report(&output)["result"]["notifications"][0]["skipped"],
+        true
+    );
+}
