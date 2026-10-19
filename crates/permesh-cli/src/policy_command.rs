@@ -35,6 +35,34 @@ impl LoadedPolicy {
         policy.validate()?;
         Ok(Self(policy))
     }
+    /// The unexpired `unexplained_access` exception covering this path, if any:
+    /// a membership scope matches every path from the account through the group,
+    /// a grant scope matches only the direct path to that grant.
+    #[allow(dead_code)] // TEMP: used by profile check (Task 5)
+    pub(crate) fn unexplained_exception(
+        &self,
+        path: &core::AccessPath,
+        now: OffsetDateTime,
+    ) -> Option<Value> {
+        self.0
+            .exceptions
+            .iter()
+            .filter(|e| {
+                e.rule == Rule::UnexplainedAccess
+                    && e.instance == path.account.provider
+                    && e.account == path.account.id
+                    && config::expiry(&e.expires_at).is_ok_and(|expiry| now < expiry)
+            })
+            .find(|e| match &e.group {
+                Some(group) => path.groups.iter().any(|g| g.key.id == *group),
+                None => {
+                    path.groups.is_empty()
+                        && e.resource.as_deref() == Some(path.resource.key.id.as_str())
+                        && e.grant_id.as_deref() == Some(path.grant.id.as_str())
+                }
+            })
+            .map(|e| json!(e))
+    }
     pub(crate) fn rules(&self) -> Value {
         json!(self.0.rules)
     }
@@ -130,17 +158,17 @@ fn evaluate(
     let exceptions: BTreeMap<_, _> = policy
         .exceptions
         .iter()
-        .map(|e| {
-            (
+        .filter_map(|e| {
+            Some((
                 (
                     e.rule,
                     e.instance.as_str(),
                     e.account.as_str(),
-                    e.resource.as_str(),
-                    e.grant_id.as_str(),
+                    e.resource.as_deref()?,
+                    e.grant_id.as_deref()?,
                 ),
                 e,
-            )
+            ))
         })
         .collect();
     for check in checks {
