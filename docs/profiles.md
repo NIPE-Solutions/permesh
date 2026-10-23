@@ -7,8 +7,9 @@ compares profiles with captured access and shows two things per person:
 - **unexplained**: access no assigned profile explains, with the group route that
   grants it.
 
-Profiles are **experimental** ([stability](stability.md),
-[ADR 0033](adr/0033-access-profiles.md)). Permesh only reads and reports; it never
+Profile and people files are stable ([stability](stability.md),
+[ADR 0033](adr/0033-access-profiles.md)). You don't need a version line: a file may
+start with `version: 1`, and leaving it out means the same. Permesh only reads and reports; it never
 grants or removes access.
 
 ## Try it with the demo

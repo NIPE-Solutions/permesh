@@ -1,8 +1,8 @@
 # Scheduled checks
 
 `permesh check` runs one complete review and is designed to run unattended, for
-example weekly in CI. It is an **experimental** command: its report format may
-change before the next stability declaration ([stability](stability.md)).
+example weekly in CI. Its JSON report is stable ([stability](stability.md)); `summary.md` is
+human-readable and may change wording.
 
 ```bash
 permesh check --out out

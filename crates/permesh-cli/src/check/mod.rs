@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! `permesh check`: one unattended review run (experimental report format).
+//! `permesh check`: one unattended review run (stable report format, ADR 0036).
 //! Collect a snapshot, evaluate policy and departures, write files, then notify.
 pub mod notify;
 pub mod report;

@@ -4,6 +4,15 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Declare the formats added since the first stability declaration stable: the
+  `check` and `profiles` configuration, people and profile files, policy
+  `version: 2`, the check report, profile results, access plan files and the
+  `access` JSON results. Golden fixtures pin them. `permesh mcp`, starter templates
+  and human-readable output stay experimental
+  ([ADR 0036](docs/adr/0036-second-stability-declaration.md)).
+- People and profile files accept an optional `version: 1`; any other value is
+  an error that says what to do. `access review` writes `index.json` as
+  `{"access_review_index_version": 1, "plans": [...]}`.
 - Add experimental `permesh check`: one unattended review run that writes a snapshot,
   a JSON report and a counts-only summary. It compares with a previous snapshot,
   including admin access gained through groups, and exits 6 when something needs

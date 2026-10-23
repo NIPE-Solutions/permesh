@@ -59,10 +59,10 @@ pub struct Config {
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]
     pub identity: IdentityConfig,
-    /// Experimental scheduled-check settings (ADR 0032).
+    /// Scheduled-check settings (ADR 0032; stable, ADR 0036).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub check: Option<CheckConfig>,
-    /// Experimental access-profile settings (ADR 0033).
+    /// Access-profile settings (ADR 0033; stable, ADR 0036).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profiles: Option<profiles::ProfilesConfig>,
 }

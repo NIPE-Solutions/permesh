@@ -1,7 +1,8 @@
 # Stable format fixtures
 
 These files freeze the formats declared stable by the second stability
-declaration ([stability](../../../../../docs/stability.md)). `tests/stable_formats.rs` builds each
+declaration ([ADR 0036](../../../../../docs/adr/0036-second-stability-declaration.md),
+[stability](../../../../../docs/stability.md)). `tests/stable_formats.rs` builds each
 format from the synthetic demo and compares it exactly: field names, types, enum
 spellings, array order and `null`s.
 

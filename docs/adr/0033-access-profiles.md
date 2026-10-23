@@ -1,6 +1,6 @@
 # ADR 0033: Access profiles
 
-Status: accepted for the unreleased source candidate (experimental format)
+Status: accepted for the unreleased source candidate; format stable since [ADR 0036](0036-second-stability-declaration.md)
 
 ## Decision
 

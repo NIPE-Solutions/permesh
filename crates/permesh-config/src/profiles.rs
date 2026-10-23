@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! Access profiles: declared expected access (`profiles/*.yaml`), people
 //! assignments (`people/*.yaml`) and directory group mappings (ADR 0033).
-//! Experimental format. Entries reference immutable provider IDs, never labels.
+//! Stable format 1 (ADR 0036). Entries reference immutable provider IDs, never labels.
 use crate::{Config, Error, MAX_CONFIG_BYTES, Result, data, invalid, valid_id, valid_text};
 use serde::{Deserialize, Serialize};
 use std::{
