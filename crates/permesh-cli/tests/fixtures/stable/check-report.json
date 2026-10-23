@@ -1,0 +1,147 @@
+{
+  "changes": "no_baseline",
+  "changes_state": {
+    "reasons": [],
+    "state": "no_baseline"
+  },
+  "check_report_version": 1,
+  "complete": true,
+  "counts": {
+    "departed_with_access": 1,
+    "incomplete": 0,
+    "missing_access": 2,
+    "policy_finding": 0,
+    "provider_failed": 0,
+    "unexplained_access": 2
+  },
+  "departed": [
+    {
+      "access_paths": 1,
+      "account": "102",
+      "instance": "demo",
+      "login": "former-dev",
+      "reason": "inactive_identity"
+    }
+  ],
+  "departed_assessed": true,
+  "files": {
+    "report": "out/check.json",
+    "snapshot": "out/snapshot.json",
+    "summary": "out/summary.md"
+  },
+  "findings": [],
+  "notifications": [],
+  "policy": {
+    "rules": [
+      "inactive_access",
+      "external_privileged",
+      "machine_owner"
+    ]
+  },
+  "profiles": {
+    "complete": true,
+    "counts": {
+      "ambiguous_accounts": 0,
+      "cannot_tell": 0,
+      "covered": 2,
+      "excepted": 0,
+      "missing": 2,
+      "not_covered": 2,
+      "unexplained": 2,
+      "unresolved_members": 0
+    },
+    "enforce": false,
+    "identities": [
+      {
+        "accounts": [
+          {
+            "account": "100",
+            "instance": "demo"
+          }
+        ],
+        "explained": 1,
+        "identity": "alice@example.com",
+        "missing": [],
+        "profiles": [
+          "base"
+        ],
+        "state": "compared",
+        "unexplained": [
+          {
+            "account": "100",
+            "certainty": "derived",
+            "grant_id": "grant-1",
+            "instance": "demo",
+            "resource": "repo-20",
+            "resource_name": "acme/payments-api",
+            "role": "Write",
+            "state": "finding",
+            "via": [
+              "team-10"
+            ]
+          }
+        ]
+      },
+      {
+        "accounts": [
+          {
+            "account": "101",
+            "instance": "demo"
+          }
+        ],
+        "explained": 0,
+        "identity": "bob@example.com",
+        "missing": [
+          {
+            "entry": {
+              "group": "team-10",
+              "instance": "demo",
+              "kind": "group"
+            },
+            "reason": "not_observed",
+            "state": "finding"
+          },
+          {
+            "entry": {
+              "instance": "demo",
+              "kind": "role",
+              "resource": "repo-21",
+              "role": "Read"
+            },
+            "reason": "not_observed",
+            "state": "finding"
+          }
+        ],
+        "profiles": [
+          "backend"
+        ],
+        "state": "compared",
+        "unexplained": [
+          {
+            "account": "101",
+            "certainty": "observed",
+            "grant_id": "grant-3",
+            "instance": "demo",
+            "resource": "repo-21",
+            "resource_name": "acme/infrastructure",
+            "role": "Admin",
+            "state": "finding",
+            "via": []
+          }
+        ]
+      }
+    ],
+    "message": "Read-only comparison of declared profiles with captured access. Unexplained access is a review finding, not proof of wrong access; cannot_tell entries were not fully observed.",
+    "profile_review_version": 1,
+    "unresolved_assignments": []
+  },
+  "providers": [
+    {
+      "id": "demo",
+      "limitations": [],
+      "state": "complete"
+    }
+  ],
+  "run_url": null,
+  "status": "findings"
+}

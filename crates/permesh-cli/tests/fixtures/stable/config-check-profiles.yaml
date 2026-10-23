@@ -1,0 +1,29 @@
+version: 1
+organization: {name: Stable fixture}
+providers: [{id: demo, type: demo}]
+check:
+  notifications:
+    - id: slack
+      type: slack_webhook
+      url: env://PERMESH_SLACK_WEBHOOK
+      on: [departed_with_access, new_admin]
+    - id: teams
+      type: teams_webhook
+      url: env://PERMESH_TEAMS_WEBHOOK
+    - id: siem
+      type: webhook
+      url: keychain://permesh/siem-hook
+      detail: true
+    - id: email
+      type: email
+      smtp_host: smtp.example.com
+      smtp_port: 587
+      username: permesh@example.com
+      password: env://PERMESH_SMTP_PASSWORD
+      from: Permesh <permesh@example.com>
+      to: [it@example.com]
+      on: [removed_admin, no_longer_observed, policy_finding, unexplained_access, missing_access, incomplete, provider_failed]
+profiles:
+  enforce: true
+  directory_groups:
+    - {instance: demo, group: team-10, profiles: [backend]}
