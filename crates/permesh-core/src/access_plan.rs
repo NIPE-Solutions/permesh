@@ -511,3 +511,48 @@ pub fn plan_access(
         && result.steps.iter().all(|s| s.state == EntryState::Finding);
     Ok(result)
 }
+
+/// What one canonical identity holds now, for verifying a plan's steps.
+#[derive(Clone, Debug, Serialize)]
+pub struct AttributedAccess {
+    pub accounts: Vec<EntityKey>,
+    pub paths: Vec<AccessPath>,
+    pub member_of: BTreeSet<EntityKey>,
+    /// Instances where an account this identity may own is not attributed to it.
+    pub claimed_instances: BTreeSet<String>,
+    /// Conflicting identity evidence: nothing can be attributed.
+    pub ambiguous: bool,
+}
+pub fn attributed_access(
+    snapshots: &[Snapshot],
+    aliases: &Aliases,
+    identity: &str,
+) -> Result<AttributedAccess, DomainError> {
+    let index = IdentityIndex::build(snapshots, aliases)?;
+    let (owned, claimed, _) = owned_accounts(&index);
+    let ambiguous = index.conflicting.contains(identity);
+    let accounts = if ambiguous {
+        vec![]
+    } else {
+        owned.get(identity).cloned().unwrap_or_default()
+    };
+    let mut paths = paths(snapshots, accounts.iter().copied(), false)?;
+    sort_paths(&mut paths);
+    let graph = MembershipGraph::new(snapshots);
+    let mut member_of = BTreeSet::new();
+    for account in &accounts {
+        member_of.extend(graph.reachable(&account.key)?);
+    }
+    Ok(AttributedAccess {
+        accounts: accounts.iter().map(|a| a.key.clone()).collect(),
+        paths,
+        member_of,
+        claimed_instances: claimed
+            .get(identity)
+            .into_iter()
+            .flatten()
+            .map(|i| (*i).to_owned())
+            .collect(),
+        ambiguous,
+    })
+}

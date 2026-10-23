@@ -70,3 +70,38 @@ pub(crate) fn plan_html(plan: &AccessPlan) -> Result<Vec<u8>, AppError> {
     body.push_str("</table>");
     page("Access plan", &body, &value)
 }
+pub(crate) fn verify_html(value: &Value) -> Result<Vec<u8>, AppError> {
+    let text = |v: &Value| escape(v.as_str().unwrap_or_default());
+    let mut body = format!(
+        "<h1>Access verification: {} for {}</h1><p class=\"gap\">{}</p><h2>Steps</h2><table><tr><th>Step</th><th>State</th><th>Reason</th></tr>",
+        text(&value["kind"]),
+        text(&value["identity"]),
+        if value["complete"] == true {
+            "Captured scope verified."
+        } else {
+            "INCOMPLETE — some steps or access could not be verified."
+        }
+    );
+    for check in value["checks"].as_array().into_iter().flatten() {
+        body.push_str(&row(&[
+            escape(&super::words(&check["operation"])),
+            text(&check["state"]),
+            text(&check["reason"]),
+        ]));
+    }
+    body.push_str("</table><h2>Extra access</h2><table><tr><th>Role</th><th>Resource</th><th>Account</th><th>State</th></tr>");
+    for extra in value["extra"].as_array().into_iter().flatten() {
+        body.push_str(&row(&[
+            text(&extra["role"]),
+            text(&extra["resource"]),
+            text(&extra["account"]),
+            text(&extra["state"]),
+        ]));
+    }
+    body.push_str("</table><h2>Gaps</h2><ul>");
+    for gap in value["gaps"].as_array().into_iter().flatten() {
+        body.push_str(&format!("<li>{}</li>", text(gap)));
+    }
+    body.push_str("</ul>");
+    page("Access verification", &body, value)
+}

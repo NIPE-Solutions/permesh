@@ -354,3 +354,302 @@ fn human_output_lists_steps_and_files() {
     assert!(text.contains("add membership team-10 in demo"), "{text}");
     assert!(text.contains("p.json"), "{text}");
 }
+
+fn snapshot(dir: &Path) -> Value {
+    assert!(
+        run(dir, &["snapshot", "create", "--output", "s.json"])
+            .status
+            .success()
+    );
+    saved(dir, "s.json")
+}
+fn save(dir: &Path, name: &str, value: &Value) {
+    fs::write(dir.join(name), serde_json::to_vec_pretty(value).unwrap()).unwrap();
+}
+fn data(snapshot: &mut Value) -> &mut Value {
+    &mut snapshot["providers"][0]["data"]
+}
+fn provenance() -> Value {
+    serde_json::json!({"method": "test edit", "observed_at": "2026-01-01T00:00:00Z"})
+}
+fn add_membership(snapshot: &mut Value, account: &str, group: &str) {
+    data(snapshot)["memberships"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "member": {"kind": "account", "key": {"provider": "demo", "id": account}},
+            "group": {"provider": "demo", "id": group},
+            "provenance": provenance(),
+        }));
+}
+fn add_grant(snapshot: &mut Value, id: &str, account: &str, resource: &str, role: &str) {
+    data(snapshot)["grants"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "id": id,
+            "subject": {"kind": "account", "key": {"provider": "demo", "id": account}},
+            "resource": {"provider": "demo", "id": resource},
+            "role": role,
+            "privilege": "standard",
+            "certainty": "observed",
+            "evidence_kind": "permission",
+            "provenance": provenance(),
+        }));
+}
+fn join_bob(dir: &Path) -> Value {
+    snapshot(dir);
+    let (code, result) = access(
+        dir,
+        &[
+            "join",
+            "bob@example.com",
+            "--profile",
+            "backend",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    assert_eq!(code, Some(0), "{result}");
+    saved(dir, "s.json")
+}
+fn verify(dir: &Path, extra: &[&str]) -> (Option<i32>, Value) {
+    let mut args = vec!["verify", "p.json"];
+    args.extend_from_slice(extra);
+    access(dir, &args)
+}
+fn checks(result: &Value) -> Vec<(String, String)> {
+    result["result"]["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            (
+                c["operation"]["type"].as_str().unwrap().to_owned(),
+                c["state"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn fresh_verify_of_join_plan_reports_not_done_and_exits_6() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    join_bob(dir.path());
+    let (code, result) = verify(dir.path(), &[]);
+    assert_eq!(code, Some(6), "{result}");
+    assert_eq!(result["command"], "access_verify");
+    assert_eq!(result["result"]["access_verification_version"], 1);
+    assert_eq!(
+        checks(&result),
+        vec![
+            ("add_membership".into(), "not_done".into()),
+            ("add_role".into(), "not_done".into())
+        ]
+    );
+    assert_eq!(result["result"]["counts"]["not_done"], 2);
+    assert_eq!(result["result"]["complete"], true);
+}
+
+#[test]
+fn verify_after_change_reports_done() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    let mut s = join_bob(dir.path());
+    add_membership(&mut s, "101", "team-10");
+    add_grant(&mut s, "grant-99", "101", "repo-21", "Read");
+    save(dir.path(), "edited.json", &s);
+    let (code, result) = verify(dir.path(), &["--snapshot", "edited.json"]);
+    assert_eq!(code, Some(0), "{result}");
+    assert_eq!(
+        checks(&result),
+        vec![
+            ("add_membership".into(), "done".into()),
+            ("add_role".into(), "done".into())
+        ]
+    );
+    assert_eq!(result["result"]["counts"]["done"], 2);
+}
+
+#[test]
+fn partial_capture_cannot_verify_removal() {
+    let dir = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let mut s = snapshot(dir.path());
+    let (code, result) = access(
+        dir.path(),
+        &[
+            "leave",
+            "bob@example.com",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    assert_eq!(code, Some(0), "{result}");
+    // The grant is gone, but the capture is partial: absence proves nothing.
+    data(&mut s)["grants"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|g| g["id"] != "grant-3");
+    s["providers"][0]["state"] = "partial".into();
+    data(&mut s)["complete"] = false.into();
+    s["providers"][0]["limitations"] = serde_json::json!(["Fixture visibility incomplete"]);
+    data(&mut s)["limitations"] = s["providers"][0]["limitations"].clone();
+    save(dir.path(), "partial.json", &s);
+    let (code, result) = verify(dir.path(), &["--snapshot", "partial.json"]);
+    assert_eq!(code, Some(4), "{result}");
+    let removal = result["result"]["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["operation"]["type"] == "remove_role")
+        .unwrap();
+    assert_eq!(removal["state"], "cannot_verify");
+    assert_eq!(removal["reason"], "instance_not_observable");
+    assert_eq!(result["result"]["complete"], false);
+}
+
+#[test]
+fn removal_is_done_once_absent_from_a_complete_capture() {
+    let dir = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let mut s = snapshot(dir.path());
+    access(
+        dir.path(),
+        &[
+            "leave",
+            "bob@example.com",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    data(&mut s)["grants"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|g| g["id"] != "grant-3");
+    save(dir.path(), "after.json", &s);
+    let (code, result) = verify(dir.path(), &["--snapshot", "after.json"]);
+    // The lifecycle review is manual: counted, but it does not make the result incomplete.
+    assert_eq!(code, Some(0), "{result}");
+    assert_eq!(
+        checks(&result),
+        vec![
+            ("remove_role".into(), "done".into()),
+            ("review_account_lifecycle".into(), "cannot_verify".into())
+        ]
+    );
+    assert_eq!(result["result"]["checks"][1]["reason"], "manual_review");
+    assert_eq!(result["result"]["complete"], true);
+}
+
+#[test]
+fn expired_plan_still_verifies_but_tampered_does_not() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    join_bob(dir.path());
+    let mut plan = saved(dir.path(), "p.json");
+    plan["created_at"] = "2026-01-01T00:00:00Z".into();
+    plan["expires_at"] = "2026-01-01T12:00:00Z".into();
+    save(dir.path(), "p.json", &plan);
+    let (code, result) = verify(dir.path(), &["--snapshot", "s.json"]);
+    assert_eq!(code, Some(6), "{result}");
+    plan["steps"][0]["operation"]["group"] = "team-99".into();
+    save(dir.path(), "p.json", &plan);
+    // No --snapshot: a refused plan never reaches provider discovery.
+    let (code, result) = verify(dir.path(), &[]);
+    assert_eq!(code, Some(2), "{result}");
+    assert!(
+        result["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Invalid access plan"),
+        "{result}"
+    );
+    assert!(
+        result
+            .get("providers")
+            .is_none_or(|p| p.as_array().is_none_or(Vec::is_empty))
+    );
+}
+
+#[test]
+fn extra_access_is_flagged() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    let mut s = join_bob(dir.path());
+    add_grant(&mut s, "grant-98", "101", "repo-20", "Write");
+    save(dir.path(), "edited.json", &s);
+    let (_, result) = verify(dir.path(), &["--snapshot", "edited.json"]);
+    let extra = result["result"]["extra"].as_array().unwrap();
+    assert!(
+        extra.iter().any(|e| e["grant_id"] == "grant-98"),
+        "{result}"
+    );
+    assert_eq!(
+        result["result"]["counts"]["extra"].as_u64().unwrap() as usize,
+        extra.len()
+    );
+}
+
+#[test]
+fn account_needed_without_mapping_cannot_verify() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    snapshot(dir.path());
+    access(
+        dir.path(),
+        &[
+            "join",
+            "carol@example.com",
+            "--profile",
+            "backend",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    let (code, result) = verify(dir.path(), &["--snapshot", "s.json"]);
+    assert_eq!(code, Some(4), "{result}");
+    for check in result["result"]["checks"].as_array().unwrap() {
+        assert_eq!(check["state"], "cannot_verify", "{check}");
+        assert_eq!(check["reason"], "no_mapped_account", "{check}");
+    }
+}
+
+#[test]
+fn identity_context_change_is_a_gap() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    let mut s = join_bob(dir.path());
+    s["identity"]["bindings"] = serde_json::json!([
+        {"identity": "bob@example.com", "instance": "demo", "account": "101"}
+    ]);
+    save(dir.path(), "edited.json", &s);
+    let (code, result) = verify(dir.path(), &["--snapshot", "edited.json"]);
+    assert_eq!(code, Some(4), "{result}");
+    assert!(
+        result["result"]["gaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|g| g == "identity_context_changed"),
+        "{result}"
+    );
+}
+
+#[test]
+fn verify_html_is_written() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    join_bob(dir.path());
+    let (code, _) = verify(dir.path(), &["--snapshot", "s.json", "--html", "v.html"]);
+    assert_eq!(code, Some(6));
+    let html = fs::read_to_string(dir.path().join("v.html")).unwrap();
+    assert!(html.contains("default-src 'none'"));
+    assert!(html.contains("not_done"), "{html}");
+}

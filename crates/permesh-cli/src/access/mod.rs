@@ -2,6 +2,7 @@
 //! Joiner, mover and leaver plans (experimental). Plans are data for a person to
 //! carry out, never commands; nothing here changes provider access.
 pub(crate) mod model;
+mod verify;
 mod view;
 use crate::{
     args::Cli,
@@ -70,6 +71,16 @@ pub enum AccessCommand {
         annotations: Option<PathBuf>,
         #[command(flatten)]
         common: PlanArgs,
+    },
+    /// Check a plan's steps against current observations and flag extra access.
+    Verify {
+        plan: PathBuf,
+        /// Read a saved snapshot offline instead of running fresh discovery.
+        #[arg(long)]
+        snapshot: Option<PathBuf>,
+        /// Also write a self-contained HTML view of the verification.
+        #[arg(long)]
+        html: Option<PathBuf>,
     },
 }
 
@@ -308,6 +319,65 @@ async fn plan(
     Ok(outcome)
 }
 
+async fn verify(
+    cli: &Cli,
+    path: &Path,
+    snapshot: Option<&Path>,
+    html: Option<&Path>,
+    pool: &BlockingPool,
+    cancel: &Cancellation,
+) -> Result<Outcome, AppError> {
+    cancelled(cancel)?;
+    check_destinations(&html.into_iter().collect::<Vec<_>>())?;
+    let (path, workspace) = (path.to_owned(), crate::workspace::path(cli)?);
+    // A plan that fails validation is refused before any provider is contacted.
+    let (plan, set) = pool
+        .run(move || -> Result<_, AppError> {
+            let plan: AccessPlan = artifact::load_document(&path)?;
+            plan.validate()?;
+            Ok((plan, crate::profile_command::load(&workspace)?))
+        })
+        .await??;
+    let (mut outcome, artifact) =
+        crate::resource_command::input(cli, snapshot, pool, cancel).await?;
+    cancelled(cancel)?;
+    let all_failed = !artifact.providers.is_empty()
+        && artifact.providers.iter().all(|p| p.state == State::Failed);
+    let html_requested = html.is_some();
+    let (value, bytes) = pool
+        .run(move || -> Result<_, AppError> {
+            let input = set
+                .as_ref()
+                .map(|s| crate::profile_command::input(s, &artifact));
+            let value = verify::verify(&plan, &artifact, input.as_ref())?;
+            let bytes = html_requested
+                .then(|| view::verify_html(&value))
+                .transpose()?;
+            Ok((value, bytes))
+        })
+        .await??;
+    cancelled(cancel)?;
+    if let (Some(path), Some(bytes)) = (html.map(Path::to_owned), bytes) {
+        let token = cancel.clone();
+        pool.run(move || artifact::write_bytes(&path, &bytes, &token))
+            .await??;
+    }
+    let complete = value["complete"] == true;
+    outcome.code = if all_failed {
+        3
+    } else if !complete {
+        4
+    } else if value["counts"]["not_done"].as_u64().unwrap_or(0) > 0 {
+        6
+    } else {
+        0
+    };
+    outcome.report.command = "access_verify".into();
+    outcome.report.complete = complete;
+    outcome.report.result = value;
+    Ok(outcome)
+}
+
 pub async fn run(
     cli: &Cli,
     command: &AccessCommand,
@@ -355,6 +425,21 @@ pub async fn run(
                 remove: BTreeSet::new(),
             };
             plan(cli, change, annotations.as_deref(), common, pool, cancel).await
+        }
+        AccessCommand::Verify {
+            plan,
+            snapshot,
+            html,
+        } => {
+            verify(
+                cli,
+                plan,
+                snapshot.as_deref(),
+                html.as_deref(),
+                pool,
+                cancel,
+            )
+            .await
         }
     }
 }
@@ -479,9 +564,56 @@ fn write_plan(out: &mut impl Write, result: &Value) -> io::Result<()> {
     )
 }
 
+fn write_verify(out: &mut impl Write, result: &Value) -> io::Result<()> {
+    let text = |v: &Value| safe(v.as_str().unwrap_or_default());
+    let counts = &result["counts"];
+    writeln!(
+        out,
+        "Access verification: {} for {}{}\n  {} done; {} not done; {} cannot verify ({} manual review); {} extra",
+        text(&result["kind"]),
+        text(&result["identity"]),
+        if result["complete"] == true {
+            ""
+        } else {
+            " (INCOMPLETE)"
+        },
+        counts["done"],
+        counts["not_done"],
+        counts["cannot_verify"],
+        counts["manual_review"],
+        counts["extra"],
+    )?;
+    for check in result["checks"].as_array().into_iter().flatten() {
+        writeln!(
+            out,
+            "  - {}: {} ({})",
+            words(&check["operation"]),
+            text(&check["state"]).replace('_', " "),
+            text(&check["reason"]).replace('_', " ")
+        )?;
+    }
+    for row in result["extra"].as_array().into_iter().flatten() {
+        writeln!(
+            out,
+            "  extra ({}): {} on {} ({}) in {}, account {}",
+            text(&row["state"]).replace('_', " "),
+            text(&row["role"]),
+            text(&row["resource_name"]),
+            text(&row["resource"]),
+            text(&row["instance"]),
+            text(&row["account"]),
+        )?;
+    }
+    for gap in result["gaps"].as_array().into_iter().flatten() {
+        writeln!(out, "  gap: {}", text(gap).replace('_', " "))?;
+    }
+    Ok(())
+}
+
 pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<()> {
     match command {
         "access_plan" => write_plan(out, result),
+        "access_verify" => write_verify(out, result),
         _ => writeln!(out, "{}", safe(&result.to_string())),
     }
 }

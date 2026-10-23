@@ -553,3 +553,15 @@ fn membership_cycle_in_removal_terminates() {
     assert!(result.steps.is_empty(), "{:?}", result.steps);
     assert_eq!(kept(&result), vec![(&team(), vec!["ops"])]);
 }
+
+#[test]
+fn attributed_access_lists_owned_accounts_paths_and_claims() {
+    let now = attributed_access(&[fixture()], &Aliases::new(), ALICE).unwrap();
+    assert_eq!(now.accounts, vec![key("100")]);
+    assert!(now.member_of.contains(&key("team-10")));
+    assert_eq!(now.paths.len(), 2);
+    assert!(now.claimed_instances.is_empty() && !now.ambiguous);
+    let now = attributed_access(&[fixture()], &bob_claimed_by_alice(), BOB).unwrap();
+    assert!(now.accounts.is_empty());
+    assert!(now.claimed_instances.contains("demo"));
+}
