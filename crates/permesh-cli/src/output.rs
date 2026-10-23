@@ -98,6 +98,8 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         crate::profile_command::write(&mut out, result)?;
     } else if report.command == "policy_check" {
         crate::policy_command::write(&mut out, result)?;
+    } else if report.command.starts_with("access_") {
+        crate::access::write(&mut out, &report.command, result)?;
     } else if report.command.starts_with("offboard_") {
         crate::offboard::write(&mut out, result)?;
     } else if matches!(report.command.as_str(), "snapshot_inspect" | "diff") {

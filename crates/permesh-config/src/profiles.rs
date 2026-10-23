@@ -114,7 +114,17 @@ pub struct Profile {
 #[serde(deny_unknown_fields)]
 pub struct Person {
     pub identity: String,
+    #[serde(default)]
+    pub status: PersonStatus,
     pub profiles: Vec<String>,
+}
+/// `left` marks an explicit departure; `permesh check` counts remaining access.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PersonStatus {
+    #[default]
+    Active,
+    Left,
 }
 /// Validated profiles with includes expanded.
 #[derive(Clone, Debug)]
@@ -122,6 +132,8 @@ pub struct ProfileSet {
     pub enforce: bool,
     pub profiles: BTreeMap<String, BTreeSet<ProfileEntry>>,
     pub people: BTreeMap<String, BTreeSet<String>>,
+    /// Identities whose people file says `status: left`.
+    pub left: BTreeSet<String>,
     pub directory_groups: Vec<DirectoryGroup>,
 }
 
@@ -279,6 +291,7 @@ pub fn load_profiles(root: &Path, config: &Config) -> Result<Option<ProfileSet>>
         expanded.insert(name.clone(), entries);
     }
     let mut people = BTreeMap::new();
+    let mut left = BTreeSet::new();
     for (file, person) in people_files.unwrap_or_default() {
         if !valid_text(&person.identity)
             || person.profiles.is_empty()
@@ -288,6 +301,9 @@ pub fn load_profiles(root: &Path, config: &Config) -> Result<Option<ProfileSet>>
                 &file,
                 invalid("people files need an identity and known profile names"),
             ));
+        }
+        if person.status == PersonStatus::Left {
+            left.insert(person.identity.clone());
         }
         if people
             .insert(
@@ -315,6 +331,7 @@ pub fn load_profiles(root: &Path, config: &Config) -> Result<Option<ProfileSet>>
         enforce: section.enforce,
         profiles: expanded,
         people,
+        left,
         directory_groups: section.directory_groups,
     }))
 }

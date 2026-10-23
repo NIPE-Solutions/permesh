@@ -18,7 +18,9 @@ This writes the same files as [`examples/starter`](../examples/starter/README.md
 | `policies/review-policy.json` | Review rules for `permesh check` |
 | `profiles/`, `people/` | Optional [access profiles](profiles.md); report-only until `profiles.enforce: true` |
 | `.github/workflows/permesh-check.yml` | Weekly GitHub Actions run |
-| `.gitlab-ci.yml` | The same for GitLab pipeline schedules |
+| `.github/workflows/permesh-plan.yml` | [Access plans](access-plans.md) for pull requests that change `people/` or `profiles/`, and execution plans after merge |
+| `.github/workflows/permesh-verify.yml` | Started by hand with a post-merge run ID; verifies its execution plans |
+| `.gitlab-ci.yml` | The weekly check for GitLab pipeline schedules, and `permesh-plan` for merge requests |
 
 Then follow the generated README: connect providers with `provider add --portable`,
 list their versions in `ci/providers.txt`, add CI secrets for each `env://`
@@ -45,5 +47,30 @@ limits artifacts to developers (`artifacts: access: developer`).
   that hides a new admin. On GitLab, exit 6 is an allowed failure (shown as a
   warning) so that the baseline keeps advancing while findings are open.
 
-The workflows need a Permesh release that includes `permesh check`. The version is
+## Plans for people changes
+
+`permesh-plan.yml` runs on pull requests that touch `people/` or `profiles/`. It
+checks out the base commit with `git worktree`, runs `permesh access review`,
+updates one PR comment with the counts-only summary and keeps the plans as the
+`access-plans` artifact (30 days). After merge, the same workflow finds the merged
+pull request, downloads the plans from its latest successful run, regenerates them
+and keeps unchanged ones as `execution-plans` (90 days). If access changed after
+review, the job fails with exit 6 and the step summary lists the counts; re-review
+before carrying out any step. A push that changes people files without a pull
+request fails, because nothing was reviewed.
+
+When the steps are done, start `permesh-verify.yml` from the Actions tab with the
+post-merge run ID. It verifies each execution plan, writes counts to the step
+summary and fails after all plans ran if any is not done or incomplete.
+
+Pull-request jobs from branches in the same repository receive the provider
+secrets, so restrict who can push branches. Pull requests from forks get no
+secrets and their plan job fails. If your default branch is not `main`, change
+`branches:` in `permesh-plan.yml`.
+
+GitLab ships the merge-request job only; run the post-merge steps by hand as in
+[access plans](access-plans.md#pull-request-flow).
+
+The workflows need a Permesh release that includes `permesh check` (and
+`permesh access` for the plan workflows). The version is
 set by `PERMESH_VERSION` at the top of each workflow file.

@@ -18,7 +18,7 @@ use std::{
 };
 use time::OffsetDateTime;
 
-const NOT_CONFIGURED: &str = "No access profiles are configured; add profiles/ and people/ files or a profiles section (see docs/profiles.md)";
+pub(crate) const NOT_CONFIGURED: &str = "No access profiles are configured; add profiles/ and people/ files or a profiles section (see docs/profiles.md)";
 
 #[derive(Clone, clap::Subcommand)]
 pub enum ProfileCommand {
@@ -116,7 +116,13 @@ pub(crate) fn review(
     now: OffsetDateTime,
 ) -> Result<ProfileReview, AppError> {
     let (snapshots, aliases) = crate::resource_command::domain(artifact);
-    let comparison = core::compare_profiles(&snapshots, &aliases, input)?;
+    // Someone who left is expected to hold nothing: remaining access is unexplained,
+    // and their former profiles are not missing.
+    let mut input = input.clone();
+    for identity in &set.left {
+        input.people.insert(identity.clone(), Default::default());
+    }
+    let comparison = core::compare_profiles(&snapshots, &aliases, &input)?;
     let (mut missing, mut unexplained, mut cannot_tell, mut excepted, mut covered) =
         (0, 0, 0, 0, 0);
     let mut identities = Vec::new();

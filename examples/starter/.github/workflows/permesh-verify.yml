@@ -1,0 +1,85 @@
+# Verify execution plans after a person has carried out the steps. Start it from
+# the Actions tab with the run ID of the post-merge "Permesh plan" run.
+# See docs: https://github.com/NIPE-Solutions/permesh/blob/main/docs/access-plans.md
+name: Permesh verify
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run ID of the post-merge Permesh plan run (execution-plans artifact)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+env:
+  PERMESH_VERSION: "0.1.0-alpha.4"
+  PERMESH_ARCHIVE_SHA256: "REPLACE_WITH_RELEASE_ARCHIVE_SHA256"
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Permesh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$PERMESH_ARCHIVE_SHA256" in
+            REPLACE*) echo "Set PERMESH_ARCHIVE_SHA256 in this workflow to the release archive digest." >&2; exit 1 ;;
+          esac
+          archive="permesh-${PERMESH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          gh release download "v${PERMESH_VERSION}" -R NIPE-Solutions/permesh -p "$archive"
+          # The committed digest pins the exact bytes; provenance pins who built them.
+          echo "${PERMESH_ARCHIVE_SHA256}  ${archive}" | sha256sum -c
+          gh attestation verify "$archive" --repo NIPE-Solutions/permesh \
+            --cert-identity "https://github.com/NIPE-Solutions/permesh/.github/workflows/attested-candidates.yml@refs/heads/main" \
+            --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners
+          mkdir -p "$RUNNER_TEMP/permesh-bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/permesh-bin"
+          echo "$RUNNER_TEMP/permesh-bin" >> "$GITHUB_PATH"
+          echo "PERMESH_DATA_DIR=$RUNNER_TEMP/permesh-state" >> "$GITHUB_ENV"
+      - name: Trust and approve pinned providers
+        run: sh ci/bootstrap.sh
+      - name: Fetch the execution plans
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          case "$RUN_ID" in
+            ''|*[!0-9]*) echo "run_id must be a numeric workflow run ID." >&2; exit 2 ;;
+          esac
+          gh run download "$RUN_ID" -n execution-plans -D execution
+      # Every plan runs before the job fails; the summary carries counts only.
+      - name: Verify each plan
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+          PERMESH_GITHUB_TOKEN: ${{ secrets.PERMESH_GITHUB_TOKEN }}
+          PERMESH_GOOGLE_TOKEN: ${{ secrets.PERMESH_GOOGLE_TOKEN }}
+        run: |
+          mkdir -p verification
+          status=0
+          found=0
+          for plan in execution/*.execution.json; do
+            [ -e "$plan" ] || continue
+            found=1
+            name=$(basename "$plan" .execution.json)
+            set +e
+            permesh access verify "$plan" --json > "verification/$name.json"
+            code=$?
+            set -e
+            jq -r --arg name "$name" --arg code "$code" \
+              '"\($name): exit \($code); done \(.result.counts.done // 0), not done \(.result.counts.not_done // 0), cannot verify \(.result.counts.cannot_verify // 0), extra \(.result.counts.extra // 0)"' \
+              "verification/$name.json" >> "$GITHUB_STEP_SUMMARY" || echo "$name: exit $code" >> "$GITHUB_STEP_SUMMARY"
+            [ "$code" = 0 ] || status=$code
+          done
+          [ "$found" = 1 ] || { echo "No execution plans in run $RUN_ID." >&2; exit 1; }
+          exit "$status"
+      - name: Keep the verification results (sensitive)
+        if: always() && hashFiles('verification/*.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: access-verification
+          path: verification/
+          retention-days: 90

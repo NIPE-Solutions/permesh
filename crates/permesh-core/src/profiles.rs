@@ -52,7 +52,7 @@ pub struct UnexplainedPath {
     pub path: AccessPath,
     pub state: EntryState,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ComparisonState {
     Compared,
@@ -85,7 +85,7 @@ pub struct ProfileComparison {
     pub complete: bool,
 }
 
-fn observable(input: &ProfileInput, instance: &str, capability: &str) -> bool {
+pub(crate) fn observable(input: &ProfileInput, instance: &str, capability: &str) -> bool {
     input
         .observable
         .get(instance)
@@ -93,19 +93,38 @@ fn observable(input: &ProfileInput, instance: &str, capability: &str) -> bool {
 }
 /// Role entries also need membership coverage when the instance has groups,
 /// because a derived path could otherwise satisfy them unseen.
-fn roles_observable(input: &ProfileInput, instance: &str) -> bool {
+pub(crate) fn roles_observable(input: &ProfileInput, instance: &str) -> bool {
     observable(input, instance, "grants")
         && (observable(input, instance, "memberships") || !observable(input, instance, "groups"))
 }
 
+/// A path is explained by a group entry it passes through, or by a role entry it ends in.
+pub(crate) fn explains(path: &AccessPath, entry: &ExpectedEntry) -> bool {
+    match entry {
+        ExpectedEntry::Group { instance, group } => path
+            .groups
+            .iter()
+            .any(|g| g.key.provider == *instance && g.key.id == *group),
+        ExpectedEntry::Role {
+            instance,
+            role,
+            resource,
+        } => {
+            path.resource.key.provider == *instance
+                && path.resource.key.id == *resource
+                && path.grant.role == *role
+        }
+    }
+}
+
 /// Accounts attributed to exactly one canonical identity, the instances where an
 /// identity also claims an ambiguous account, and how many accounts are ambiguous.
-type Owned<'a> = (
+pub(crate) type Owned<'a> = (
     BTreeMap<&'a str, Vec<&'a Account>>,
     BTreeMap<&'a str, BTreeSet<&'a str>>,
     usize,
 );
-fn owned_accounts<'a>(index: &'a IdentityIndex<'a>) -> Owned<'a> {
+pub(crate) fn owned_accounts<'a>(index: &'a IdentityIndex<'a>) -> Owned<'a> {
     let mut owned: BTreeMap<&str, Vec<&Account>> = BTreeMap::new();
     let mut claimed: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     let mut ambiguous = 0usize;
@@ -131,13 +150,35 @@ fn owned_accounts<'a>(index: &'a IdentityIndex<'a>) -> Owned<'a> {
     (owned, claimed, ambiguous)
 }
 
-pub fn compare_profiles(
+/// Effective profile assignment: people files plus directory group mappings.
+#[derive(Clone, Debug, Default)]
+pub struct Assignments {
+    pub profiles: BTreeMap<String, BTreeSet<String>>,
+    /// Mappings whose directory group could not be read completely.
+    pub unresolved_assignments: Vec<UnresolvedAssignment>,
+    /// Directory group members without exactly one canonical identity.
+    pub unresolved_members: usize,
+}
+impl Assignments {
+    /// Incomplete directory observation leaves assignments unresolved, not empty.
+    pub fn complete(&self) -> bool {
+        self.unresolved_assignments.is_empty() && self.unresolved_members == 0
+    }
+}
+pub fn assign_profiles(
     snapshots: &[Snapshot],
     aliases: &Aliases,
     input: &ProfileInput,
-) -> Result<ProfileComparison, DomainError> {
+) -> Result<Assignments, DomainError> {
     let index = IdentityIndex::build(snapshots, aliases)?;
-    let graph = MembershipGraph::new(snapshots);
+    assign(snapshots, &index, &MembershipGraph::new(snapshots), input)
+}
+fn assign(
+    snapshots: &[Snapshot],
+    index: &IdentityIndex<'_>,
+    graph: &MembershipGraph<'_>,
+    input: &ProfileInput,
+) -> Result<Assignments, DomainError> {
     let groups: BTreeSet<&EntityKey> = snapshots
         .iter()
         .flat_map(|s| s.groups.iter().map(|g| &g.key))
@@ -177,11 +218,30 @@ pub fn compare_profiles(
             }
         }
     }
+    Ok(Assignments {
+        profiles: assigned,
+        unresolved_assignments,
+        unresolved_members: unresolved_members.len(),
+    })
+}
+
+pub fn compare_profiles(
+    snapshots: &[Snapshot],
+    aliases: &Aliases,
+    input: &ProfileInput,
+) -> Result<ProfileComparison, DomainError> {
+    let index = IdentityIndex::build(snapshots, aliases)?;
+    let graph = MembershipGraph::new(snapshots);
+    let Assignments {
+        profiles: assigned,
+        unresolved_assignments,
+        unresolved_members,
+    } = assign(snapshots, &index, &graph, input)?;
     let assignments_complete = unresolved_assignments.is_empty();
     let (owned, claimed, ambiguous_accounts) = owned_accounts(&index);
     let mut identities = Vec::new();
     // Assigned members without a resolved identity were never compared.
-    let mut complete = assignments_complete && unresolved_members.is_empty();
+    let mut complete = assignments_complete && unresolved_members == 0;
     for (id, profiles) in &assigned {
         let mut comparison = IdentityComparison {
             identity: id.clone(),
@@ -215,21 +275,6 @@ pub fn compare_profiles(
         for account in &accounts {
             member_of.extend(graph.reachable(&account.key)?);
         }
-        let explains = |path: &AccessPath, entry: &ExpectedEntry| match entry {
-            ExpectedEntry::Group { instance, group } => path
-                .groups
-                .iter()
-                .any(|g| g.key.provider == *instance && g.key.id == *group),
-            ExpectedEntry::Role {
-                instance,
-                role,
-                resource,
-            } => {
-                path.resource.key.provider == *instance
-                    && path.resource.key.id == *resource
-                    && path.grant.role == *role
-            }
-        };
         for path in access.iter() {
             if expected.iter().any(|e| explains(path, e)) {
                 comparison.explained += 1;
@@ -313,7 +358,7 @@ pub fn compare_profiles(
         identities,
         not_covered,
         ambiguous_accounts,
-        unresolved_members: unresolved_members.len(),
+        unresolved_members,
         unresolved_assignments,
         complete,
     })

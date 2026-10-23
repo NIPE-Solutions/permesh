@@ -536,3 +536,51 @@ fn enforced_profiles_raise_findings() {
     assert_eq!(code, Some(4), "{result}");
     assert_eq!(result["complete"], false);
 }
+
+#[test]
+fn left_person_with_access_is_departed() {
+    let dir = demo();
+    fs::create_dir_all(dir.path().join("profiles")).unwrap();
+    fs::create_dir_all(dir.path().join("people")).unwrap();
+    fs::write(dir.path().join("profiles/backend.yaml"), BACKEND).unwrap();
+    fs::write(
+        dir.path().join("people/bob.yaml"),
+        "identity: bob@example.com\nstatus: left\nprofiles: [backend]\n",
+    )
+    .unwrap();
+    let (code, result) = profile_check(dir.path());
+    assert_eq!(code, Some(6), "{result}");
+    assert_eq!(result["counts"]["departed_with_access"], 2, "{result}");
+    let bob = result["departed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["account"] == "101")
+        .unwrap();
+    assert_eq!(bob["reason"], "left_in_people_file");
+    assert_eq!(bob["access_paths"], 1);
+}
+
+#[test]
+fn left_person_with_ambiguous_account_makes_check_incomplete() {
+    let dir = demo();
+    fs::create_dir_all(dir.path().join("profiles")).unwrap();
+    fs::create_dir_all(dir.path().join("people")).unwrap();
+    fs::write(dir.path().join("profiles/backend.yaml"), BACKEND).unwrap();
+    fs::write(
+        dir.path().join("people/bob.yaml"),
+        "identity: bob@example.com\nstatus: left\nprofiles: [backend]\n",
+    )
+    .unwrap();
+    // Alice also claims bob's account, so bob's access cannot be attributed.
+    let config = fs::read_to_string(dir.path().join("permesh.yaml"))
+        .unwrap()
+        .replace(
+            "aliases: {}",
+            "aliases:\n    alice@example.com:\n      demo: ['101']",
+        );
+    fs::write(dir.path().join("permesh.yaml"), config).unwrap();
+    let (code, result) = profile_check(dir.path());
+    assert_eq!(code, Some(4), "{result}");
+    assert_eq!(result["complete"], false);
+}

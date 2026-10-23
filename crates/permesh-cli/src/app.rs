@@ -29,6 +29,9 @@ pub async fn run(
     if let Command::Identity { command } = &cli.command {
         return crate::identity_command::run(cli, command, blocking, cancellation).await;
     }
+    if let Command::Access { command } = &cli.command {
+        return crate::access::run(cli, command, blocking, cancellation).await;
+    }
     if let Command::Offboard { command } = &cli.command {
         return crate::offboard::run(cli, command, blocking, cancellation).await;
     }

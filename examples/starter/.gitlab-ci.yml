@@ -1,5 +1,7 @@
 # Scheduled Permesh access check for GitLab. Create a pipeline schedule in
 # Build > Pipeline schedules. See docs/starter.md in the Permesh repository.
+# Merge requests that touch people/ or profiles/ get an access plan (permesh-plan);
+# the post-merge execution and verify steps run by hand (docs/access-plans.md).
 #
 # CI/CD variables (masked): PERMESH_GITHUB_TOKEN, PERMESH_GOOGLE_TOKEN, ... for the
 # env:// references in permesh.yaml; optional PERMESH_ISSUE_TOKEN (project access
@@ -18,10 +20,13 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 permesh-check:
   stage: check
   image: debian:13-slim
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web"
   before_script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl jq unzip >/dev/null
     - archive="permesh-${PERMESH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
@@ -67,6 +72,8 @@ permesh-baseline:
   stage: publish
   image: debian:13-slim
   needs: [permesh-check]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web"
   script:
     - |
       if [ "$CHECK_CODE" != "0" ] && [ "$CHECK_CODE" != "6" ]; then
@@ -85,7 +92,7 @@ permesh-issue:
   image: debian:13-slim
   needs: [permesh-check]
   rules:
-    - if: $PERMESH_ISSUE_TOKEN
+    - if: $PERMESH_ISSUE_TOKEN && ($CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web")
       when: always
   script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl jq >/dev/null
@@ -99,3 +106,39 @@ permesh-issue:
         curl -fsS --request POST --header "$auth" --data-urlencode "title=Permesh access check needs review" \
           --data-urlencode "labels=permesh-check" --data-urlencode "description@out/summary.md" "$api" >/dev/null
       fi
+
+# Plans access changes in merge requests: counts-only summary in the job log, full
+# plans as an artifact (the review copy). Plans are data; a person carries out each step.
+permesh-plan:
+  stage: check
+  image: debian:13-slim
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: [people/**, profiles/**]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl git jq unzip >/dev/null
+    - archive="permesh-${PERMESH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+    - base="https://github.com/NIPE-Solutions/permesh/releases/download/v${PERMESH_VERSION}"
+    - |
+      case "$PERMESH_ARCHIVE_SHA256" in
+        REPLACE*) echo "Set PERMESH_ARCHIVE_SHA256 in .gitlab-ci.yml to the release archive digest." >&2; exit 1 ;;
+      esac
+    - curl -fsSLO "$base/$archive"
+    - echo "${PERMESH_ARCHIVE_SHA256}  ${archive}" | sha256sum -c
+    - mkdir -p /opt/permesh && tar -xzf "$archive" -C /opt/permesh && export PATH="/opt/permesh:$PATH"
+    - sh ci/bootstrap.sh
+  script:
+    - git fetch --depth=1 origin "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    - git worktree add ../base "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    - |
+      set +e
+      permesh access review --base ../base --out plans
+      code=$?
+      set -e
+      [ -f plans/summary.md ] && cat plans/summary.md
+      exit "$code"
+  artifacts:
+    when: always
+    access: developer
+    expire_in: 30 days
+    paths: [plans/]

@@ -37,8 +37,10 @@ These may change between releases without a migration guide.
 - [Access profiles](profiles.md): `profile check`, `profile suggest`, the
   `profiles/` and `people/` files, the `profiles` section of `permesh.yaml`, the
   profile counts in `check`, and policy file `version: 2` exceptions.
-- Everything still to come for joiner/mover/leaver plans, until a second stability
-  declaration after that work lands.
+- [Joiner, mover and leaver plans](access-plans.md): the `access` command
+  (`join`, `move`, `leave`, `verify`, `review`), the `permesh_access_plan` v1 file,
+  people files' `status`, and the plan and verify starter workflows. A second
+  stability declaration will freeze these formats.
 
 ## Provider maturity
 

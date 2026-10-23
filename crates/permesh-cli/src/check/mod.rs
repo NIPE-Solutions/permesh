@@ -75,40 +75,70 @@ fn check_output(cli: &Cli, out: &Path, overwrite: bool) -> Result<(), AppError> 
     Ok(())
 }
 
-/// Departed = an authoritative identity classified inactive or suspended whose
-/// account still has observed or derived access paths.
-fn departures(artifact: &Artifact) -> Result<(bool, Vec<Value>), AppError> {
+/// Departed = an authoritative identity classified inactive or suspended, or an
+/// identity whose people file says `status: left`, whose account still has
+/// observed or derived access paths. A left identity whose accounts cannot be
+/// attributed is skipped here; the ambiguous account already makes the run
+/// incomplete through policy evaluation.
+fn departures(
+    artifact: &Artifact,
+    profiles: Option<&ProfileSet>,
+) -> Result<(bool, Vec<Value>), AppError> {
     let authorities = &artifact.identity.authorities;
-    if authorities.is_empty() {
+    let left = profiles.map(|p| &p.left).filter(|l| !l.is_empty());
+    if authorities.is_empty() && left.is_none() {
         return Ok((false, vec![]));
     }
     let (snapshots, aliases) = crate::resource_command::domain(artifact);
-    let orphaned = core::query_orphaned(&snapshots, &aliases, authorities)?;
-    let mut paths: BTreeMap<&core::EntityKey, usize> = BTreeMap::new();
-    for path in &orphaned.access {
-        *paths.entry(&path.account).or_default() += 1;
-    }
-    let departed = orphaned
-        .accounts
-        .iter()
-        .filter(|a| {
+    let mut departed = Vec::new();
+    let mut seen = BTreeSet::new();
+    if !authorities.is_empty() {
+        let orphaned = core::query_orphaned(&snapshots, &aliases, authorities)?;
+        let mut paths: BTreeMap<&core::EntityKey, usize> = BTreeMap::new();
+        for path in &orphaned.access {
+            *paths.entry(&path.account).or_default() += 1;
+        }
+        for a in orphaned.accounts.iter().filter(|a| {
             matches!(
                 a.reason,
                 OrphanReason::InactiveIdentity | OrphanReason::SuspendedIdentity
             )
-        })
-        .filter_map(|a| {
-            paths.get(&a.account.key).map(|count| {
-                json!({
+        }) {
+            if let Some(count) = paths.get(&a.account.key) {
+                seen.insert(a.account.key.clone());
+                departed.push(json!({
                     "instance": a.account.key.provider,
                     "account": a.account.key.id,
                     "login": a.account.login,
                     "reason": a.reason,
                     "access_paths": count,
-                })
-            })
-        })
-        .collect();
+                }));
+            }
+        }
+    }
+    for identity in left.into_iter().flatten() {
+        let access = match core::query_user(&snapshots, &aliases, identity) {
+            Ok(access) => access,
+            Err(core::DomainError::NotFound | core::DomainError::Ambiguous) => continue,
+            Err(error) => return Err(error.into()),
+        };
+        for account in &access.accounts {
+            let count = access
+                .access
+                .iter()
+                .filter(|p| p.account == account.key)
+                .count();
+            if count > 0 && seen.insert(account.key.clone()) {
+                departed.push(json!({
+                    "instance": account.key.provider,
+                    "account": account.key.id,
+                    "login": account.login,
+                    "reason": "left_in_people_file",
+                    "access_paths": count,
+                }));
+            }
+        }
+    }
     Ok((true, departed))
 }
 
@@ -204,6 +234,7 @@ fn build(
     args: &CheckArgs,
 ) -> Result<(CheckReport, bool), AppError> {
     let now = OffsetDateTime::now_utc();
+    let profiles_set = profiles;
     let (policy_result, _, evaluation_complete) = policy.evaluate(artifact, now)?;
     let profiles = match profiles {
         Some(set) => {
@@ -224,7 +255,7 @@ fn build(
         .filter(|c| c["state"] == "finding" && c["rule"] != "inactive_access")
         .cloned()
         .collect();
-    let (departed_assessed, departed) = departures(artifact)?;
+    let (departed_assessed, departed) = departures(artifact, profiles_set)?;
     let failed = artifact
         .providers
         .iter()

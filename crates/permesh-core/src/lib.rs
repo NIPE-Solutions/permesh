@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+pub mod access_plan;
 mod admins;
 mod identity;
 pub mod identity_review;
@@ -12,6 +13,7 @@ mod resource;
 mod traversal;
 mod validation;
 
+pub use access_plan::*;
 pub use admins::*;
 pub use identity::{Aliases, IdentityResolution};
 pub use model::*;

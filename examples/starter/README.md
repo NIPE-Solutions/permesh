@@ -23,7 +23,7 @@ public repositories anyone signed in can download them.
 2. **List the provider versions** you just added in `ci/providers.txt`.
 3. **Add CI secrets** for each `env://NAME` reference in `permesh.yaml`
    (for example `PERMESH_GITHUB_TOKEN`). Use read-only, least-privilege tokens.
-4. **Pin the Permesh release** in the workflow file: set `PERMESH_VERSION` and
+4. **Pin the Permesh release** in each workflow file: set `PERMESH_VERSION` and
    `PERMESH_ARCHIVE_SHA256` (the `x86_64-unknown-linux-gnu` archive digest from the
    release page). CI refuses to run until both are set.
 5. **Try it locally:** `permesh check --out out`. Exit 0 means clean, 6 means
@@ -38,6 +38,18 @@ Describe what each role should have in `profiles/` and assign people in `people/
 including access through nested groups. It stays report-only until you set
 `profiles: {enforce: true}` in `permesh.yaml`. Run `permesh profile check` to see the
 details locally.
+
+## Optional: plans when someone joins, moves or leaves
+
+With profiles in place, change a `people/` file in a pull request (add a profile,
+remove one, delete the file, or set `status: left`). `permesh-plan.yml` comments a
+counts-only summary on the pull request and keeps the full plans as an artifact.
+After merge it regenerates them; unchanged plans become execution plans bound to
+the reviewed copy, and changed access asks for re-review instead. A person carries
+out the steps, then starts `permesh-verify.yml` with the post-merge run ID. Permesh
+never changes access itself. On GitLab, `permesh-plan` runs for merge requests; run
+the post-merge steps by hand (see `docs/access-plans.md` in the Permesh repository).
+If the plan workflow pushes on a branch other than `main`, change `branches:` there.
 
 ## What the scheduled run does
 
