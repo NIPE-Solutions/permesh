@@ -130,6 +130,8 @@ pub enum Command {
         #[arg(value_enum, conflicts_with = "json")]
         shell: clap_complete::Shell,
     },
+    /// Serve read-only answers to a local AI assistant over MCP (stdio).
+    Mcp,
     /// Show version and privacy defaults.
     Version,
 }

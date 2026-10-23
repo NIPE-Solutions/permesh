@@ -23,6 +23,7 @@ mod guided_add;
 mod guided_prompt;
 mod identity_command;
 mod inventory;
+mod mcp;
 mod offboard;
 mod orphaned_output;
 mod output;
@@ -95,6 +96,16 @@ async fn main() -> ExitCode {
     }
     let schema_version = report::command_schema_version(&cli.command);
     let blocking = blocking::BlockingPool::new();
+    if let args::Command::Mcp = &cli.command {
+        // stdout belongs to the MCP session; errors only reach stderr.
+        return match mcp::serve(&cli, &blocking).await {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => match output::write_error(&error, false, schema_version) {
+                Ok(()) => ExitCode::from(error.code),
+                Err(_) => ExitCode::from(5),
+            },
+        };
+    }
     let result = if let args::Command::Provider {
         command: args::ProviderCommand::External { command },
     } = &cli.command
