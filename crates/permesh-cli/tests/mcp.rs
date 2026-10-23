@@ -22,7 +22,7 @@ const TOOLS: &[&str] = &[
     "verify_plan",
 ];
 const VERSION: &str = "2026-07-28";
-const INSTRUCTIONS: &str = "Permesh answers who has access to what, read-only. Every tool result has `complete`: when it is false, some providers could not be fully read and missing access is not proof of absence, so say you cannot tell. Plan tools write a new plan file for a person to review and carry out; Permesh never changes access.";
+const INSTRUCTIONS: &str = "Permesh answers who has access to what, read-only. Successful tool results have `report.complete`: when it is false, some providers could not be fully read and missing access is not proof of absence, so say you cannot tell. Plan tools write a new plan file for a person to review and carry out; Permesh never changes access.";
 
 fn command(dir: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_permesh"));
@@ -181,6 +181,36 @@ fn legacy_initialize_is_rejected() {
             .iter()
             .all(|l| serde_json::from_str::<Value>(l).is_ok())
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn closed_output_is_not_blamed_on_protocol() {
+    let dir = demo();
+    let mut child = command(dir.path())
+        .arg("mcp")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // Nobody reads the answer: replying to the client fails.
+    drop(child.stdout.take());
+    let mut stdin = child.stdin.take().unwrap();
+    writeln!(
+        stdin,
+        "{}",
+        json!({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {},
+            "clientInfo": {"name": "old", "version": "0"}}})
+    )
+    .unwrap();
+    drop(stdin);
+    let output = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(5), "{stderr}");
+    assert!(stderr.contains("could not reach the assistant"), "{stderr}");
+    assert!(!stderr.contains("2026-07-28"), "{stderr}");
 }
 
 #[test]
@@ -729,6 +759,39 @@ fn cancelled_call_drains_and_server_continues() {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn cancelled_queued_call_never_starts() {
+    let (_temporary, root) = slow_workspace();
+    let mut client = Client::start(&root);
+    let running = client.start_request(
+        "tools/call",
+        json!({"name": "user_access", "arguments": {"identity": "missing"}}),
+    );
+    let provider = wait_for_provider(&root);
+    let queued = client.start_request(
+        "tools/call",
+        json!({"name": "user_access", "arguments": {"identity": "missing"}}),
+    );
+    for id in [queued, running] {
+        client.send(
+            &json!({"jsonrpc": "2.0", "method": "notifications/cancelled",
+            "params": {"requestId": id, "reason": "test", "_meta": meta()}}),
+        );
+    }
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while alive(&provider) && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(!alive(&provider), "cancelled provider was not reaped");
+    // The server stays usable, and the cancelled queued call started no provider.
+    assert_eq!(client.tool_names().len(), TOOLS.len());
+    std::thread::sleep(Duration::from_millis(500));
+    let starts = std::fs::read_to_string(root.join("ready.starts")).unwrap();
+    assert_eq!(starts.lines().count(), 1, "{starts}");
+    let _ = client.finish();
+}
+
 /// A real native provider speaks either legacy protocol, exposes a private
 /// observation, then hangs after marking its PID. This synchronizes SIGINT with
 /// active discovery rather than relying on startup timing.
@@ -750,6 +813,8 @@ fn main() {
     std::io::stdout().flush().unwrap();
     eprintln!("CANCELLATION_PRIVATE_STDERR");
     let marker = std::path::Path::new(MARKER);
+    let mut starts = std::fs::OpenOptions::new().create(true).append(true).open(marker.with_extension("starts")).unwrap();
+    writeln!(starts, "{}", std::process::id()).unwrap();
     let temporary = marker.with_extension("tmp");
     std::fs::write(&temporary, std::process::id().to_string()).unwrap();
     std::fs::rename(temporary, marker).unwrap();

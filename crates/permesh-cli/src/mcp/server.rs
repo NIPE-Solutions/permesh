@@ -15,7 +15,7 @@ use rmcp::{
 };
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
-pub(crate) const INSTRUCTIONS: &str = "Permesh answers who has access to what, read-only. Every tool result has `complete`: when it is false, some providers could not be fully read and missing access is not proof of absence, so say you cannot tell. Plan tools write a new plan file for a person to review and carry out; Permesh never changes access.";
+pub(crate) const INSTRUCTIONS: &str = "Permesh answers who has access to what, read-only. Successful tool results have `report.complete`: when it is false, some providers could not be fully read and missing access is not proof of absence, so say you cannot tell. Plan tools write a new plan file for a person to review and carry out; Permesh never changes access.";
 const VERSIONS: &[ProtocolVersion] = &[ProtocolVersion::V_2026_07_28];
 
 pub(crate) struct Server {

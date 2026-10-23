@@ -821,7 +821,10 @@ fn detail_summary_escapes_markdown() {
         summary.contains(r"\<b\>x\</b\>\_\[a\]\(https://e.example\)@example.com"),
         "{summary}"
     );
-    assert!(!summary.contains("<b>") && !summary.contains("]("), "{summary}");
+    assert!(
+        !summary.contains("<b>") && !summary.contains("]("),
+        "{summary}"
+    );
 }
 
 #[test]
@@ -848,7 +851,10 @@ fn existing_plan_file_is_refused_before_capture() {
             .starts_with("Output exists"),
         "{result}"
     );
-    assert_eq!(fs::read_to_string(head.path().join("plans/000.json")).unwrap(), "{}");
+    assert_eq!(
+        fs::read_to_string(head.path().join("plans/000.json")).unwrap(),
+        "{}"
+    );
 }
 
 #[test]

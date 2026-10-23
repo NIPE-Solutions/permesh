@@ -135,6 +135,20 @@ fn plan_properties(mut properties: Value) -> Value {
 fn names(description: &str) -> Value {
     json!({"type": "array", "items": {"type": "string"}, "description": description})
 }
+/// A required profile list, which the plan command needs at least one name in.
+fn required_names(description: &str) -> Value {
+    let mut value = names(description);
+    value["minItems"] = json!(1);
+    value
+}
+fn at_least_one(field: &str, values: &[String]) -> Result<(), AppError> {
+    if values.is_empty() {
+        return Err(AppError::input(format!(
+            "Name at least one profile in {field}"
+        )));
+    }
+    Ok(())
+}
 const SNAPSHOT: &str =
     "Saved snapshot to read offline instead of fresh discovery; a path relative to the workspace.";
 
@@ -194,7 +208,7 @@ pub(crate) fn definitions() -> Vec<Definition> {
             "plan_join",
             "Prepare a reviewable plan file of the access a person needs for added profiles, including accounts still to create. Permesh never applies it.",
             object(
-                plan_properties(json!({"profiles": names("Profiles to add.")})),
+                plan_properties(json!({"profiles": required_names("Profiles to add.")})),
                 &["person", "profiles", "output"],
             ),
         ),
@@ -203,7 +217,7 @@ pub(crate) fn definitions() -> Vec<Definition> {
             "Prepare a reviewable plan file for a profile change: removals only for access no remaining profile justifies, and shared access listed as kept. Permesh never applies it.",
             object(
                 plan_properties(
-                    json!({"remove": names("Profiles to take away."), "add": names("Profiles to add.")}),
+                    json!({"remove": required_names("Profiles to take away."), "add": names("Profiles to add.")}),
                 ),
                 &["person", "remove", "output"],
             ),
@@ -298,12 +312,14 @@ impl Tool {
                 argv.extend(file("policy", &args.policy)?);
             }
             Tool::PlanJoin(args) => {
+                at_least_one("profiles", &args.profiles)?;
                 argv.extend(["access".into(), "join".into()]);
                 argv.extend(args.profiles.iter().map(|p| option("profile", p)));
                 argv.extend(common(&args.output, &args.snapshot, args.expires_in_hours)?);
                 argv.extend(["--".into(), (&args.person).into()]);
             }
             Tool::PlanMove(args) => {
+                at_least_one("remove", &args.remove)?;
                 argv.extend(["access".into(), "move".into()]);
                 argv.extend(args.remove.iter().map(|p| option("remove", p)));
                 argv.extend(args.add.iter().map(|p| option("add", p)));
@@ -455,5 +471,38 @@ mod tests {
                 "{tool:?}"
             );
         }
+    }
+
+    #[test]
+    fn empty_profile_lists_name_the_argument() {
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = dir.path().join("permesh.yaml");
+        let join = Tool::PlanJoin(JoinArgs {
+            person: "a@example.com".into(),
+            profiles: vec![],
+            output: "new.json".into(),
+            snapshot: None,
+            expires_in_hours: None,
+        });
+        let error = join.argv(&workspace).unwrap_err();
+        assert_eq!(error.message, "Name at least one profile in profiles");
+        let movement = Tool::PlanMove(MoveArgs {
+            person: "a@example.com".into(),
+            remove: vec![],
+            add: vec!["b".into()],
+            output: "new.json".into(),
+            snapshot: None,
+            expires_in_hours: None,
+        });
+        let error = movement.argv(&workspace).unwrap_err();
+        assert_eq!(error.message, "Name at least one profile in remove");
+        let listed = definitions();
+        let schema = |name: &str, field: &str| {
+            listed.iter().find(|t| t.name == name).unwrap().input_schema["properties"][field]
+                ["minItems"]
+                .clone()
+        };
+        assert_eq!(schema("plan_join", "profiles"), json!(1));
+        assert_eq!(schema("plan_move", "remove"), json!(1));
     }
 }

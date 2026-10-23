@@ -57,7 +57,8 @@ fn canonical_root(root: &Path) -> Result<PathBuf, AppError> {
     std::fs::canonicalize(root).map_err(|_| AppError::input(MISSING))
 }
 
-/// An input file inside the root; symlinks are followed and must stay inside.
+/// An input file inside the root; symlinks are followed and must stay inside. A link
+/// that leaves the root reads as missing, so it never tells whether its target exists.
 pub(crate) fn existing(root: &Path, relative: &str) -> Result<PathBuf, AppError> {
     let path = lexical(relative)?;
     let root = canonical_root(root)?;
@@ -65,7 +66,7 @@ pub(crate) fn existing(root: &Path, relative: &str) -> Result<PathBuf, AppError>
     if resolved.starts_with(&root) {
         Ok(resolved)
     } else {
-        Err(AppError::input(OUTSIDE))
+        Err(AppError::input(MISSING))
     }
 }
 
@@ -87,7 +88,7 @@ pub(crate) fn new_file(root: &Path, relative: &str) -> Result<PathBuf, AppError>
     if parent.starts_with(&root) {
         Ok(parent.join(name))
     } else {
-        Err(AppError::input(OUTSIDE))
+        Err(AppError::input(MISSING))
     }
 }
 
@@ -140,14 +141,18 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::os::unix::fs::symlink(outside.path().join("file"), dir.path().join("link")).unwrap();
         std::os::unix::fs::symlink(outside.path(), dir.path().join("out")).unwrap();
-        assert_eq!(
-            message(existing(dir.path(), "link")),
-            "Path is outside the workspace"
-        );
-        assert_eq!(
-            message(new_file(dir.path(), "out/new.json")),
-            "Path is outside the workspace"
-        );
+        std::os::unix::fs::symlink(outside.path().join("none"), dir.path().join("gone")).unwrap();
+        std::os::unix::fs::symlink(outside.path().join("none"), dir.path().join("nodir")).unwrap();
+        // Same answer whether the target outside exists, so links reveal nothing about it.
+        for (link, gone) in [("link", "gone"), ("out/new.json", "nodir/new.json")] {
+            let (link, gone) = if link == "link" {
+                (existing(dir.path(), link), existing(dir.path(), gone))
+            } else {
+                (new_file(dir.path(), link), new_file(dir.path(), gone))
+            };
+            assert_eq!(message(link), "File not found in the workspace");
+            assert_eq!(message(gone), "File not found in the workspace");
+        }
     }
 
     #[test]

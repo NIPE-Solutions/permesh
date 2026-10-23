@@ -405,7 +405,10 @@ fn verify_workflow_accepts_only_post_merge_plan_runs() {
     });
     let mut cases = vec![(good.clone(), true)];
     for (field, value) in [
-        ("path", serde_json::json!(".github/workflows/permesh-check.yml")),
+        (
+            "path",
+            serde_json::json!(".github/workflows/permesh-check.yml"),
+        ),
         ("event", serde_json::json!("pull_request")),
         ("head_branch", serde_json::json!("feature")),
         ("conclusion", serde_json::json!("failure")),
