@@ -44,6 +44,10 @@ pub enum Error {
     NotFound,
     #[error("cannot serialize workspace configuration")]
     Serialize,
+    #[error(
+        "unsupported format version {0}; this Permesh reads version 1. Remove the version line or upgrade Permesh."
+    )]
+    UnsupportedVersion(u64),
     #[error("{file}: {source}")]
     File { file: String, source: Box<Error> },
 }
