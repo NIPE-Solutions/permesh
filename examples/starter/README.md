@@ -14,11 +14,14 @@ public repositories anyone signed in can download them.
    ```bash
    permesh provider add github --portable
    permesh provider add google --portable --authoritative
-   permesh auth login github-main
    permesh doctor
    ```
 
    `--portable` pins the provider binary for every platform, so CI can verify it.
+   When asked for credential references, use environment variables, which work
+   both locally and in CI: `env://PERMESH_GITHUB_TOKEN`, and for Google refresh-token
+   mode `env://PERMESH_GOOGLE_CLIENT_SECRET` and `env://PERMESH_GOOGLE_REFRESH_TOKEN`.
+   A keychain reference works only on your machine.
 
 2. **List the provider versions** you just added in `ci/providers.txt`.
 3. **Add CI secrets** for each `env://NAME` reference in `permesh.yaml`

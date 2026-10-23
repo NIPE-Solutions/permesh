@@ -803,6 +803,61 @@ fn review_plans_changed_people_only() {
 }
 
 #[test]
+fn detail_summary_escapes_markdown() {
+    let identity = "<b>x</b>_[a](https://e.example)@example.com";
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        (
+            "people/x.yaml",
+            &format!("identity: '{identity}'\nprofiles: [backend]\n"),
+        ),
+    ]);
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    let (code, result) = review(head.path(), base.path(), "detailed", &["--detail"]);
+    assert_eq!(code, Some(0), "{result}");
+    let summary = fs::read_to_string(head.path().join("detailed/summary.md")).unwrap();
+    // Names render as text: no HTML, no link.
+    assert!(
+        summary.contains(r"\<b\>x\</b\>\_\[a\]\(https://e.example\)@example.com"),
+        "{summary}"
+    );
+    assert!(
+        !summary.contains("<b>") && !summary.contains("]("),
+        "{summary}"
+    );
+}
+
+#[test]
+fn existing_plan_file_is_refused_before_capture() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    fs::create_dir_all(head.path().join("plans")).unwrap();
+    fs::write(head.path().join("plans/000.json"), "{}").unwrap();
+    // The missing snapshot would fail the capture; the output check must come first.
+    let (code, result) = review(
+        head.path(),
+        base.path(),
+        "plans",
+        &["--snapshot", "missing.json"],
+    );
+    assert_eq!(code, Some(2), "{result}");
+    assert!(
+        result["error"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("Output exists"),
+        "{result}"
+    );
+    assert_eq!(
+        fs::read_to_string(head.path().join("plans/000.json")).unwrap(),
+        "{}"
+    );
+}
+
+#[test]
 fn deleted_people_file_is_a_move_and_left_is_a_leave() {
     let head = demo(&[
         ("profiles/backend.yaml", BACKEND),
@@ -1069,7 +1124,7 @@ fn bare_array_index_is_refused() {
     assert_eq!(code, Some(2), "{result}");
     assert_eq!(
         result["error"]["message"],
-        "Unsupported index.json format; regenerate the reviewed plans with this Permesh version"
+        "Unsupported index.json format in r1; regenerate the reviewed plans with this Permesh version (in the starter CI, re-run the pull request's Permesh plan job)"
     );
     assert!(!head.path().join("r2/000.execution.json").exists());
 }

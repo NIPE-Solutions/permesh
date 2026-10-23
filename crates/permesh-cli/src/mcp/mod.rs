@@ -39,6 +39,13 @@ pub(crate) async fn serve(cli: &Cli, blocking: &BlockingPool) -> Result<(), AppE
     let running = match session {
         Ok(running) => running,
         Err(ServerInitializeError::ConnectionClosed(_)) => return Ok(()),
+        Err(ServerInitializeError::Cancelled) => return Err(AppError::new(130, "Cancelled")),
+        Err(ServerInitializeError::TransportError { .. }) => {
+            return Err(AppError::new(
+                5,
+                "The MCP session could not start: Permesh could not reach the assistant over stdio.",
+            ));
+        }
         Err(_) => {
             return Err(AppError::input(
                 "The MCP session could not start. permesh mcp supports MCP protocol 2026-07-28 only; update the assistant or its MCP client.",

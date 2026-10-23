@@ -177,6 +177,38 @@ fn check_report_fixture() {
     assert_fixture("check-report.json", &normalized(dir.path(), report));
 }
 
+/// Notifications run (not `--no-notify`): one is skipped by its filter, one fails offline.
+#[test]
+fn check_report_with_notifications_fixture() {
+    let dir = workspace();
+    let mut config = fs::read_to_string(dir.path().join("permesh.yaml")).unwrap();
+    config.push_str(
+        "check:\n  notifications:\n    - id: admins\n      type: slack_webhook\n      url: env://PERMESH_FIXTURE_UNSET_SLACK\n      on: [new_admin]\n    - id: siem\n      type: webhook\n      url: env://PERMESH_FIXTURE_UNSET_HOOK\n",
+    );
+    fs::write(dir.path().join("permesh.yaml"), config).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_permesh"))
+        .current_dir(dir.path())
+        .env("NO_COLOR", "1")
+        .env("PERMESH_DATA_DIR", dir.path().join("state"))
+        .env_remove("PERMESH_FIXTURE_UNSET_SLACK")
+        .env_remove("PERMESH_FIXTURE_UNSET_HOOK")
+        .args(["check", "--out", "out"])
+        .output()
+        .unwrap();
+    // A failed delivery never changes the exit code.
+    assert_eq!(output.status.code(), Some(6), "{output:?}");
+    let mut report = normalized(dir.path(), read(dir.path(), "out/check.json"));
+    let notifications = report["notifications"].as_array_mut().unwrap();
+    assert_eq!(notifications.len(), 2);
+    // A failure reason is a short human sentence (notifications.md); only its type is frozen.
+    for delivery in notifications {
+        if delivery["reason"].is_string() {
+            delivery["reason"] = json!(NORMALIZED);
+        }
+    }
+    assert_fixture("check-report-notifications.json", &report);
+}
+
 #[test]
 fn check_report_incomplete_fixture() {
     let dir = workspace();
@@ -227,10 +259,25 @@ fn profile_suggest_fixture() {
     // The draft is review text (human output, not frozen); it must stay a loadable profile.
     let draft = result["draft"].as_str().unwrap().to_owned();
     write(dir.path(), "profiles/team.yaml", &draft);
-    assert_ne!(
-        run(dir.path(), &["profile", "check"]).status.code(),
-        Some(2)
+    write(
+        dir.path(),
+        "people/alice.yaml",
+        "identity: alice@example.com\nprofiles: [team]\n",
     );
+    // The draft loads, and the team's own member is fully explained by it.
+    let output = run(dir.path(), &["profile", "check", "--json"]);
+    assert_ne!(output.status.code(), Some(2), "{output:?}");
+    let check = json(&output);
+    let alice = check["result"]["identities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["identity"] == "alice@example.com")
+        .unwrap()
+        .clone();
+    assert_eq!(alice["profiles"], json!(["team"]), "{alice}");
+    assert_eq!(alice["missing"], json!([]), "{alice}");
+    assert_eq!(alice["unexplained"], json!([]), "{alice}");
     result["draft"] = json!(NORMALIZED);
     assert_fixture("profile-suggest.json", &normalized(dir.path(), result));
 }
@@ -331,6 +378,42 @@ fn access_plan_leave_fixture() {
         "access-plan-leave.json",
         &normalized(dir.path(), read(dir.path(), "p.json")),
     );
+}
+
+#[test]
+fn access_plan_move_fixture() {
+    let dir = workspace();
+    snapshot(dir.path());
+    let (code, report) = access(
+        dir.path(),
+        &[
+            "move",
+            "bob@example.com",
+            "--remove",
+            "backend",
+            "--add",
+            "base",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    assert_eq!(code, Some(0), "{report}");
+    let plan = read(dir.path(), "p.json");
+    assert_eq!(plan["kind"], "move", "{plan}");
+    assert_fixture("access-plan-move.json", &normalized(dir.path(), plan));
+}
+
+#[test]
+fn fixture_comparison_detects_renamed_plan_field() {
+    let mut value: Value =
+        serde_json::from_slice(&fs::read(stable("access-plan-join.json")).unwrap()).unwrap();
+    assert!(compare("access-plan-join.json", &value).is_ok());
+    let step = value["steps"][0].as_object_mut().unwrap();
+    let operation = step.remove("operation").unwrap();
+    step.insert("op".into(), operation);
+    assert!(compare("access-plan-join.json", &value).is_err());
 }
 
 fn joined_and_verified(partial: bool) -> (Option<i32>, Value, tempfile::TempDir) {

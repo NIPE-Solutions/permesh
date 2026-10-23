@@ -14,8 +14,9 @@ CLI action.
   becomes an exact `permesh --json` argument vector, which the normal parser and
   command code run. The server therefore uses the same workspace, approvals and
   credentials as the CLI. There is no generic pass-through, so no tool can reach
-  `check` (it sends notifications), `snapshot save`, `identity map`, `auth`,
-  `provider`, `init`, `offboard` or `access review`.
+  any other command, such as `check` (it sends notifications), `snapshot`,
+  `identity`, `auth`, `provider`, `init`, `offboard` or `access review`. The
+  complete list is in [docs/mcp.md](../mcp.md).
 - **Tools.** `doctor`, `user_access`, `resource_access`, `admins`, `orphaned`,
   `profile_check`, `plan_join`, `plan_move`, `plan_leave` and `verify_plan`.
 - **One write.** The plan tools write a new `.json` plan file, which a person
@@ -45,6 +46,21 @@ Running the existing commands, instead of a second implementation, keeps the
 answers identical to the CLI's and inherits every safety rule they already follow.
 Supporting one protocol revision keeps the surface small while there are no users
 to stay compatible with.
+
+## Rejected options
+
+- **A generic command tool** taking any CLI arguments: one tool could then approve
+  providers, map identities or send notifications. A closed list keeps every
+  reachable command visible in review.
+- **A second implementation** of queries on the library crates: answers could drift
+  from the CLI's, and every safety rule would need a copy.
+- **Network transports** (HTTP or SSE): a listening port needs authentication and
+  exposes access data beyond the local machine. Stdio is reachable only by the
+  process that started the server.
+- **Older protocol revisions** alongside 2026-07-28: with no users yet,
+  compatibility code would be surface without benefit.
+- **Plan writes anywhere**, or overwriting: a plan in `people/` or `profiles/` breaks
+  profile loading, and an overwrite could replace a reviewed plan.
 
 ## Consequences
 

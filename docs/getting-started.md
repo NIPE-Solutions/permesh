@@ -119,7 +119,8 @@ workspace explicitly.
 Queries do not rewrite configuration or change provider state. Adding providers
 rewrites YAML formatting, so review the Git diff. `init` never overwrites an
 existing workspace. Share configuration with your team and keep credentials local;
-see [team workflows](team-workflows.md) for portable platform pins and approvals.
+see [team workflows](team-workflows.md) for portable platform pins and approvals,
+and [team setup](team-setup.md) for a complete walkthrough.
 
 For existing built-in configurations, use the explicit [GitHub](github-migration.md)
 or [Google](google-migration.md) migration. Do not create duplicate instances to

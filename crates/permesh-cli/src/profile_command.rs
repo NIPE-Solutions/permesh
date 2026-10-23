@@ -92,6 +92,7 @@ pub(crate) fn input(set: &ProfileSet, artifact: &Artifact) -> core::ProfileInput
                 profiles: d.profiles.clone(),
             })
             .collect(),
+        left: set.left.clone(),
         observable: artifact
             .providers
             .iter()
@@ -116,13 +117,7 @@ pub(crate) fn review(
     now: OffsetDateTime,
 ) -> Result<ProfileReview, AppError> {
     let (snapshots, aliases) = crate::resource_command::domain(artifact);
-    // Someone who left is expected to hold nothing: remaining access is unexplained,
-    // and their former profiles are not missing.
-    let mut input = input.clone();
-    for identity in &set.left {
-        input.people.insert(identity.clone(), Default::default());
-    }
-    let comparison = core::compare_profiles(&snapshots, &aliases, &input)?;
+    let comparison = core::compare_profiles(&snapshots, &aliases, input)?;
     let (mut missing, mut unexplained, mut cannot_tell, mut excepted, mut covered) =
         (0, 0, 0, 0, 0);
     let mut identities = Vec::new();

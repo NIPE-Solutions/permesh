@@ -60,13 +60,20 @@ before carrying out any step. A push that changes people files without a pull
 request fails, because nothing was reviewed.
 
 When the steps are done, start `permesh-verify.yml` from the Actions tab with the
-post-merge run ID. It verifies each execution plan, writes counts to the step
-summary and fails after all plans ran if any is not done or incomplete.
+post-merge run ID. It only accepts a finished post-merge `permesh-plan.yml` run on
+the default branch of this repository; a run that exited 4 or 6 still counts,
+because it keeps the plans that matched their review. It verifies each execution plan, writes
+counts to the step summary and, after all plans ran, exits like the CLI would for
+the worst one: an error first, then 3, 4 and 6.
 
 Pull-request jobs from branches in the same repository receive the provider
 secrets, so restrict who can push branches. Pull requests from forks get no
 secrets and their plan job fails. If your default branch is not `main`, change
 `branches:` in `permesh-plan.yml`.
+
+On GitLab, don't mark the provider variables **Protected**: protected variables
+only reach pipelines on protected branches, so `permesh-plan` would get no token on
+a merge request branch and exit 3. Restrict who can push branches instead.
 
 GitLab ships the merge-request job only; run the post-merge steps by hand as in
 [access plans](access-plans.md#pull-request-flow).

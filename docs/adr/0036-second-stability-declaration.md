@@ -28,8 +28,12 @@ guide and a release that still reads the previous version, as described in
   Another value is an input error that says to remove the line or upgrade.
   `index.json` becomes `{"access_review_index_version": 1, "plans": [...]}`.
 - **Golden fixtures** in `crates/permesh-cli/tests/fixtures/stable/` pin every
-  frozen format. Only times, durations, digests and temporary paths are
-  normalized, and their shapes are still checked.
+  frozen output: the check report (also with notifications), the webhook body,
+  `profile check` and `profile suggest`, the join, move and leave plans and the
+  execution plan, and the `access` results and review index. Only times, durations,
+  digests, temporary paths and human-readable text are normalized, and their shapes
+  are still checked. Frozen inputs (people and profile files, policy version 2 and
+  the new `permesh.yaml` sections) are pinned by parsing tests instead.
 
 ## Why
 

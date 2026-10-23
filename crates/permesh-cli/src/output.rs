@@ -14,6 +14,19 @@ pub(crate) fn safe(value: &str) -> String {
         })
         .collect()
 }
+/// `safe`, then backslash-escape Markdown syntax so provider names render as text.
+pub(crate) fn markdown(value: &str) -> String {
+    safe(value)
+        .chars()
+        .flat_map(|c| {
+            if "\\`*_{}[]()<>#!|~&".contains(c) {
+                vec!['\\', c]
+            } else {
+                vec![c]
+            }
+        })
+        .collect()
+}
 pub(crate) fn field<'a>(value: &'a serde_json::Value, name: &str) -> &'a str {
     value[name].as_str().unwrap_or("")
 }

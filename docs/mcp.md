@@ -37,7 +37,8 @@ The server uses them as they are; it never approves, stores credentials or promp
 **Client requirement.** The server speaks MCP protocol version 2026-07-28 only.
 A client that starts with the older `initialize` handshake gets error `-32022`
 listing `2026-07-28`, and `permesh mcp` exits with code 2. Update the client if
-you see that error.
+you see that error. If Permesh cannot write to the client at all, it exits with
+code 5 instead.
 
 ## Tools
 
@@ -58,9 +59,13 @@ you see that error.
 `snapshot` to read a saved snapshot instead of running fresh discovery. See
 [access plans](access-plans.md) for what plans contain.
 
-Not available through MCP, on purpose: `check` (it sends notifications),
-`snapshot save`, `identity map`, `auth`, `provider`, `init`, `offboard` and
-`access review`. Use the CLI for those.
+Every other command is left out on purpose; use the CLI for it:
+
+- `init`, `provider`, `auth` and `identity`: they set up the workspace, trust,
+  credentials and mappings, which stay your decisions.
+- `check` (it sends notifications) and `access review` (the pull-request flow).
+- `snapshot`, `diff`, `policy`, `offboard` and `profile suggest`.
+- `completion`, `version` and `mcp` itself.
 
 ## Reading results
 
@@ -85,14 +90,17 @@ access". The server's instructions tell it so.
 ## Files and paths
 
 File arguments (`snapshot`, `policy`, `annotations`, `plan`, `output`) are paths
-relative to the folder that holds `permesh.yaml`. Absolute paths, `..` that leaves
-the folder and symlinks that point outside it are refused.
+relative to the folder that holds `permesh.yaml`. Absolute paths and `..` that leaves
+the folder are refused. A symlink that points outside it reads as "File not found in
+the workspace", so it never tells whether its target exists.
 
 The plan tools are the only tools that write. They create `output` as a new
 `.json` file; its folder must already exist (for example `plans/`) and the file
 must not. Plans can't be written into `people/`, `profiles/` or hidden folders,
 where they would be read as workspace files. Permesh
-never overwrites a plan and never carries one out.
+never overwrites a plan and never carries one out. The checks run just before the
+command; they don't protect against another program on your machine swapping in a
+symlink in between, which could already write anywhere you can.
 
 ## Privacy
 

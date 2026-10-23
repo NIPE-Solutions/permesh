@@ -3,9 +3,12 @@
 # Merge requests that touch people/ or profiles/ get an access plan (permesh-plan);
 # the post-merge execution and verify steps run by hand (docs/access-plans.md).
 #
-# CI/CD variables (masked): PERMESH_GITHUB_TOKEN, PERMESH_GOOGLE_TOKEN, ... for the
+# CI/CD variables (masked): PERMESH_GITHUB_TOKEN, PERMESH_GOOGLE_CLIENT_SECRET,
+# PERMESH_GOOGLE_REFRESH_TOKEN, ... for the
 # env:// references in permesh.yaml; optional PERMESH_ISSUE_TOKEN (project access
-# token with api scope) to keep a review issue updated.
+# token with api scope) to keep a review issue updated. Don't mark the provider
+# variables Protected: merge request pipelines on unprotected branches would not get
+# them, and permesh-plan would exit 3.
 # Keep this project private: job artifacts hold the full access report.
 variables:
   # A Permesh release that includes `permesh check`, and the SHA-256 of its

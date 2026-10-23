@@ -324,6 +324,35 @@ fn left_person_expects_nothing_and_remaining_access_is_unexplained() {
 }
 
 #[test]
+fn left_person_in_directory_group_expects_nothing() {
+    let dir = demo(&[
+        ("profiles/reader.yaml", READER),
+        (
+            "profiles/admin.yaml",
+            "profile: admin\ngrants:\n  - {instance: demo, role: Admin, resource: repo-21}\n",
+        ),
+        (
+            "people/alice.yaml",
+            "identity: alice@example.com\nstatus: left\nprofiles: [reader]\n",
+        ),
+    ]);
+    let mut config = fs::read_to_string(dir.path().join("permesh.yaml")).unwrap();
+    config.push_str(
+        "profiles:\n  directory_groups:\n    - {instance: demo, group: team-10, profiles: [admin]}\n",
+    );
+    fs::write(dir.path().join("permesh.yaml"), config).unwrap();
+    let (code, result) = check(dir.path(), &[]);
+    assert_eq!(code, Some(6), "{result}");
+    let alice = identity(&result, "alice@example.com");
+    // A directory group does not bring back profiles of someone who left.
+    assert_eq!(alice["missing"], json!([]), "{alice}");
+    assert!(
+        !alice["unexplained"].as_array().unwrap().is_empty(),
+        "{alice}"
+    );
+}
+
+#[test]
 fn profile_check_rejects_unknown_version() {
     let dir = demo(&[
         ("profiles/backend.yaml", BACKEND),
