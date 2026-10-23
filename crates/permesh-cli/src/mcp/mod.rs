@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
 //! Read-only MCP server over stdio (ADR 0035). Tools run existing commands only.
+// Consumers arrive with the file-taking tools in the next commits.
+#[cfg_attr(not(test), allow(dead_code))]
+mod paths;
 mod server;
 mod tools;
 use crate::{args::Cli, blocking::BlockingPool, error::AppError, workspace};
