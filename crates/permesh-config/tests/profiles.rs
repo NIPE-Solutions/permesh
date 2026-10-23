@@ -209,3 +209,35 @@ fn readme_only_directories_are_not_configured() {
     );
     assert!(load(dir.path()).unwrap().is_none());
 }
+
+#[test]
+fn left_status_is_parsed_and_default_is_active() {
+    let dir = workspace(
+        "",
+        &[
+            ("profiles/base.yaml", TEAM),
+            (
+                "people/bob.yaml",
+                "identity: bob@example.com\nstatus: left\nprofiles: [base]\n",
+            ),
+            (
+                "people/alice.yaml",
+                "identity: alice@example.com\nprofiles: [base]\n",
+            ),
+        ],
+    );
+    let set = load(dir.path()).unwrap().unwrap();
+    assert_eq!(set.left.iter().collect::<Vec<_>>(), vec!["bob@example.com"]);
+    assert!(set.people.contains_key("alice@example.com"));
+    let dir = workspace(
+        "",
+        &[
+            ("profiles/base.yaml", TEAM),
+            (
+                "people/bob.yaml",
+                "identity: bob@example.com\nstatus: gone\nprofiles: [base]\n",
+            ),
+        ],
+    );
+    assert!(load(dir.path()).is_err());
+}
