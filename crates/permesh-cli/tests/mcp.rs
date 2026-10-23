@@ -720,16 +720,13 @@ fn cancelled_call_drains_and_server_continues() {
         !still_alive,
         "cancelled provider was not terminated and reaped"
     );
-    assert_eq!(client.tool_names().len(), definitions_count());
+    assert_eq!(client.tool_names().len(), TOOLS.len());
     let (_, lines) = client.finish();
     for line in lines {
         let value: Value = serde_json::from_str(&line).unwrap();
         assert_eq!(value["jsonrpc"], "2.0", "{line}");
         assert!(!line.contains("CANCELLATION_PRIVATE"), "{line}");
     }
-}
-fn definitions_count() -> usize {
-    TOOLS.len()
 }
 
 /// A real native provider speaks either legacy protocol, exposes a private
