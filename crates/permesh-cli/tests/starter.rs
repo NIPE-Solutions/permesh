@@ -446,7 +446,10 @@ fn workflows_pass_google_refresh_credentials() {
         ".github/workflows/permesh-verify.yml",
     ] {
         let text = String::from_utf8(example(file)).unwrap();
-        for name in ["PERMESH_GOOGLE_REFRESH_TOKEN", "PERMESH_GOOGLE_CLIENT_SECRET"] {
+        for name in [
+            "PERMESH_GOOGLE_REFRESH_TOKEN",
+            "PERMESH_GOOGLE_CLIENT_SECRET",
+        ] {
             assert!(
                 text.contains(&format!("{name}: ${{{{ secrets.{name} }}}}")),
                 "{file}: {name}"
