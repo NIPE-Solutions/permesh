@@ -9,6 +9,14 @@ use std::{
     time::Duration,
 };
 
+const TOOLS: &[&str] = &[
+    "doctor",
+    "user_access",
+    "resource_access",
+    "admins",
+    "orphaned",
+    "profile_check",
+];
 const VERSION: &str = "2026-07-28";
 const INSTRUCTIONS: &str = "Permesh answers who has access to what, read-only. Every tool result has `complete`: when it is false, some providers could not be fully read and missing access is not proof of absence, so say you cannot tell. Plan tools write a new plan file for a person to review and carry out; Permesh never changes access.";
 
@@ -148,7 +156,7 @@ fn server_discover_describes_server() {
 fn tools_list_without_handshake() {
     let dir = demo();
     let mut client = Client::start(dir.path());
-    assert_eq!(client.tool_names(), ["doctor"]);
+    assert_eq!(client.tool_names(), TOOLS);
 }
 
 #[test]
@@ -177,7 +185,7 @@ fn missing_meta_is_invalid_params() {
     let mut client = Client::start(dir.path());
     let id = client.request_raw("tools/list", json!({}));
     assert_eq!(client.response(id)["error"]["code"], -32602);
-    assert_eq!(client.tool_names(), ["doctor"]);
+    assert_eq!(client.tool_names(), TOOLS);
 }
 
 #[test]
@@ -203,7 +211,7 @@ fn unknown_tool_and_argument_are_errors() {
         let rpc_error = response["error"]["code"] == -32602;
         assert!(tool_error || rpc_error, "{response}");
     }
-    assert_eq!(client.tool_names(), ["doctor"]);
+    assert_eq!(client.tool_names(), TOOLS);
 }
 
 #[test]
@@ -232,4 +240,327 @@ fn outside_workspace_exits_input() {
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
+}
+
+const BACKEND: &str = "profile: backend\ngrants:\n  - {instance: demo, group: team-10}\n  - {instance: demo, role: Read, resource: repo-21}\n";
+
+fn json_run(dir: &Path, args: &[&str]) -> Value {
+    let output = command(dir).args(args).arg("--json").output().unwrap();
+    serde_json::from_slice(&output.stdout).unwrap_or_else(|_| panic!("{args:?}: {output:?}"))
+}
+fn write(dir: &Path, name: &str, body: &str) {
+    let path = dir.join(name);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, body).unwrap();
+}
+fn structured(result: &Value) -> &Value {
+    &result["structuredContent"]
+}
+
+#[test]
+fn user_access_matches_cli() {
+    let dir = demo();
+    let cli = json_run(dir.path(), &["user", "alice@example.com"]);
+    let mut client = Client::start(dir.path());
+    let result = client.call("user_access", json!({"identity": "alice@example.com"}));
+    assert_eq!(result["isError"], false, "{result}");
+    let report = &structured(&result)["report"];
+    assert_eq!(report["result"], cli["result"]);
+    assert_eq!(report["schema_version"], 2);
+    let access = report["result"]["access"].as_array().unwrap();
+    assert!(!access.is_empty());
+    assert!(
+        access.iter().all(|path| path["certainty"].is_string()),
+        "{report}"
+    );
+}
+
+#[test]
+fn user_access_not_found_is_error_exit_1() {
+    let dir = demo();
+    let mut client = Client::start(dir.path());
+    let result = client.call("user_access", json!({"identity": "missing@example.com"}));
+    assert_eq!(result["isError"], true, "{result}");
+    assert_eq!(structured(&result)["exit_code"], 1);
+}
+
+#[test]
+fn resource_access_by_query_and_by_id() {
+    let dir = demo();
+    let mut client = Client::start(dir.path());
+    let by_id = client.call(
+        "resource_access",
+        json!({"instance": "demo", "id": "repo-20"}),
+    );
+    assert_eq!(by_id["isError"], false, "{by_id}");
+    let resource = &structured(&by_id)["report"]["result"]["resource"];
+    assert_eq!(resource["key"]["id"], "repo-20");
+    let name = resource["name"].as_str().unwrap();
+    let by_query = client.call("resource_access", json!({"query": name}));
+    assert_eq!(
+        structured(&by_query)["report"]["result"]["resource"]["key"]["id"],
+        "repo-20",
+        "{by_query}"
+    );
+    let cli = json_run(
+        dir.path(),
+        &["resource", "--instance", "demo", "--id", "repo-20"],
+    );
+    let timeless = |value: &Value| {
+        let mut value = value.clone();
+        for key in ["observation_started_at", "observation_completed_at"] {
+            value.as_object_mut().unwrap().remove(key);
+        }
+        value
+    };
+    assert!(
+        timeless(&structured(&by_id)["report"]["result"]) == timeless(&cli["result"]),
+        "resource result differs from the CLI"
+    );
+}
+
+#[test]
+fn resource_access_rejects_both_forms() {
+    let dir = demo();
+    let mut client = Client::start(dir.path());
+    for arguments in [
+        json!({"query": "x", "instance": "demo", "id": "repo-20"}),
+        json!({}),
+        json!({"instance": "demo"}),
+    ] {
+        let result = client.call("resource_access", arguments);
+        assert_eq!(result["isError"], true, "{result}");
+        assert_eq!(structured(&result)["exit_code"], 2);
+        assert_eq!(
+            structured(&result)["error"]["message"],
+            "Give query, or instance and id"
+        );
+    }
+}
+
+#[test]
+fn admins_and_orphaned_match_cli() {
+    let dir = demo();
+    let mut client = Client::start(dir.path());
+    for (tool, command) in [("admins", "admins"), ("orphaned", "orphaned")] {
+        let cli = json_run(dir.path(), &[command]);
+        let result = client.call(tool, json!({}));
+        if cli["error"].is_object() {
+            assert_eq!(result["isError"], true, "{result}");
+            assert_eq!(
+                structured(&result)["error"]["message"],
+                cli["error"]["message"]
+            );
+            assert_eq!(structured(&result)["exit_code"], cli["error"]["code"]);
+        } else {
+            assert_eq!(result["isError"], false, "{result}");
+            assert_eq!(structured(&result)["report"]["result"], cli["result"]);
+        }
+    }
+}
+
+#[test]
+fn profile_check_reports_unexplained() {
+    let dir = demo();
+    write(dir.path(), "profiles/backend.yaml", BACKEND);
+    write(
+        dir.path(),
+        "people/bob.yaml",
+        "identity: bob@example.com\nprofiles: [backend]\n",
+    );
+    let cli = json_run(dir.path(), &["profile", "check"]);
+    let mut client = Client::start(dir.path());
+    let result = client.call("profile_check", json!({}));
+    assert_eq!(result["isError"], false, "{result}");
+    assert_eq!(structured(&result)["report"]["result"], cli["result"]);
+    assert_eq!(structured(&result)["report"]["command"], "profile_check");
+}
+
+#[test]
+fn incomplete_capture_carries_note() {
+    let dir = demo();
+    write(dir.path(), "profiles/backend.yaml", BACKEND);
+    write(
+        dir.path(),
+        "people/bob.yaml",
+        "identity: bob@example.com\nprofiles: [backend]\n",
+    );
+    assert!(
+        run(dir.path(), &["snapshot", "create", "--output", "s.json"])
+            .status
+            .success()
+    );
+    let mut snapshot: Value =
+        serde_json::from_slice(&std::fs::read(dir.path().join("s.json")).unwrap()).unwrap();
+    let limitations = json!(["Fixture visibility incomplete"]);
+    snapshot["providers"][0]["state"] = "partial".into();
+    snapshot["providers"][0]["limitations"] = limitations.clone();
+    snapshot["providers"][0]["data"]["complete"] = false.into();
+    snapshot["providers"][0]["data"]["limitations"] = limitations;
+    std::fs::write(dir.path().join("partial.json"), snapshot.to_string()).unwrap();
+    let mut client = Client::start(dir.path());
+    let result = client.call("profile_check", json!({"snapshot": "partial.json"}));
+    assert_eq!(result["isError"], false, "{result}");
+    assert_eq!(structured(&result)["exit_code"], 4);
+    assert_eq!(structured(&result)["report"]["complete"], false);
+    assert_eq!(
+        structured(&result)["note"],
+        "Some providers could not be fully read. Missing access here is not proof of absence."
+    );
+}
+
+#[test]
+fn snapshot_outside_workspace_is_input_error() {
+    let dir = demo();
+    let mut client = Client::start(dir.path());
+    let result = client.call("profile_check", json!({"snapshot": "../s.json"}));
+    assert_eq!(result["isError"], true, "{result}");
+    assert_eq!(structured(&result)["exit_code"], 2);
+    assert_eq!(
+        structured(&result)["error"]["message"],
+        "Path is outside the workspace"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn cancelled_call_drains_and_server_continues() {
+    use std::time::Instant;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().canonicalize().unwrap();
+    let digest = fixture(&root);
+    let config = json!({"version":1,"organization":{"name":"Cancellation fixture"},
+        "providers":[{"id":"instance","type":"external","external":{"provider":"fixture","sha256":digest,"configuration":{},"credentials":{}}}]});
+    std::fs::write(
+        root.join("permesh.yaml"),
+        serde_json::to_vec(&config).unwrap(),
+    )
+    .unwrap();
+    let review = json_run(&root, &["provider", "external", "review", "instance"]);
+    let fingerprint = review["result"]["fingerprint"].as_str().unwrap();
+    json_run(
+        &root,
+        &[
+            "provider",
+            "external",
+            "approve",
+            "instance",
+            "--fingerprint",
+            fingerprint,
+            "--accept-risk",
+        ],
+    );
+    let mut client = Client::start(&root);
+    let id = client.start_request(
+        "tools/call",
+        json!({"name": "user_access", "arguments": {"identity": "missing"}}),
+    );
+    let marker = root.join("ready.pid");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !marker.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let provider_pid = std::fs::read_to_string(&marker).expect("discovery never started");
+    client.send(
+        &json!({"jsonrpc": "2.0", "method": "notifications/cancelled",
+        "params": {"requestId": id, "reason": "test", "_meta": meta()}}),
+    );
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let alive = || {
+        Command::new("kill")
+            .args(["-0", provider_pid.trim()])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    };
+    while alive() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let still_alive = alive();
+    if still_alive {
+        let _ = Command::new("kill")
+            .args(["-KILL", provider_pid.trim()])
+            .status();
+    }
+    assert!(
+        !still_alive,
+        "cancelled provider was not terminated and reaped"
+    );
+    assert_eq!(client.tool_names().len(), definitions_count());
+    let (_, lines) = client.finish();
+    for line in lines {
+        let value: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(value["jsonrpc"], "2.0", "{line}");
+        assert!(!line.contains("CANCELLATION_PRIVATE"), "{line}");
+    }
+}
+fn definitions_count() -> usize {
+    TOOLS.len()
+}
+
+/// A real native provider speaks either legacy protocol, exposes a private
+/// observation, then hangs after marking its PID. This synchronizes SIGINT with
+/// active discovery rather than relying on startup timing.
+#[cfg(unix)]
+fn fixture(root: &Path) -> String {
+    let source = root.join("peer.rs");
+    let binary = root.join("peer");
+    let code = r##"
+use std::io::{BufRead, Write};
+fn main() {
+    let mut lines = std::io::stdin().lock().lines();
+    let handshake = lines.next().unwrap().unwrap();
+    let version = if handshake.contains("\"protocol\":2") { 2 } else { 1 };
+    println!("{}", r#"{"protocol":VERSION,"id":"handshake","event":"handshake","provider":"fixture","capabilities":["accounts"],"draft":true}"#.replace("VERSION", &version.to_string()));
+    std::io::stdout().flush().unwrap();
+    let discover = lines.next().unwrap().unwrap();
+    assert!(discover.contains("\"method\":\"discover\""));
+    println!("{}", r#"{"protocol":VERSION,"id":"discover","event":"record","kind":"account","data":{"key":{"provider":"instance","id":"guest"},"login":"CANCELLATION_PRIVATE_OBSERVATION","kind":"human","verified_emails":[]}}"#.replace("VERSION", &version.to_string()));
+    std::io::stdout().flush().unwrap();
+    eprintln!("CANCELLATION_PRIVATE_STDERR");
+    let marker = std::path::Path::new(MARKER);
+    let temporary = marker.with_extension("tmp");
+    std::fs::write(&temporary, std::process::id().to_string()).unwrap();
+    std::fs::rename(temporary, marker).unwrap();
+    // Deliberately ignore cancellation; the host must terminate and reap us.
+    loop { std::thread::sleep(std::time::Duration::from_secs(60)); }
+}
+"##
+    .replace("MARKER", &format!("{:?}", root.join("ready.pid")));
+    std::fs::write(&source, code).unwrap();
+    assert!(
+        Command::new("rustc")
+            .arg(&source)
+            .arg("-o")
+            .arg(&binary)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let inspect = json_run(
+        root,
+        &["provider", "external", "inspect", binary.to_str().unwrap()],
+    );
+    let digest = inspect["result"]["inspection"]["sha256"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    json_run(
+        root,
+        &[
+            "provider",
+            "external",
+            "trust",
+            binary.to_str().unwrap(),
+            "--id",
+            "fixture",
+            "--sha256",
+            &digest,
+            "--capability",
+            "accounts",
+            "--accept-risk",
+        ],
+    );
+    digest
 }

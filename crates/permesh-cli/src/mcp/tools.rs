@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! The closed set of MCP tools. Each maps to exactly one existing command.
+use super::paths;
 use crate::{error::AppError, report::Outcome};
 use rmcp::model::{CallToolResult, ContentBlock, Tool as Definition, ToolAnnotations};
 use serde::Deserialize;
@@ -24,6 +25,11 @@ pub(crate) enum Tool {
     Doctor(DoctorArgs),
     #[serde(rename = "user_access")]
     User(UserArgs),
+    #[serde(rename = "resource_access")]
+    Resource(ResourceArgs),
+    Admins(NoArgs),
+    Orphaned(NoArgs),
+    ProfileCheck(ProfileCheckArgs),
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -35,6 +41,23 @@ pub(crate) struct DoctorArgs {
 #[serde(deny_unknown_fields)]
 pub(crate) struct UserArgs {
     identity: String,
+}
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ResourceArgs {
+    query: Option<String>,
+    instance: Option<String>,
+    id: Option<String>,
+    snapshot: Option<String>,
+}
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NoArgs {}
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ProfileCheckArgs {
+    snapshot: Option<String>,
+    policy: Option<String>,
 }
 
 fn schema(value: Value) -> Arc<Map<String, Value>> {
@@ -48,12 +71,65 @@ fn query(name: &'static str, description: &'static str, input: Value) -> Definit
         .annotate(ToolAnnotations::new().read_only(true).open_world(true))
 }
 
+fn object(properties: Value, required: &[&str]) -> Value {
+    json!({"type": "object", "properties": properties, "required": required, "additionalProperties": false})
+}
+const SNAPSHOT: &str =
+    "Saved snapshot to read offline instead of fresh discovery; a path relative to the workspace.";
+
 pub(crate) fn definitions() -> Vec<Definition> {
-    vec![query(
-        "doctor",
-        "Check the workspace configuration, credentials and provider connectivity.",
-        json!({"type": "object", "properties": {"details": {"type": "boolean", "description": "Include curated stage codes and remediation."}}, "additionalProperties": false}),
-    )]
+    vec![
+        query(
+            "doctor",
+            "Check the workspace configuration, credentials and provider connectivity.",
+            object(
+                json!({"details": {"type": "boolean", "description": "Include curated stage codes and remediation."}}),
+                &[],
+            ),
+        ),
+        query(
+            "user_access",
+            "Show a person's observed access across providers and the paths (groups, teams, roles) that explain it, each with its certainty.",
+            object(
+                json!({"identity": {"type": "string", "description": "Identity such as an email address, or a provider account."}}),
+                &["identity"],
+            ),
+        ),
+        query(
+            "resource_access",
+            "Show who has observed access to one resource and through which paths. Give query (the exact display label), or instance and id.",
+            object(
+                json!({
+                    "query": {"type": "string", "description": "Exact resource display label; ambiguity returns candidates."},
+                    "instance": {"type": "string", "description": "Provider instance ID, with id."},
+                    "id": {"type": "string", "description": "Stable resource ID in that instance."},
+                    "snapshot": {"type": "string", "description": SNAPSHOT}
+                }),
+                &[],
+            ),
+        ),
+        query(
+            "admins",
+            "Show privileged access, uncertain roles and unresolved group grants.",
+            object(json!({}), &[]),
+        ),
+        query(
+            "orphaned",
+            "Review accounts not confidently tied to an active identity in the authoritative directory, including inactive and departed people.",
+            object(json!({}), &[]),
+        ),
+        query(
+            "profile_check",
+            "Compare people's declared access profiles with observed and derived access: missing access, and unexplained access nobody's profile justifies.",
+            object(
+                json!({
+                    "snapshot": {"type": "string", "description": SNAPSHOT},
+                    "policy": {"type": "string", "description": "Policy file whose unexplained_access exceptions apply; a path relative to the workspace."}
+                }),
+                &[],
+            ),
+        ),
+    ]
 }
 
 /// Only listed tools are callable, even when a variant exists for a later tool.
@@ -74,6 +150,13 @@ fn option(name: &str, value: impl AsRef<OsStr>) -> OsString {
 impl Tool {
     /// Exact argv: values are `--name=value` and positionals follow `--`, so data never becomes a flag.
     pub(crate) fn argv(&self, workspace: &Path) -> Result<Vec<OsString>, AppError> {
+        let root = workspace.parent().unwrap_or(Path::new("."));
+        let file = |name: &str, value: &Option<String>| -> Result<Option<OsString>, AppError> {
+            value
+                .as_deref()
+                .map(|value| Ok(option(name, paths::existing(root, value)?)))
+                .transpose()
+        };
         let mut argv: Vec<OsString> = vec!["permesh".into(), "--json".into()];
         argv.push(option("config", workspace));
         match self {
@@ -85,6 +168,24 @@ impl Tool {
             }
             Tool::User(args) => {
                 argv.extend(["user".into(), "--".into(), (&args.identity).into()]);
+            }
+            Tool::Resource(args) => {
+                argv.push("resource".into());
+                argv.extend(file("snapshot", &args.snapshot)?);
+                match (&args.query, &args.instance, &args.id) {
+                    (Some(query), None, None) => argv.extend(["--".into(), query.into()]),
+                    (None, Some(instance), Some(id)) => {
+                        argv.extend([option("instance", instance), option("id", id)]);
+                    }
+                    _ => return Err(AppError::input("Give query, or instance and id")),
+                }
+            }
+            Tool::Admins(_) => argv.push("admins".into()),
+            Tool::Orphaned(_) => argv.push("orphaned".into()),
+            Tool::ProfileCheck(args) => {
+                argv.extend(["profile".into(), "check".into()]);
+                argv.extend(file("snapshot", &args.snapshot)?);
+                argv.extend(file("policy", &args.policy)?);
             }
         }
         Ok(argv)
@@ -132,6 +233,18 @@ mod tests {
             Tool::User(UserArgs {
                 identity: "a@example.com".into(),
             }),
+            Tool::Resource(ResourceArgs {
+                query: Some("-x".into()),
+                instance: None,
+                id: None,
+                snapshot: None,
+            }),
+            Tool::Admins(NoArgs {}),
+            Tool::Orphaned(NoArgs {}),
+            Tool::ProfileCheck(ProfileCheckArgs {
+                snapshot: None,
+                policy: None,
+            }),
         ]
     }
 
@@ -153,16 +266,19 @@ mod tests {
         for tool in samples() {
             let cli = parsed(&tool);
             assert!(
-                matches!(cli.command, Command::Doctor { .. } | Command::User { .. }),
+                matches!(
+                    cli.command,
+                    Command::Doctor { .. }
+                        | Command::User { .. }
+                        | Command::Resource(_)
+                        | Command::Admins
+                        | Command::Orphaned
+                        | Command::Profile {
+                            command: crate::profile_command::ProfileCommand::Check { .. }
+                        }
+                ),
                 "{tool:?}"
             );
         }
-    }
-
-    #[test]
-    fn hidden_variants_are_not_callable() {
-        let mut arguments = Map::new();
-        arguments.insert("identity".into(), json!("a"));
-        assert!(parse("user_access", arguments).is_err());
     }
 }
