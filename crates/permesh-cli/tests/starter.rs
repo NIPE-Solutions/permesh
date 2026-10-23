@@ -399,11 +399,15 @@ fn verify_workflow_accepts_only_post_merge_plan_runs() {
         "path": ".github/workflows/permesh-plan.yml",
         "event": "push",
         "head_branch": "main",
+        "status": "completed",
         "conclusion": "success",
         "repository": {"id": 7},
         "head_repository": {"id": 7}
     });
-    let mut cases = vec![(good.clone(), true)];
+    // A run that exits 4 or 6 still keeps the plans that matched their review.
+    let mut failed = good.clone();
+    failed["conclusion"] = serde_json::json!("failure");
+    let mut cases = vec![(good.clone(), true), (failed, true)];
     for (field, value) in [
         (
             "path",
@@ -411,7 +415,7 @@ fn verify_workflow_accepts_only_post_merge_plan_runs() {
         ),
         ("event", serde_json::json!("pull_request")),
         ("head_branch", serde_json::json!("feature")),
-        ("conclusion", serde_json::json!("failure")),
+        ("status", serde_json::json!("in_progress")),
         ("head_repository", serde_json::json!({"id": 8})),
     ] {
         let mut run = good.clone();
@@ -430,5 +434,23 @@ fn verify_workflow_accepts_only_post_merge_plan_runs() {
         let code = run_step(dir.path(), &bin, &script, &[("RUN_ID", "42")]);
         assert_eq!(code == Some(0), accepted, "{run}");
         assert_eq!(dir.path().join("downloaded").exists(), accepted, "{run}");
+    }
+}
+
+#[test]
+fn workflows_pass_google_refresh_credentials() {
+    // A Google access token expires within the hour; weekly CI needs refresh mode.
+    for file in [
+        ".github/workflows/permesh-check.yml",
+        ".github/workflows/permesh-plan.yml",
+        ".github/workflows/permesh-verify.yml",
+    ] {
+        let text = String::from_utf8(example(file)).unwrap();
+        for name in ["PERMESH_GOOGLE_REFRESH_TOKEN", "PERMESH_GOOGLE_CLIENT_SECRET"] {
+            assert!(
+                text.contains(&format!("{name}: ${{{{ secrets.{name} }}}}")),
+                "{file}: {name}"
+            );
+        }
     }
 }

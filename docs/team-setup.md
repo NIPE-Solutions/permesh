@@ -27,32 +27,58 @@ permesh init --starter --organization "Example Ltd"
 This writes `permesh.yaml`, the CI workflows, a review policy and empty `profiles/`
 and `people/` folders ([starter layout](starter.md)).
 
-## 2. Connect GitHub and Google Workspace
+## 2. Get read-only credentials
+
+CI runs unattended every week, so use credentials that last:
+
+- **GitHub:** a token with read access to the organization
+  ([GitHub permissions](providers/github.md)).
+- **Google Workspace:** an OAuth client and a refresh token for an administrator
+  allowed to read users, with the read-only directory scope
+  ([Google permissions](providers/google.md) and the provider's
+  [setup guide](https://github.com/NIPE-Solutions/permesh-providers/blob/main/docs/google.md)).
+  An access token expires within an hour, which is too short for CI. Make the OAuth
+  app internal to your organization: Google expires refresh tokens of apps in
+  testing after seven days.
+
+`permesh.yaml` names each credential by reference, never by value, and the same
+file serves your machine and CI. Use environment variables, which work in both
+places:
+
+| Secret | Environment variable |
+| --- | --- |
+| GitHub token | `PERMESH_GITHUB_TOKEN` |
+| Google OAuth client secret | `PERMESH_GOOGLE_CLIENT_SECRET` |
+| Google refresh token | `PERMESH_GOOGLE_REFRESH_TOKEN` |
+
+Set them in your shell (or your password manager's shell integration) before
+running Permesh. Never put the values in the repository.
+
+## 3. Connect GitHub and Google Workspace
 
 ```bash
 permesh provider add github --portable
 permesh provider add google --portable --authoritative
-permesh auth login github-main
-permesh auth login google-main --browser
 permesh doctor
 ```
+
+When `provider add` asks for a credential reference, answer with the variables
+above: `env://PERMESH_GITHUB_TOKEN` for GitHub; for Google, choose refresh-token
+mode, give the OAuth client ID (it isn't secret), then
+`env://PERMESH_GOOGLE_CLIENT_SECRET` and `env://PERMESH_GOOGLE_REFRESH_TOKEN`.
+`permesh doctor` then checks that both providers answer.
 
 - `--portable` pins the provider for every platform, so CI and your colleague's
   machine run exactly the same binary.
 - `--authoritative` makes the Google directory the source of truth for who is
   employed: a suspended or archived Google account counts as departed. GitHub only
   shows access; it can't say whether someone still works for you.
-- Use read-only credentials: see [GitHub permissions](providers/github.md) and
-  [Google permissions](providers/google.md). The Google login runs a local browser
-  sign-in ([browser login](browser-auth.md)); an access token or refresh
-  credentials work too. Credentials stay in your keychain
-  locally and in CI secrets in CI, never in the repository.
 
 The Google provider reads directory users only, not Google groups or Drive
 sharing. Expected access below is therefore described with GitHub teams and
 repository roles.
 
-## 3. Link each person's GitHub account
+## 4. Link each person's GitHub account
 
 Each person's ID is their Google directory identity, written
 `google:CUSTOMER_ID:USER_ID`. It stays the same when their email changes. GitHub
@@ -82,7 +108,7 @@ To look up someone's identity ID by email:
 permesh user anna@example.com --json | jq -r .result.identity.id
 ```
 
-## 4. Describe the roles
+## 5. Describe the roles
 
 A profile lists what one role should have. Most teams need two to four, for
 example everyone, developers and admins. Let Permesh draft one from a team that
@@ -95,7 +121,14 @@ permesh profile suggest --group github-main:4712 --name developer > profiles/dev
 
 The first command shows the GitHub team IDs Anna is in; `4712` is one of them.
 Review the draft before committing: it describes what the team has today, not what
-it should have. A finished profile looks like this:
+it should have. Finished profiles look like this:
+
+```yaml
+# profiles/everyone.yaml
+profile: everyone
+grants:
+  - {instance: github-main, group: "4711"}                    # team everyone
+```
 
 ```yaml
 # profiles/developer.yaml
@@ -107,7 +140,7 @@ grants:
   - {instance: github-main, role: Write, resource: "98765"}   # repository api
 ```
 
-## 5. Add one file per person
+## 6. Add one file per person
 
 ```yaml
 # people/anna.yaml
@@ -123,11 +156,11 @@ the access until the result is what you expect.
 Profile findings are report-only in the weekly check until you set
 `profiles: {enforce: true}` in `permesh.yaml`.
 
-## 6. Turn on CI
+## 7. Turn on CI
 
-1. List the provider versions from step 2 in `ci/providers.txt`.
-2. Add repository secrets for each `env://` reference in `permesh.yaml`, such as
-   `PERMESH_GITHUB_TOKEN` and `PERMESH_GOOGLE_TOKEN`.
+1. List the provider versions from step 3 in `ci/providers.txt`.
+2. Add the three variables from step 2 as repository secrets with the same names.
+   The starter workflows already pass them to Permesh.
 3. In each workflow file, set `PERMESH_VERSION` and `PERMESH_ARCHIVE_SHA256` (the
    `x86_64-unknown-linux-gnu` archive digest from the release page).
 4. Run `permesh check --out out` once locally, then commit and push.

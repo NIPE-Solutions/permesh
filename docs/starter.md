@@ -60,8 +60,9 @@ before carrying out any step. A push that changes people files without a pull
 request fails, because nothing was reviewed.
 
 When the steps are done, start `permesh-verify.yml` from the Actions tab with the
-post-merge run ID. It only accepts a successful post-merge `permesh-plan.yml` run on
-the default branch of this repository. It verifies each execution plan, writes
+post-merge run ID. It only accepts a finished post-merge `permesh-plan.yml` run on
+the default branch of this repository; a run that exited 4 or 6 still counts,
+because it keeps the plans that matched their review. It verifies each execution plan, writes
 counts to the step summary and, after all plans ran, exits like the CLI would for
 the worst one: an error first, then 3, 4 and 6.
 

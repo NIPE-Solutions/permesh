@@ -50,14 +50,15 @@ jobs:
           case "$RUN_ID" in
             ''|*[!0-9]*) echo "run_id must be a numeric workflow run ID." >&2; exit 2 ;;
           esac
-          # Accept only a successful post-merge run of permesh-plan.yml on the default
-          # branch of this repository, so no branch or fork can supply the plans.
+          # Accept only a finished post-merge run of permesh-plan.yml on the default
+          # branch of this repository, so no branch or fork can supply the plans. A run
+          # that exited 4 or 6 still holds the plans that matched their review.
           default_branch=$(gh api "repos/${GITHUB_REPOSITORY}" | jq -r .default_branch)
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" > run.json
           jq -e --arg branch "$default_branch" '.path == ".github/workflows/permesh-plan.yml"
-            and .event == "push" and .head_branch == $branch and .conclusion == "success"
+            and .event == "push" and .head_branch == $branch and .status == "completed"
             and .head_repository.id == .repository.id' run.json > /dev/null || {
-            echo "Run $RUN_ID is not a successful post-merge Permesh plan run on $default_branch." >&2
+            echo "Run $RUN_ID is not a finished post-merge Permesh plan run on $default_branch." >&2
             exit 2
           }
           gh run download "$RUN_ID" -n execution-plans -D execution
@@ -67,6 +68,9 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
           PERMESH_GITHUB_TOKEN: ${{ secrets.PERMESH_GITHUB_TOKEN }}
           PERMESH_GOOGLE_TOKEN: ${{ secrets.PERMESH_GOOGLE_TOKEN }}
+          # Google refresh mode (weekly CI): client secret and refresh token.
+          PERMESH_GOOGLE_CLIENT_SECRET: ${{ secrets.PERMESH_GOOGLE_CLIENT_SECRET }}
+          PERMESH_GOOGLE_REFRESH_TOKEN: ${{ secrets.PERMESH_GOOGLE_REFRESH_TOKEN }}
         run: |
           # The job exit follows the CLI's precedence: errors, then 3, 4 and 6.
           rank() { case "$1" in 0) echo 0 ;; 6) echo 1 ;; 4) echo 2 ;; 3) echo 3 ;; *) echo 4 ;; esac; }
