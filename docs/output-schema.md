@@ -298,6 +298,9 @@ may contain `identity_context_changed`, `plan_incomplete`,
 done, or `extra` after a leave) > 0; an invalid plan is 2 before any capture.
 
 **`access_review`**: `{access_review_version: 1, plans: [{file, identity, kind, plan_sha256, steps}], executions, rereview: [{identity, kind, added_steps, removed_steps}], profiles_changed, complete, summary, files: {out}}`.
-The output directory holds `NNN.json`, `index.json` (the `plans` rows),
+The output directory holds `NNN.json`, `index.json`
+(`{access_review_index_version: 1, plans: [rows]}`, the same `plans` rows),
 `summary.md` and, with `--reviewed`, `NNN.execution.json`. Exit 3 or 4 from
 collection or incomplete plans, else 6 when `rereview` is non-empty, else 0.
+`--reviewed` accepts only `access_review_index_version: 1`; any other `index.json`
+is an input error (exit 2) asking to regenerate the reviewed plans.

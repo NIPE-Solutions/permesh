@@ -1,0 +1,51 @@
+{
+  "access_verification_version": 1,
+  "checks": [
+    {
+      "operation": {
+        "group": "team-10",
+        "instance": "demo",
+        "type": "add_membership"
+      },
+      "reason": "not_observed",
+      "state": "not_done",
+      "step": "4d3f0716c4f6bfc72ede969a5bbc4113d3e269113be2a16be07977eb2be2b753"
+    },
+    {
+      "operation": {
+        "instance": "demo",
+        "resource": "repo-21",
+        "role": "Read",
+        "type": "add_role"
+      },
+      "reason": "not_observed",
+      "state": "not_done",
+      "step": "1dddccdef53956e1f92f7f63edbc2ebf3784c5a985bea0d81caf4d083ae2bbb3"
+    }
+  ],
+  "complete": true,
+  "counts": {
+    "cannot_verify": 0,
+    "done": 0,
+    "extra": 1,
+    "manual_review": 0,
+    "not_done": 2
+  },
+  "extra": [
+    {
+      "account": "101",
+      "certainty": "observed",
+      "grant_id": "grant-3",
+      "instance": "demo",
+      "resource": "repo-21",
+      "resource_name": "acme/infrastructure",
+      "role": "Admin",
+      "state": "finding",
+      "via": []
+    }
+  ],
+  "gaps": [],
+  "identity": "bob@example.com",
+  "kind": "join",
+  "plan_sha256": "<normalized>"
+}

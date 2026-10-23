@@ -497,7 +497,8 @@ async fn review(
             let rows: Vec<&review::IndexRow> = regenerated.plans.iter().map(|(r, _)| r).collect();
             write(
                 review::INDEX,
-                &serde_json::to_vec_pretty(&rows).map_err(|_| model::invalid())?,
+                &serde_json::to_vec_pretty(&review::index_value(&rows))
+                    .map_err(|_| model::invalid())?,
             )?;
             let summary = review::summary(
                 &regenerated.plans,

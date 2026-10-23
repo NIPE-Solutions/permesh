@@ -60,8 +60,12 @@ fn stable(name: &str) -> PathBuf {
 /// Only run-specific values change between runs: times, durations, digests over them and
 /// absolute paths. Everything else, including order and nulls, is compared exactly.
 fn normalize(root: &Path, value: &mut Value) {
-    let root = root.canonicalize().unwrap();
-    let roots = [root.to_string_lossy().into_owned()];
+    // Any temporary directory (workspace, base checkout) is run-specific.
+    let roots: Vec<String> = [root.to_path_buf(), std::env::temp_dir()]
+        .iter()
+        .flat_map(|path| [path.clone(), path.canonicalize().unwrap()])
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
     fn walk(roots: &[String], key: Option<&str>, value: &mut Value) {
         match value {
             Value::Object(map) => {
@@ -71,9 +75,26 @@ fn normalize(root: &Path, value: &mut Value) {
             }
             Value::Array(items) => items.iter_mut().for_each(|item| walk(roots, key, item)),
             Value::String(text) => {
-                let run_specific = key.is_some_and(|key| {
-                    key.ends_with("_at") || key.ends_with("sha256") || key.ends_with("digest")
-                });
+                let time = key.is_some_and(|key| key.ends_with("_at"));
+                let digest =
+                    key.is_some_and(|key| key.ends_with("sha256") || key.ends_with("digest"));
+                // Shapes stay frozen even where values are normalized.
+                if time {
+                    assert!(
+                        text.len() >= 20 && text.as_bytes()[10] == b'T' && text.ends_with('Z'),
+                        "{key:?} is not an RFC 3339 UTC time: {text}"
+                    );
+                }
+                if digest {
+                    assert!(
+                        text.len() == 64
+                            && text
+                                .bytes()
+                                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
+                        "{key:?} is not a lowercase SHA-256 hex digest: {text}"
+                    );
+                }
+                let run_specific = time || digest;
                 if run_specific || roots.iter().any(|root| text.starts_with(root.as_str())) {
                     *value = json!(NORMALIZED);
                 }
@@ -221,4 +242,166 @@ fn fixture_comparison_detects_renamed_field() {
     let covered = counts.remove("covered").unwrap();
     counts.insert("covered_count".into(), covered);
     assert!(compare("profile-check.json", &value).is_err());
+}
+
+fn snapshot(dir: &Path) {
+    let output = run(dir, &["snapshot", "create", "--output", "s.json"]);
+    assert!(output.status.success(), "{output:?}");
+}
+fn access(dir: &Path, args: &[&str]) -> (Option<i32>, Value) {
+    let mut all = vec!["access"];
+    all.extend_from_slice(args);
+    all.push("--json");
+    let output = run(dir, &all);
+    (output.status.code(), json(&output))
+}
+
+#[test]
+fn access_plan_join_fixture() {
+    let dir = workspace();
+    snapshot(dir.path());
+    let (code, report) = access(
+        dir.path(),
+        &[
+            "join",
+            "bob@example.com",
+            "--profile",
+            "backend",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    assert_eq!(code, Some(0), "{report}");
+    assert_fixture(
+        "access-plan-join.json",
+        &normalized(dir.path(), read(dir.path(), "p.json")),
+    );
+    assert_fixture(
+        "access-plan-result.json",
+        &normalized(dir.path(), report["result"].clone()),
+    );
+}
+
+#[test]
+fn access_plan_leave_fixture() {
+    let dir = workspace();
+    snapshot(dir.path());
+    let (code, report) = access(
+        dir.path(),
+        &[
+            "leave",
+            "alice@example.com",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    assert_eq!(code, Some(0), "{report}");
+    assert_fixture(
+        "access-plan-leave.json",
+        &normalized(dir.path(), read(dir.path(), "p.json")),
+    );
+}
+
+fn joined_and_verified(partial: bool) -> (Option<i32>, Value, tempfile::TempDir) {
+    let dir = workspace();
+    snapshot(dir.path());
+    let (code, _) = access(
+        dir.path(),
+        &[
+            "join",
+            "bob@example.com",
+            "--profile",
+            "backend",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    assert_eq!(code, Some(0));
+    if partial {
+        let mut s = read(dir.path(), "s.json");
+        let limitations = json!(["Fixture visibility incomplete"]);
+        s["providers"][0]["state"] = "partial".into();
+        s["providers"][0]["limitations"] = limitations.clone();
+        s["providers"][0]["data"]["complete"] = false.into();
+        s["providers"][0]["data"]["limitations"] = limitations;
+        fs::write(dir.path().join("s.json"), s.to_string()).unwrap();
+    }
+    let (code, report) = access(dir.path(), &["verify", "p.json", "--snapshot", "s.json"]);
+    (code, report, dir)
+}
+
+#[test]
+fn access_verify_fixture() {
+    let (code, report, dir) = joined_and_verified(false);
+    assert_eq!(code, Some(6), "{report}");
+    assert_fixture(
+        "access-verify.json",
+        &normalized(dir.path(), report["result"].clone()),
+    );
+}
+
+#[test]
+fn access_verify_partial_fixture() {
+    let (code, report, dir) = joined_and_verified(true);
+    assert_eq!(code, Some(4), "{report}");
+    assert_eq!(report["complete"], false);
+    assert_fixture(
+        "access-verify-partial.json",
+        &normalized(dir.path(), report["result"].clone()),
+    );
+}
+
+#[test]
+fn access_review_and_execution_fixtures() {
+    let head = workspace();
+    snapshot(head.path());
+    let base = tempfile::tempdir().unwrap();
+    fs::copy(
+        head.path().join("permesh.yaml"),
+        base.path().join("permesh.yaml"),
+    )
+    .unwrap();
+    write(base.path(), "profiles/backend.yaml", BACKEND);
+    write(base.path(), "profiles/base.yaml", BASE);
+    write(
+        base.path(),
+        "people/alice.yaml",
+        "identity: alice@example.com\nprofiles: [base]\n",
+    );
+    let base_dir = base.path().display().to_string();
+    let review = |out: &str, extra: &[&str]| {
+        let mut args = vec![
+            "review",
+            "--base",
+            base_dir.as_str(),
+            "--out",
+            out,
+            "--snapshot",
+            "s.json",
+        ];
+        args.extend_from_slice(extra);
+        access(head.path(), &args)
+    };
+    let (code, report) = review("r1", &[]);
+    assert_eq!(code, Some(0), "{report}");
+    assert_fixture(
+        "access-review-index.json",
+        &normalized(head.path(), read(head.path(), "r1/index.json")),
+    );
+    assert_fixture(
+        "access-review-result.json",
+        &normalized(head.path(), report["result"].clone()),
+    );
+    let (code, report) = review("r2", &["--reviewed", "r1"]);
+    assert_eq!(code, Some(0), "{report}");
+    assert_fixture(
+        "access-execution-plan.json",
+        &normalized(head.path(), read(head.path(), "r2/000.execution.json")),
+    );
 }

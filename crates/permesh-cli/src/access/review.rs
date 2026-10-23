@@ -24,6 +24,31 @@ use std::{
 
 pub(crate) const INDEX: &str = "index.json";
 pub(crate) const SUMMARY: &str = "summary.md";
+/// `index.json` format: `{"access_review_index_version": 1, "plans": [IndexRow…]}`.
+pub(crate) const INDEX_VERSION: u32 = 1;
+
+/// The index document as written; rows stay in plan order.
+pub(crate) fn index_value(rows: &[&IndexRow]) -> Value {
+    json!({"access_review_index_version": INDEX_VERSION, "plans": rows})
+}
+fn index_rows(index: Value) -> Result<Vec<IndexRow>, AppError> {
+    let unsupported = || {
+        AppError::input(
+            "Unsupported index.json format; regenerate the reviewed plans with this Permesh version",
+        )
+    };
+    let Value::Object(mut index) = index else {
+        return Err(unsupported());
+    };
+    if index.remove("access_review_index_version") != Some(json!(INDEX_VERSION)) {
+        return Err(unsupported());
+    }
+    let plans = index.remove("plans").ok_or_else(unsupported)?;
+    if !index.is_empty() {
+        return Err(unsupported());
+    }
+    serde_json::from_value(plans).map_err(|_| unsupported())
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -184,7 +209,7 @@ fn valid_file(name: &str) -> bool {
 /// The reviewed plans by (identity, kind), checked against their index.
 pub(crate) fn load_reviewed(dir: &Path) -> Result<Reviewed, AppError> {
     let mismatch = || AppError::input("Reviewed plans do not match their index.json");
-    let rows: Vec<IndexRow> = artifact::load_document(&dir.join(INDEX))?;
+    let rows = index_rows(artifact::load_document(&dir.join(INDEX))?)?;
     let mut reviewed = BTreeMap::new();
     for row in rows {
         if !valid_file(&row.file) {
