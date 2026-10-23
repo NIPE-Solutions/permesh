@@ -50,6 +50,16 @@ jobs:
           case "$RUN_ID" in
             ''|*[!0-9]*) echo "run_id must be a numeric workflow run ID." >&2; exit 2 ;;
           esac
+          # Accept only a successful post-merge run of permesh-plan.yml on the default
+          # branch of this repository, so no branch or fork can supply the plans.
+          default_branch=$(gh api "repos/${GITHUB_REPOSITORY}" | jq -r .default_branch)
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" > run.json
+          jq -e --arg branch "$default_branch" '.path == ".github/workflows/permesh-plan.yml"
+            and .event == "push" and .head_branch == $branch and .conclusion == "success"
+            and .head_repository.id == .repository.id' run.json > /dev/null || {
+            echo "Run $RUN_ID is not a successful post-merge Permesh plan run on $default_branch." >&2
+            exit 2
+          }
           gh run download "$RUN_ID" -n execution-plans -D execution
       # Every plan runs before the job fails; the summary carries counts only.
       - name: Verify each plan
@@ -58,6 +68,8 @@ jobs:
           PERMESH_GITHUB_TOKEN: ${{ secrets.PERMESH_GITHUB_TOKEN }}
           PERMESH_GOOGLE_TOKEN: ${{ secrets.PERMESH_GOOGLE_TOKEN }}
         run: |
+          # The job exit follows the CLI's precedence: errors, then 3, 4 and 6.
+          rank() { case "$1" in 0) echo 0 ;; 6) echo 1 ;; 4) echo 2 ;; 3) echo 3 ;; *) echo 4 ;; esac; }
           mkdir -p verification
           status=0
           found=0
@@ -72,7 +84,7 @@ jobs:
             jq -r --arg name "$name" --arg code "$code" \
               '"\($name): exit \($code); done \(.result.counts.done // 0), not done \(.result.counts.not_done // 0), cannot verify \(.result.counts.cannot_verify // 0), extra \(.result.counts.extra // 0)"' \
               "verification/$name.json" >> "$GITHUB_STEP_SUMMARY" || echo "$name: exit $code" >> "$GITHUB_STEP_SUMMARY"
-            [ "$code" = 0 ] || status=$code
+            [ "$(rank "$code")" -gt "$(rank "$status")" ] && status=$code
           done
           [ "$found" = 1 ] || { echo "No execution plans in run $RUN_ID." >&2; exit 1; }
           exit "$status"

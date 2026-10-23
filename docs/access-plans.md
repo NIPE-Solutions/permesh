@@ -127,7 +127,8 @@ sensitive access metadata; keep them out of public places.
 
 A step is `cannot_tell` when its provider was not fully read, or when an account
 the person may own is claimed by another identity too. Either makes the plan
-incomplete (exit 4).
+incomplete (exit 4). Completeness covers what each provider reports: a provider that
+has no `groups` capability has no group routes to remove.
 
 ## Pull-request flow
 

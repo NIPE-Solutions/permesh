@@ -320,3 +320,112 @@ fn post_merge_job_binds_only_the_merged_pull_request() {
     let group = workflow["concurrency"]["group"].as_str().unwrap();
     assert!(group.contains("github.sha"), "{group}");
 }
+
+/// The `run` script of one step of the verify workflow.
+#[cfg(unix)]
+fn verify_step(name: &str) -> String {
+    let parsed = yaml(".github/workflows/permesh-verify.yml");
+    parsed["jobs"]["verify"]["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == name)
+        .unwrap()["run"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
+/// Runs a workflow script with `bin` first on PATH, as GitHub runs `run:` steps.
+#[cfg(unix)]
+fn run_step(dir: &Path, bin: &Path, script: &str, env: &[(&str, &str)]) -> Option<i32> {
+    let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap());
+    std::process::Command::new("sh")
+        .args(["-e", "-c", script])
+        .current_dir(dir)
+        .env("PATH", path)
+        .env("GITHUB_STEP_SUMMARY", dir.join("summary.md"))
+        .env("GITHUB_REPOSITORY", "acme/access")
+        .envs(env.iter().copied())
+        .status()
+        .unwrap()
+        .code()
+}
+#[cfg(unix)]
+fn fake(bin: &Path, name: &str, body: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::create_dir_all(bin).unwrap();
+    let file = bin.join(name);
+    fs::write(&file, format!("#!/bin/sh\n{body}")).unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn verify_workflow_exit_follows_precedence() {
+    let script = verify_step("Verify each plan");
+    for (codes, expected) in [
+        (&[6, 4, 0][..], 4),
+        (&[6, 3, 4][..], 3),
+        (&[0, 6][..], 6),
+        (&[2, 3][..], 2),
+        (&[0, 0][..], 0),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("bin");
+        // `permesh access verify PLAN --json` exits with the code stored beside PLAN.
+        fake(
+            &bin,
+            "permesh",
+            "echo '{\"result\":{\"counts\":{}}}'\nexit \"$(cat \"$3.code\")\"\n",
+        );
+        fs::create_dir_all(dir.path().join("execution")).unwrap();
+        for (n, code) in codes.iter().enumerate() {
+            let plan = dir.path().join(format!("execution/{n:03}.execution.json"));
+            fs::write(&plan, "{}").unwrap();
+            fs::write(plan.with_extension("json.code"), code.to_string()).unwrap();
+        }
+        let code = run_step(dir.path(), &bin, &script, &[("RUN_ID", "1")]);
+        assert_eq!(code, Some(expected), "{codes:?}");
+        let summary = fs::read_to_string(dir.path().join("summary.md")).unwrap();
+        assert_eq!(summary.lines().count(), codes.len(), "{summary}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn verify_workflow_accepts_only_post_merge_plan_runs() {
+    let script = verify_step("Fetch the execution plans");
+    let good = serde_json::json!({
+        "path": ".github/workflows/permesh-plan.yml",
+        "event": "push",
+        "head_branch": "main",
+        "conclusion": "success",
+        "repository": {"id": 7},
+        "head_repository": {"id": 7}
+    });
+    let mut cases = vec![(good.clone(), true)];
+    for (field, value) in [
+        ("path", serde_json::json!(".github/workflows/permesh-check.yml")),
+        ("event", serde_json::json!("pull_request")),
+        ("head_branch", serde_json::json!("feature")),
+        ("conclusion", serde_json::json!("failure")),
+        ("head_repository", serde_json::json!({"id": 8})),
+    ] {
+        let mut run = good.clone();
+        run[field] = value;
+        cases.push((run, false));
+    }
+    for (run, accepted) in cases {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("bin");
+        fs::write(dir.path().join("run.fixture"), run.to_string()).unwrap();
+        fake(
+            &bin,
+            "gh",
+            "case \"$1 $2\" in\n  'api repos/acme/access') echo '{\"default_branch\":\"main\"}' ;;\n  'api repos/acme/access/actions/runs/42') cat run.fixture ;;\n  'run download') touch downloaded ;;\n  *) exit 9 ;;\nesac\n",
+        );
+        let code = run_step(dir.path(), &bin, &script, &[("RUN_ID", "42")]);
+        assert_eq!(code == Some(0), accepted, "{run}");
+        assert_eq!(dir.path().join("downloaded").exists(), accepted, "{run}");
+    }
+}
