@@ -825,6 +825,33 @@ fn detail_summary_escapes_markdown() {
 }
 
 #[test]
+fn existing_plan_file_is_refused_before_capture() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    fs::create_dir_all(head.path().join("plans")).unwrap();
+    fs::write(head.path().join("plans/000.json"), "{}").unwrap();
+    // The missing snapshot would fail the capture; the output check must come first.
+    let (code, result) = review(
+        head.path(),
+        base.path(),
+        "plans",
+        &["--snapshot", "missing.json"],
+    );
+    assert_eq!(code, Some(2), "{result}");
+    assert!(
+        result["error"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("Output exists"),
+        "{result}"
+    );
+    assert_eq!(fs::read_to_string(head.path().join("plans/000.json")).unwrap(), "{}");
+}
+
+#[test]
 fn deleted_people_file_is_a_move_and_left_is_a_leave() {
     let head = demo(&[
         ("profiles/backend.yaml", BACKEND),

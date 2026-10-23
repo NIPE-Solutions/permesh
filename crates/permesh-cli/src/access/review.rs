@@ -337,10 +337,20 @@ pub(crate) fn summary(
     text
 }
 
-/// Fail before capture when the fixed output files already exist.
+/// Fail before capture when output files already exist, plans included.
 pub(crate) fn check_out(out: &Path, overwrite: bool) -> Result<(), AppError> {
     for name in [INDEX, SUMMARY] {
         artifact::check_destination(&out.join(name), overwrite)?;
+    }
+    let Ok(entries) = std::fs::read_dir(out) else {
+        return Ok(());
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if valid_file(&name.replace(".execution.json", ".json")) {
+            artifact::check_destination(&entry.path(), overwrite)?;
+        }
     }
     Ok(())
 }
