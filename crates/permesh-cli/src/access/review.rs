@@ -11,7 +11,7 @@ use crate::{
     artifact::{self, Artifact},
     error::AppError,
     offboard,
-    output::safe,
+    output::markdown,
 };
 use permesh_config::profiles::ProfileSet;
 use permesh_core as core;
@@ -325,12 +325,12 @@ pub(crate) fn summary(
             let kind = serde_json::to_value(row.kind).unwrap_or_default();
             text.push_str(&format!(
                 "\n## {} {}\n\n",
-                safe(kind.as_str().unwrap_or_default()),
-                safe(&row.identity)
+                markdown(kind.as_str().unwrap_or_default()),
+                markdown(&row.identity)
             ));
             for step in &plan.steps {
                 let operation = serde_json::to_value(&step.operation).unwrap_or_default();
-                text.push_str(&format!("- {}\n", words(&operation)));
+                text.push_str(&format!("- {}\n", markdown(&words(&operation))));
             }
         }
     }

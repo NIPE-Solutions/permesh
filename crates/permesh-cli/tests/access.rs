@@ -803,6 +803,28 @@ fn review_plans_changed_people_only() {
 }
 
 #[test]
+fn detail_summary_escapes_markdown() {
+    let identity = "<b>x</b>_[a](https://e.example)@example.com";
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        (
+            "people/x.yaml",
+            &format!("identity: '{identity}'\nprofiles: [backend]\n"),
+        ),
+    ]);
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    let (code, result) = review(head.path(), base.path(), "detailed", &["--detail"]);
+    assert_eq!(code, Some(0), "{result}");
+    let summary = fs::read_to_string(head.path().join("detailed/summary.md")).unwrap();
+    // Names render as text: no HTML, no link.
+    assert!(
+        summary.contains(r"\<b\>x\</b\>\_\[a\]\(https://e.example\)@example.com"),
+        "{summary}"
+    );
+    assert!(!summary.contains("<b>") && !summary.contains("]("), "{summary}");
+}
+
+#[test]
 fn deleted_people_file_is_a_move_and_left_is_a_leave() {
     let head = demo(&[
         ("profiles/backend.yaml", BACKEND),
