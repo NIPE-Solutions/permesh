@@ -1124,7 +1124,7 @@ fn bare_array_index_is_refused() {
     assert_eq!(code, Some(2), "{result}");
     assert_eq!(
         result["error"]["message"],
-        "Unsupported index.json format; regenerate the reviewed plans with this Permesh version"
+        "Unsupported index.json format in r1; regenerate the reviewed plans with this Permesh version (in the starter CI, re-run the pull request's Permesh plan job)"
     );
     assert!(!head.path().join("r2/000.execution.json").exists());
 }

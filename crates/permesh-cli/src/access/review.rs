@@ -11,7 +11,7 @@ use crate::{
     artifact::{self, Artifact},
     error::AppError,
     offboard,
-    output::markdown,
+    output::{markdown, safe},
 };
 use permesh_config::profiles::ProfileSet;
 use permesh_core as core;
@@ -31,11 +31,12 @@ pub(crate) const INDEX_VERSION: u32 = 1;
 pub(crate) fn index_value(rows: &[&IndexRow]) -> Value {
     json!({"access_review_index_version": INDEX_VERSION, "plans": rows})
 }
-fn index_rows(index: Value) -> Result<Vec<IndexRow>, AppError> {
+fn index_rows(dir: &Path, index: Value) -> Result<Vec<IndexRow>, AppError> {
     let unsupported = || {
-        AppError::input(
-            "Unsupported index.json format; regenerate the reviewed plans with this Permesh version",
-        )
+        AppError::input(format!(
+            "Unsupported index.json format in {}; regenerate the reviewed plans with this Permesh version (in the starter CI, re-run the pull request's Permesh plan job)",
+            safe(&dir.display().to_string())
+        ))
     };
     let Value::Object(mut index) = index else {
         return Err(unsupported());
@@ -209,7 +210,7 @@ fn valid_file(name: &str) -> bool {
 /// The reviewed plans by (identity, kind), checked against their index.
 pub(crate) fn load_reviewed(dir: &Path) -> Result<Reviewed, AppError> {
     let mismatch = || AppError::input("Reviewed plans do not match their index.json");
-    let rows = index_rows(artifact::load_document(&dir.join(INDEX))?)?;
+    let rows = index_rows(dir, artifact::load_document(&dir.join(INDEX))?)?;
     let mut reviewed = BTreeMap::new();
     for row in rows {
         if !valid_file(&row.file) {
