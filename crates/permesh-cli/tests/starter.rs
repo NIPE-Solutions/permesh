@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used)]
 use std::{fs, path::Path, process::Command};
 
-const FILES: [&str; 10] = [
+const FILES: [&str; 12] = [
     "permesh.yaml",
     "README.md",
     ".gitignore",
@@ -12,6 +12,8 @@ const FILES: [&str; 10] = [
     "profiles/README.md",
     "people/README.md",
     ".github/workflows/permesh-check.yml",
+    ".github/workflows/permesh-plan.yml",
+    ".github/workflows/permesh-verify.yml",
     ".gitlab-ci.yml",
 ];
 fn example(file: &str) -> Vec<u8> {
@@ -198,4 +200,80 @@ fn starter_ships_report_only_profiles() {
     assert!(profiles.is_none_or(|p| !p.enforce));
     let template = String::from_utf8(example("permesh.yaml")).unwrap();
     assert!(template.contains("#   enforce: false"), "{template}");
+}
+
+#[test]
+fn starter_ships_plan_and_verify_workflows() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(init(dir.path(), "Acme").status.success());
+    for file in [
+        ".github/workflows/permesh-plan.yml",
+        ".github/workflows/permesh-verify.yml",
+    ] {
+        let text = fs::read_to_string(dir.path().join(file)).unwrap();
+        permesh_config::parse_setup_value(&text).unwrap();
+    }
+    let plan = String::from_utf8(example(".github/workflows/permesh-plan.yml")).unwrap();
+    for needle in [
+        "access review --base",
+        "--reviewed reviewed",
+        "pull-requests: write",
+        "gh attestation verify",
+        "PERMESH_ARCHIVE_SHA256",
+    ] {
+        assert!(plan.contains(needle), "{needle}");
+    }
+    assert!(!plan.contains("--detail"));
+    let parsed = yaml(".github/workflows/permesh-plan.yml");
+    assert_eq!(
+        parsed["permissions"],
+        serde_json::json!({"contents": "read", "pull-requests": "write", "actions": "read"})
+    );
+    assert_eq!(
+        parsed["on"]["pull_request"]["paths"],
+        serde_json::json!(["people/**", "profiles/**"])
+    );
+    let verify = String::from_utf8(example(".github/workflows/permesh-verify.yml")).unwrap();
+    assert!(verify.contains("workflow_dispatch") && verify.contains("access verify"));
+    assert!(!verify.contains("--detail"));
+    let parsed = yaml(".github/workflows/permesh-verify.yml");
+    assert_eq!(
+        parsed["on"]["workflow_dispatch"]["inputs"]["run_id"]["required"],
+        true
+    );
+    for workflow in [&plan, &verify] {
+        for line in workflow.lines().filter(|l| l.contains("uses:")) {
+            let sha = line.split('@').nth(1).unwrap().split_whitespace().next().unwrap();
+            assert!(
+                sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
+                "{line}"
+            );
+        }
+    }
+}
+
+#[test]
+fn gitlab_plans_merge_requests_and_keeps_checks_scheduled() {
+    let gitlab = yaml(".gitlab-ci.yml");
+    let job = &gitlab["permesh-plan"];
+    assert!(job.is_object(), "permesh-plan job");
+    assert_eq!(
+        job["rules"][0]["if"],
+        "$CI_PIPELINE_SOURCE == \"merge_request_event\""
+    );
+    assert_eq!(
+        job["rules"][0]["changes"],
+        serde_json::json!(["people/**", "profiles/**"])
+    );
+    let script = job["script"].to_string();
+    assert!(script.contains("access review --base"), "{script}");
+    assert!(!script.contains("--detail"), "{script}");
+    // The scheduled check never runs in merge-request pipelines.
+    for name in ["permesh-check", "permesh-baseline"] {
+        let rules = gitlab[name]["rules"].to_string();
+        assert!(
+            rules.contains("schedule") && !rules.contains("merge_request_event"),
+            "{name}: {rules}"
+        );
+    }
 }

@@ -1,0 +1,161 @@
+# Plan access changes for pull requests that touch people/ or profiles/, and bind
+# the reviewed plans after merge. See docs: https://github.com/NIPE-Solutions/permesh/blob/main/docs/access-plans.md
+# Plans are data: a person carries out each step in the providers.
+name: Permesh plan
+on:
+  pull_request:
+    paths: ["people/**", "profiles/**"]
+  push:
+    branches: [main] # your default branch
+    paths: ["people/**", "profiles/**"]
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+concurrency:
+  group: permesh-plan-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  # A Permesh release that includes `permesh access`, and the SHA-256 of its
+  # x86_64-unknown-linux-gnu archive from the release page. Update both together.
+  PERMESH_VERSION: "0.1.0-alpha.4"
+  PERMESH_ARCHIVE_SHA256: "REPLACE_WITH_RELEASE_ARCHIVE_SHA256"
+jobs:
+  # Review copy: the PR comment carries counts and step types; the plans are an artifact.
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install Permesh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$PERMESH_ARCHIVE_SHA256" in
+            REPLACE*) echo "Set PERMESH_ARCHIVE_SHA256 in this workflow to the release archive digest." >&2; exit 1 ;;
+          esac
+          archive="permesh-${PERMESH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          gh release download "v${PERMESH_VERSION}" -R NIPE-Solutions/permesh -p "$archive"
+          # The committed digest pins the exact bytes; provenance pins who built them.
+          echo "${PERMESH_ARCHIVE_SHA256}  ${archive}" | sha256sum -c
+          gh attestation verify "$archive" --repo NIPE-Solutions/permesh \
+            --cert-identity "https://github.com/NIPE-Solutions/permesh/.github/workflows/attested-candidates.yml@refs/heads/main" \
+            --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners
+          mkdir -p "$RUNNER_TEMP/permesh-bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/permesh-bin"
+          echo "$RUNNER_TEMP/permesh-bin" >> "$GITHUB_PATH"
+          echo "PERMESH_DATA_DIR=$RUNNER_TEMP/permesh-state" >> "$GITHUB_ENV"
+      - name: Trust and approve pinned providers
+        run: sh ci/bootstrap.sh
+      - name: Trust and approve pinned providers
+        run: sh ci/bootstrap.sh
+      - name: Plan the people changes
+        id: review
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # Map each credential reference in permesh.yaml (env://NAME) to a repository secret.
+          PERMESH_GITHUB_TOKEN: ${{ secrets.PERMESH_GITHUB_TOKEN }}
+          PERMESH_GOOGLE_TOKEN: ${{ secrets.PERMESH_GOOGLE_TOKEN }}
+        run: |
+          git worktree add ../base "$BASE_SHA"
+          set +e
+          permesh access review --base ../base --out plans
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+      - name: Comment the summary (counts only)
+        if: always() && hashFiles('plans/summary.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR" --edit-last --body-file plans/summary.md \
+            || gh pr comment "$PR" --body-file plans/summary.md
+      - name: Keep the plans (sensitive)
+        if: always() && hashFiles('plans/index.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: access-plans
+          path: plans/
+          retention-days: 30
+      - name: Report result
+        if: always()
+        env:
+          CODE: ${{ steps.review.outputs.code }}
+        run: exit "${CODE:-5}"
+
+  # After merge: regenerate, and turn each unchanged plan into an execution plan.
+  execution:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Install Permesh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$PERMESH_ARCHIVE_SHA256" in
+            REPLACE*) echo "Set PERMESH_ARCHIVE_SHA256 in this workflow to the release archive digest." >&2; exit 1 ;;
+          esac
+          archive="permesh-${PERMESH_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          gh release download "v${PERMESH_VERSION}" -R NIPE-Solutions/permesh -p "$archive"
+          # The committed digest pins the exact bytes; provenance pins who built them.
+          echo "${PERMESH_ARCHIVE_SHA256}  ${archive}" | sha256sum -c
+          gh attestation verify "$archive" --repo NIPE-Solutions/permesh \
+            --cert-identity "https://github.com/NIPE-Solutions/permesh/.github/workflows/attested-candidates.yml@refs/heads/main" \
+            --predicate-type https://slsa.dev/provenance/v1 --deny-self-hosted-runners
+          mkdir -p "$RUNNER_TEMP/permesh-bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/permesh-bin"
+          echo "$RUNNER_TEMP/permesh-bin" >> "$GITHUB_PATH"
+          echo "PERMESH_DATA_DIR=$RUNNER_TEMP/permesh-state" >> "$GITHUB_ENV"
+      - name: Trust and approve pinned providers
+        run: sh ci/bootstrap.sh
+      - name: Trust and approve pinned providers
+        run: sh ci/bootstrap.sh
+      - name: Fetch the reviewed plans
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            echo "No merged pull request for this commit: people changes were pushed without review." >&2
+            exit 1
+          fi
+          head_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq .head.sha)
+          run=$(gh run list --workflow permesh-plan.yml --commit "$head_sha" --status success \
+            --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run" ]; then
+            echo "No successful plan run for the reviewed head of #$pr; re-run the PR plan." >&2
+            exit 1
+          fi
+          gh run download "$run" -n access-plans -D reviewed
+      - name: Regenerate and bind to the reviewed plans
+        id: review
+        env:
+          PERMESH_GITHUB_TOKEN: ${{ secrets.PERMESH_GITHUB_TOKEN }}
+          PERMESH_GOOGLE_TOKEN: ${{ secrets.PERMESH_GOOGLE_TOKEN }}
+        run: |
+          git worktree add ../base HEAD^1
+          set +e
+          permesh access review --base ../base --out execution --reviewed reviewed
+          code=$?
+          set -e
+          [ -f execution/summary.md ] && cat execution/summary.md >> "$GITHUB_STEP_SUMMARY"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+      - name: Keep the execution plans (sensitive)
+        if: always() && hashFiles('execution/index.json') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: execution-plans
+          path: execution/
+          retention-days: 90
+      - name: Report result
+        if: always()
+        env:
+          # 6: access changed after review; re-review before carrying out any step.
+          CODE: ${{ steps.review.outputs.code }}
+        run: exit "${CODE:-5}"
