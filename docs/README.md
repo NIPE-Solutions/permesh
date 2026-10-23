@@ -28,6 +28,7 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 | Compare saved observations offline | [Snapshots and diffs](snapshots.md) |
 | Declare expected access and find unexplained access | [Access profiles](profiles.md) |
 | Plan and verify a join, project move or departure | [Joiner, mover and leaver plans](access-plans.md) |
+| Ask an AI assistant the same questions (MCP) | [AI assistants](mcp.md) |
 | Run weekly checks in CI and get notified | [Scheduled checks](check.md), [notifications](notifications.md), [starter](starter.md) |
 | Assess a departure and verify later observations | [Read-only offboarding](offboarding.md) |
 | Review one resource or run local rules | [Resource queries and policies](resource-policies.md) |

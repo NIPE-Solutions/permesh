@@ -28,6 +28,12 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
   `status: left`, which `permesh check` counts as departed. The starter gains plan
   and verify workflows ([access plans](docs/access-plans.md),
   [ADR 0034](docs/adr/0034-access-plans.md)).
+- Add experimental `permesh mcp`: a local, read-only MCP server (protocol
+  2026-07-28) whose tools answer user, resource, admin, orphaned and profile
+  questions, prepare join, move and leave plan files inside the workspace, and
+  verify plans. Results carry the CLI's report, exit code and completeness. It never
+  changes access ([AI assistants](docs/mcp.md),
+  [ADR 0035](docs/adr/0035-read-only-mcp-server.md)).
 
 - Guided `provider add` now supports GitLab, Entra ID and AWS Identity Center.
 - `provider list` reports each external provider's ID and whether it has recorded

@@ -140,6 +140,17 @@ reports what is gone, what remains and what can't be checked. Permesh never trea
 "not seen" as "removed", and it makes no changes itself. See the
 [departure workflow](docs/offboarding.md).
 
+## Ask an AI assistant
+
+`permesh mcp` lets an AI assistant on your machine ask the same questions,
+read-only, with the same completeness warnings:
+
+```bash
+claude mcp add permesh -- permesh mcp --config "$PWD/permesh.yaml"
+```
+
+It can prepare plan files but never changes access. See [AI assistants](docs/mcp.md).
+
 ## Connect your systems
 
 In a new directory, separate from the demo:
