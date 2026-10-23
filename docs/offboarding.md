@@ -4,6 +4,12 @@ Offboarding support on the access-review branch provides assessment, advisory pl
 and repeatable verification. It is not yet a published CLI feature. It performs no
 remote mutations and has no `apply` command.
 
+When people files and [access profiles](profiles.md) are configured,
+`permesh access leave` writes a profile-aware plan instead: it separates access an
+assigned profile explains from unexplained leftovers and plans removals at the
+membership that grants them. See [joiner, mover and leaver plans](access-plans.md).
+`offboard` stays unchanged for departures without profiles.
+
 ## Assess, plan, verify
 
 Use an exact canonical identity observed in an authoritative source. Labels, account

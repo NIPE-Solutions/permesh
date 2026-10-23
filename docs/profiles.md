@@ -47,7 +47,7 @@ unexplained `via team-10`, with certainty `derived`.
 | File | Content |
 | --- | --- |
 | `profiles/NAME.yaml` | `profile` (letters, digits, `-`, `_`), optional `description`, optional `includes` (other profile names), and `grants` |
-| `people/ANY.yaml` | `identity` (canonical identity ID, usually the directory email) and `profiles` |
+| `people/ANY.yaml` | `identity` (canonical identity ID, usually the directory email), `profiles`, and optional `status: active` (default) or `left` |
 | `permesh.yaml` | optional `profiles:` section, below |
 
 Each entry in `grants` is either a group membership, `{instance, group}`, or a role
@@ -64,7 +64,10 @@ profiles:
 ```
 
 People assigned through a directory group and a people file get the union of their
-profiles. Only `*.yaml` files are read; directories that hold nothing else count as
+profiles. `status: left` marks an explicit departure: `permesh check` counts that
+person's remaining access as departed, and `permesh access review` plans a leave.
+To turn a change in someone's profiles into a reviewable plan, see
+[joiner, mover and leaver plans](access-plans.md). Only `*.yaml` files are read; directories that hold nothing else count as
 not configured.
 
 ## What "cannot tell" means

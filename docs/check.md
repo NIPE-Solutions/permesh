@@ -26,7 +26,7 @@ CI run) to the summary and notifications.
 
 | Count | Meaning |
 | --- | --- |
-| Departed people with access | An authoritative identity is inactive or suspended, and one of its accounts still has access, directly or through groups. |
+| Departed people with access | An authoritative identity is inactive or suspended, or the person's [people file](profiles.md) says `status: left`, and one of their accounts still has access, directly or through groups. Left people have reason `left_in_people_file`; an account is counted once. |
 | New admins / Removed admins | Accounts that gained or lost known admin or owner access since `--previous`, including through team or group membership. |
 | No longer observed (needs review) | An identity seen last time is missing from a comparable, complete collection. This is **not** treated as a departure. |
 | Policy findings | Findings of the selected rules other than `inactive_access`, which is already counted as a departure. |
@@ -34,8 +34,8 @@ CI run) to the summary and notifications.
 | Unexplained access / Missing expected access | Differences from declared [access profiles](profiles.md). Report-only unless `profiles.enforce: true`; "not compared" when no profiles are configured. |
 
 Departures need an authoritative identity source, such as Google Workspace with
-`--authoritative`. Without one, the report says "Departures not assessed" instead of
-showing zero.
+`--authoritative`, or at least one people file with `status: left`. Without either,
+the report says "Departures not assessed" instead of showing zero.
 
 Without `--previous`, the report says there was nothing to compare with, and the
 three change counts read "not compared" (they are left out of `counts` in JSON)

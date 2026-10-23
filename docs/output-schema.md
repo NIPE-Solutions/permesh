@@ -257,3 +257,42 @@ Policy results contain selected `rules`, bounded deterministic `checks`, finding
 Policy exit codes: 0 complete evaluation without unaccepted findings; 2 invalid policy/input; 3 all captured providers failed; 4 partial collection, missing required coverage or a not-evaluable check; 5 internal/output failure; 6 findings with complete evaluation; 130 cancellation. Errors/cancellation are handled first, then precedence is 3 > 4 > 6 > 0. A specific finding remains in the report even when exit 3 or 4 takes precedence. Resource selection ambiguity uses 2; absence uses 1 only when collection is complete, otherwise 3/4 retains the uncertainty. Existing user/admins/orphaned inspection exit behavior is unchanged.
 
 See [resource and local policy review](resource-policies.md) for declarative policy fields and exact exception semantics.
+
+## Access plans
+
+Experimental; see [joiner, mover and leaver plans](access-plans.md) and
+[ADR 0034](adr/0034-access-plans.md). The commands use the schema-1 envelope.
+
+**Plan file** `permesh_access_plan` version 1 (written by `access join`, `move`,
+`leave` and `review`; unknown fields are refused):
+`{format, format_version, kind, identity, profiles_after, profiles_removed, created_at, expires_at, max_age_hours, mode, source_snapshot_sha256, identity_context_sha256, profiles_sha256, complete, steps, kept, reviewed_plan_sha256}`.
+`kind` is `join`, `move` or `leave`; `reviewed_plan_sha256` is `null` except in
+execution plans. Each step is
+`{id, operation, state, reason, justification, evidence, prerequisites, verification}`:
+`id` is the SHA-256 of the operation's JSON; `operation` is `{type, instance, ...}`
+with `type` one of `account_needed`, `add_membership {group}`,
+`add_role {role, resource}`, `remove_membership {account, group}`,
+`remove_role {account, role, resource, grant_id}`,
+`review_account_lifecycle {account}`, `review_ownership {account, resource}` or
+`review_machine_dependency {account}`; `state` is `planned` or `cannot_tell`;
+`justification` is `{"profiles": [...]}` or `"unexplained"`; `evidence` lists grant
+IDs; `verification` is `observe_membership`, `observe_role`, `observe_account`,
+`observe_absence` or `manual_review`. `kept` rows are `{entry, because}`. The plan's
+SHA-256 is the digest of the file bytes as written.
+
+**`access_plan`**: `{access_plan, plan_sha256, counts: {steps, cannot_tell, account_needed, kept}, files: {plan, html}}`.
+Exit 0 complete, 4 incomplete, 3 when no provider returned data (nothing written),
+2 for invalid input, unknown profiles or existing output.
+
+**`access_verify`**: `{access_verification_version: 1, plan_sha256, identity, kind, complete, checks, extra, gaps, counts: {done, not_done, cannot_verify, manual_review, extra}}`.
+Each check is `{step, operation, state, reason}` with `state` `done`, `not_done` or
+`cannot_verify`. `extra` rows have the `profile_check` unexplained shape. `gaps`
+may contain `identity_context_changed`, `plan_incomplete`,
+`profiles_not_configured` and `profile_no_longer_defined`. Exit precedence
+3 > 4 (incomplete, or `cannot_verify` other than manual review) > 6 (a step not
+done) > 0; an invalid plan is 2 before any capture.
+
+**`access_review`**: `{access_review_version: 1, plans: [{file, identity, kind, plan_sha256, steps}], executions, rereview: [{identity, kind, added_steps, removed_steps}], profiles_changed, complete, summary, files: {out}}`.
+The output directory holds `NNN.json`, `index.json` (the `plans` rows),
+`summary.md` and, with `--reviewed`, `NNN.execution.json`. Exit 3 or 4 from
+collection or incomplete plans, else 6 when `rereview` is non-empty, else 0.

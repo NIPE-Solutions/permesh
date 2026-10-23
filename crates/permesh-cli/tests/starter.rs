@@ -243,7 +243,13 @@ fn starter_ships_plan_and_verify_workflows() {
     );
     for workflow in [&plan, &verify] {
         for line in workflow.lines().filter(|l| l.contains("uses:")) {
-            let sha = line.split('@').nth(1).unwrap().split_whitespace().next().unwrap();
+            let sha = line
+                .split('@')
+                .nth(1)
+                .unwrap()
+                .split_whitespace()
+                .next()
+                .unwrap();
             assert!(
                 sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
                 "{line}"

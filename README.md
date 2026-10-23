@@ -107,7 +107,26 @@ admin rights, bots without an owner, and providers that weren't fully read.
 Exceptions are explicit and expire. See [snapshots](docs/snapshots.md),
 [policies](docs/resource-policies.md) and [orphan review](docs/orphaned.md).
 
-## When someone leaves
+## When someone joins, moves or leaves
+
+With [access profiles](docs/profiles.md) in place, turn a change in someone's
+profiles into a plan you can review:
+
+```bash
+permesh access join carol@example.com --profile backend --output carol.plan.json
+permesh access move alice@example.com --remove payments --output alice.plan.json
+permesh access leave bob@example.com --output bob.plan.json
+# A person carries out the steps, then:
+permesh access verify bob.plan.json
+```
+
+Moves remove only access that no remaining profile justifies and keep shared
+access, saying which profile needs it. Joiners without accounts get "account
+needed" steps. In the starter, a pull request that changes `people/` gets a
+counts-only plan summary, and after merge an execution plan bound to the reviewed
+copy. See [joiner, mover and leaver plans](docs/access-plans.md).
+
+Without profiles, use the departure review:
 
 ```bash
 permesh offboard assess alice@example.com

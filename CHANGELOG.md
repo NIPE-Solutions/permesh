@@ -19,6 +19,15 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
   `profiles.enforce: true`. Policy files gain `version: 2` with `unexplained_access`
   exceptions ([access profiles](docs/profiles.md),
   [ADR 0033](docs/adr/0033-access-profiles.md)).
+- Add experimental joiner, mover and leaver plans: `permesh access join|move|leave`
+  write a `permesh_access_plan` v1 file with operation-shaped steps and stable step
+  IDs; moves keep access a remaining profile justifies and plan derived access at
+  its membership; `permesh access verify` checks the steps and flags extra access;
+  `permesh access review` plans the people changes of a pull request and binds
+  regenerated plans to the reviewed copy after merge. People files accept
+  `status: left`, which `permesh check` counts as departed. The starter gains plan
+  and verify workflows ([access plans](docs/access-plans.md),
+  [ADR 0034](docs/adr/0034-access-plans.md)).
 
 - Guided `provider add` now supports GitLab, Entra ID and AWS Identity Center.
 - `provider list` reports each external provider's ID and whether it has recorded
