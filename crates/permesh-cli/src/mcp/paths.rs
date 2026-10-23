@@ -6,7 +6,6 @@ use std::path::{Component, Path, PathBuf};
 const RELATIVE: &str = "Paths must be relative to the workspace";
 const OUTSIDE: &str = "Path is outside the workspace";
 const MISSING: &str = "File not found in the workspace";
-#[cfg_attr(not(test), allow(dead_code))] // used by plan tools (next commit)
 const EXISTS: &str = "Output file already exists";
 
 /// Refuses absolute paths and `..` that climbs above the root before touching the file system.
@@ -47,7 +46,6 @@ pub(crate) fn existing(root: &Path, relative: &str) -> Result<PathBuf, AppError>
 }
 
 /// A file to create inside the root: the parent must exist inside it and the target must not exist.
-#[cfg_attr(not(test), allow(dead_code))] // used by plan tools (next commit)
 pub(crate) fn new_file(root: &Path, relative: &str) -> Result<PathBuf, AppError> {
     let path = lexical(relative)?;
     let root = canonical_root(root)?;

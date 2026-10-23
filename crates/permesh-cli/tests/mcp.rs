@@ -16,6 +16,10 @@ const TOOLS: &[&str] = &[
     "admins",
     "orphaned",
     "profile_check",
+    "plan_join",
+    "plan_move",
+    "plan_leave",
+    "verify_plan",
 ];
 const VERSION: &str = "2026-07-28";
 const INSTRUCTIONS: &str = "Permesh answers who has access to what, read-only. Every tool result has `complete`: when it is false, some providers could not be fully read and missing access is not proof of absence, so say you cannot tell. Plan tools write a new plan file for a person to review and carry out; Permesh never changes access.";
@@ -420,6 +424,159 @@ fn snapshot_outside_workspace_is_input_error() {
         structured(&result)["error"]["message"],
         "Path is outside the workspace"
     );
+}
+
+fn step_ids(plan: &Value) -> std::collections::BTreeSet<String> {
+    plan["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|step| step["id"].as_str().unwrap().to_owned())
+        .collect()
+}
+fn planned() -> tempfile::TempDir {
+    let dir = demo();
+    write(dir.path(), "profiles/backend.yaml", BACKEND);
+    write(
+        dir.path(),
+        "people/bob.yaml",
+        "identity: bob@example.com\nprofiles: [backend]\n",
+    );
+    std::fs::create_dir(dir.path().join("plans")).unwrap();
+    dir
+}
+
+#[test]
+fn plan_join_writes_plan_file() {
+    let dir = planned();
+    let mut client = Client::start(dir.path());
+    let result = client.call(
+        "plan_join",
+        json!({"person": "carol@example.com", "profiles": ["backend"], "output": "plans/carol.json"}),
+    );
+    assert_eq!(result["isError"], false, "{result}");
+    assert_eq!(structured(&result)["exit_code"], 0);
+    let report = &structured(&result)["report"];
+    assert_eq!(report["command"], "access_plan");
+    let file: Value =
+        serde_json::from_slice(&std::fs::read(dir.path().join("plans/carol.json")).unwrap())
+            .unwrap();
+    assert_eq!(file, report["result"]["access_plan"]);
+    assert_eq!(file["kind"], "join");
+    let cli = command(dir.path())
+        .args(["access", "verify", "plans/carol.json", "--json"])
+        .output()
+        .unwrap();
+    assert_ne!(cli.status.code(), Some(2), "{cli:?}");
+}
+
+#[test]
+fn plan_tool_never_overwrites() {
+    let dir = planned();
+    let mut client = Client::start(dir.path());
+    let arguments = json!({"person": "carol@example.com", "profiles": ["backend"], "output": "plans/carol.json"});
+    client.call("plan_join", arguments.clone());
+    let before = std::fs::read(dir.path().join("plans/carol.json")).unwrap();
+    let result = client.call("plan_join", arguments);
+    assert_eq!(result["isError"], true, "{result}");
+    assert_eq!(structured(&result)["exit_code"], 2);
+    assert_eq!(
+        structured(&result)["error"]["message"],
+        "Output file already exists"
+    );
+    assert_eq!(
+        std::fs::read(dir.path().join("plans/carol.json")).unwrap(),
+        before
+    );
+}
+
+#[test]
+fn plan_move_and_leave_match_cli() {
+    let dir = planned();
+    let mut client = Client::start(dir.path());
+    let moved = client.call(
+        "plan_move",
+        json!({"person": "alice@example.com", "remove": ["backend"], "output": "plans/move.json"}),
+    );
+    assert_eq!(moved["isError"], false, "{moved}");
+    let left = client.call(
+        "plan_leave",
+        json!({"person": "alice@example.com", "output": "plans/leave.json", "expires_in_hours": 48}),
+    );
+    assert_eq!(left["isError"], false, "{left}");
+    let cli_move = json_run(
+        dir.path(),
+        &[
+            "access",
+            "move",
+            "alice@example.com",
+            "--remove",
+            "backend",
+            "--output",
+            "cli-move.json",
+        ],
+    );
+    let cli_leave = json_run(
+        dir.path(),
+        &[
+            "access",
+            "leave",
+            "alice@example.com",
+            "--output",
+            "cli-leave.json",
+        ],
+    );
+    let ids = |value: &Value| step_ids(&value["result"]["access_plan"]);
+    assert!(!ids(&cli_move).is_empty());
+    assert_eq!(ids(&structured(&moved)["report"]), ids(&cli_move));
+    assert_eq!(ids(&structured(&left)["report"]), ids(&cli_leave));
+    assert_eq!(
+        structured(&left)["report"]["result"]["access_plan"]["kind"],
+        "leave"
+    );
+}
+
+#[test]
+fn verify_plan_reports_steps() {
+    let dir = planned();
+    let mut client = Client::start(dir.path());
+    client.call(
+        "plan_join",
+        json!({"person": "bob@example.com", "profiles": ["backend"], "output": "plans/bob.json"}),
+    );
+    let result = client.call("verify_plan", json!({"plan": "plans/bob.json"}));
+    let cli = command(dir.path())
+        .args(["access", "verify", "plans/bob.json", "--json"])
+        .output()
+        .unwrap();
+    let cli_report: Value = serde_json::from_slice(&cli.stdout).unwrap();
+    assert_eq!(result["isError"], false, "{result}");
+    assert_eq!(
+        structured(&result)["exit_code"],
+        json!(cli.status.code().unwrap())
+    );
+    assert_eq!(structured(&result)["exit_code"], 6);
+    assert_eq!(
+        structured(&result)["report"]["result"]["checks"],
+        cli_report["result"]["checks"]
+    );
+}
+
+#[test]
+fn plan_output_outside_workspace_is_refused() {
+    let dir = planned();
+    let mut client = Client::start(dir.path());
+    let result = client.call(
+        "plan_join",
+        json!({"person": "carol@example.com", "profiles": ["backend"], "output": "../x.json"}),
+    );
+    assert_eq!(result["isError"], true, "{result}");
+    assert_eq!(structured(&result)["exit_code"], 2);
+    assert_eq!(
+        structured(&result)["error"]["message"],
+        "Path is outside the workspace"
+    );
+    assert!(!dir.path().parent().unwrap().join("x.json").exists());
 }
 
 #[cfg(unix)]

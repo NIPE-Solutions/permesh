@@ -30,6 +30,10 @@ pub(crate) enum Tool {
     Admins(NoArgs),
     Orphaned(NoArgs),
     ProfileCheck(ProfileCheckArgs),
+    PlanJoin(JoinArgs),
+    PlanMove(MoveArgs),
+    PlanLeave(LeaveArgs),
+    VerifyPlan(VerifyArgs),
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -60,6 +64,42 @@ pub(crate) struct ProfileCheckArgs {
     policy: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct JoinArgs {
+    person: String,
+    profiles: Vec<String>,
+    output: String,
+    snapshot: Option<String>,
+    expires_in_hours: Option<u32>,
+}
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct MoveArgs {
+    person: String,
+    remove: Vec<String>,
+    #[serde(default)]
+    add: Vec<String>,
+    output: String,
+    snapshot: Option<String>,
+    expires_in_hours: Option<u32>,
+}
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct LeaveArgs {
+    person: String,
+    annotations: Option<String>,
+    output: String,
+    snapshot: Option<String>,
+    expires_in_hours: Option<u32>,
+}
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct VerifyArgs {
+    plan: String,
+    snapshot: Option<String>,
+}
+
 fn schema(value: Value) -> Arc<Map<String, Value>> {
     match value {
         Value::Object(map) => Arc::new(map),
@@ -73,6 +113,27 @@ fn query(name: &'static str, description: &'static str, input: Value) -> Definit
 
 fn object(properties: Value, required: &[&str]) -> Value {
     json!({"type": "object", "properties": properties, "required": required, "additionalProperties": false})
+}
+/// Writes one new local file and never overwrites; no provider is changed.
+fn plan(name: &'static str, description: &'static str, input: Value) -> Definition {
+    Definition::new(name, description, schema(input)).annotate(
+        ToolAnnotations::new()
+            .read_only(false)
+            .destructive(false)
+            .idempotent(false)
+            .open_world(true),
+    )
+}
+fn plan_properties(mut properties: Value) -> Value {
+    properties["person"] =
+        json!({"type": "string", "description": "The person's identity, as in their people file."});
+    properties["output"] = json!({"type": "string", "description": "New plan file to write, relative to the workspace; its folder must exist and the file must not."});
+    properties["snapshot"] = json!({"type": "string", "description": SNAPSHOT});
+    properties["expires_in_hours"] = json!({"type": "integer", "minimum": 1, "maximum": 168, "default": 24, "description": "Hours the plan stays fresh, from the evidence start."});
+    properties
+}
+fn names(description: &str) -> Value {
+    json!({"type": "array", "items": {"type": "string"}, "description": description})
 }
 const SNAPSHOT: &str =
     "Saved snapshot to read offline instead of fresh discovery; a path relative to the workspace.";
@@ -129,6 +190,45 @@ pub(crate) fn definitions() -> Vec<Definition> {
                 &[],
             ),
         ),
+        plan(
+            "plan_join",
+            "Prepare a reviewable plan file of the access a person needs for added profiles, including accounts still to create. Permesh never applies it.",
+            object(
+                plan_properties(json!({"profiles": names("Profiles to add.")})),
+                &["person", "profiles", "output"],
+            ),
+        ),
+        plan(
+            "plan_move",
+            "Prepare a reviewable plan file for a profile change: removals only for access no remaining profile justifies, and shared access listed as kept. Permesh never applies it.",
+            object(
+                plan_properties(
+                    json!({"remove": names("Profiles to take away."), "add": names("Profiles to add.")}),
+                ),
+                &["person", "remove", "output"],
+            ),
+        ),
+        plan(
+            "plan_leave",
+            "Prepare a reviewable plan file removing all of a departing person's access, separating expected from unexplained access, with account, ownership and machine-account review steps. Permesh never applies it.",
+            object(
+                plan_properties(
+                    json!({"annotations": {"type": "string", "description": "Owner annotations for machine accounts, as in offboard; a path relative to the workspace."}}),
+                ),
+                &["person", "output"],
+            ),
+        ),
+        query(
+            "verify_plan",
+            "Check each step of a plan file against fresh discovery: done, not done or cannot verify, plus any extra access.",
+            object(
+                json!({
+                    "plan": {"type": "string", "description": "Plan file, relative to the workspace."},
+                    "snapshot": {"type": "string", "description": SNAPSHOT}
+                }),
+                &["plan"],
+            ),
+        ),
     ]
 }
 
@@ -156,6 +256,16 @@ impl Tool {
                 .as_deref()
                 .map(|value| Ok(option(name, paths::existing(root, value)?)))
                 .transpose()
+        };
+        // Flags every plan tool shares; `output` is a new file inside the workspace.
+        let common = |output: &str,
+                      snapshot: &Option<String>,
+                      hours: Option<u32>|
+         -> Result<Vec<OsString>, AppError> {
+            let mut flags = vec![option("output", paths::new_file(root, output)?)];
+            flags.extend(file("snapshot", snapshot)?);
+            flags.extend(hours.map(|hours| option("expires-in-hours", hours.to_string())));
+            Ok(flags)
         };
         let mut argv: Vec<OsString> = vec!["permesh".into(), "--json".into()];
         argv.push(option("config", workspace));
@@ -186,6 +296,31 @@ impl Tool {
                 argv.extend(["profile".into(), "check".into()]);
                 argv.extend(file("snapshot", &args.snapshot)?);
                 argv.extend(file("policy", &args.policy)?);
+            }
+            Tool::PlanJoin(args) => {
+                argv.extend(["access".into(), "join".into()]);
+                argv.extend(args.profiles.iter().map(|p| option("profile", p)));
+                argv.extend(common(&args.output, &args.snapshot, args.expires_in_hours)?);
+                argv.extend(["--".into(), (&args.person).into()]);
+            }
+            Tool::PlanMove(args) => {
+                argv.extend(["access".into(), "move".into()]);
+                argv.extend(args.remove.iter().map(|p| option("remove", p)));
+                argv.extend(args.add.iter().map(|p| option("add", p)));
+                argv.extend(common(&args.output, &args.snapshot, args.expires_in_hours)?);
+                argv.extend(["--".into(), (&args.person).into()]);
+            }
+            Tool::PlanLeave(args) => {
+                argv.extend(["access".into(), "leave".into()]);
+                argv.extend(file("annotations", &args.annotations)?);
+                argv.extend(common(&args.output, &args.snapshot, args.expires_in_hours)?);
+                argv.extend(["--".into(), (&args.person).into()]);
+            }
+            Tool::VerifyPlan(args) => {
+                argv.extend(["access".into(), "verify".into()]);
+                argv.extend(file("snapshot", &args.snapshot)?);
+                let plan = paths::existing(root, &args.plan)?;
+                argv.extend(["--".into(), plan.into()]);
             }
         }
         Ok(argv)
@@ -221,14 +356,46 @@ pub(crate) fn result(outcome: Result<Outcome, AppError>) -> CallToolResult {
 mod tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
-    use crate::args::{Cli, Command};
+    use crate::{
+        access::AccessCommand,
+        args::{Cli, Command},
+    };
     use clap::Parser;
 
-    fn parsed(tool: &Tool) -> Cli {
-        Cli::try_parse_from(tool.argv(Path::new("/w/permesh.yaml")).unwrap()).unwrap()
+    fn parsed(root: &Path, tool: &Tool) -> Cli {
+        Cli::try_parse_from(tool.argv(&root.join("permesh.yaml")).unwrap()).unwrap()
     }
-    fn samples() -> Vec<Tool> {
+    /// One sample per variant; file arguments exist inside `root`.
+    fn samples(root: &Path) -> Vec<Tool> {
+        std::fs::write(root.join("p.json"), "{}").unwrap();
+        let snapshot = || Some("p.json".to_string());
         vec![
+            Tool::PlanJoin(JoinArgs {
+                person: "-p".into(),
+                profiles: vec!["--x".into()],
+                output: "new.json".into(),
+                snapshot: snapshot(),
+                expires_in_hours: Some(48),
+            }),
+            Tool::PlanMove(MoveArgs {
+                person: "-p".into(),
+                remove: vec!["a".into()],
+                add: vec!["b".into()],
+                output: "new.json".into(),
+                snapshot: None,
+                expires_in_hours: None,
+            }),
+            Tool::PlanLeave(LeaveArgs {
+                person: "-p".into(),
+                annotations: snapshot(),
+                output: "new.json".into(),
+                snapshot: None,
+                expires_in_hours: None,
+            }),
+            Tool::VerifyPlan(VerifyArgs {
+                plan: "p.json".into(),
+                snapshot: snapshot(),
+            }),
             Tool::Doctor(DoctorArgs { details: true }),
             Tool::User(UserArgs {
                 identity: "a@example.com".into(),
@@ -255,16 +422,18 @@ mod tests {
         });
         let argv = tool.argv(Path::new("/w/permesh.yaml")).unwrap();
         assert_eq!(argv[argv.len() - 3..], ["user", "--", "--config=/x"]);
-        let cli = parsed(&tool);
+        let dir = tempfile::tempdir().unwrap();
+        let cli = parsed(dir.path(), &tool);
         assert!(matches!(&cli.command, Command::User { identity } if identity == "--config=/x"));
-        assert_eq!(cli.config.as_deref(), Some(Path::new("/w/permesh.yaml")));
+        assert_eq!(cli.config, Some(dir.path().join("permesh.yaml")));
         assert!(cli.json);
     }
 
     #[test]
     fn argv_only_reaches_allowed_commands() {
-        for tool in samples() {
-            let cli = parsed(&tool);
+        let dir = tempfile::tempdir().unwrap();
+        for tool in samples(dir.path()) {
+            let cli = parsed(dir.path(), &tool);
             assert!(
                 matches!(
                     cli.command,
@@ -275,6 +444,12 @@ mod tests {
                         | Command::Orphaned
                         | Command::Profile {
                             command: crate::profile_command::ProfileCommand::Check { .. }
+                        }
+                        | Command::Access {
+                            command: AccessCommand::Join { .. }
+                                | AccessCommand::Move { .. }
+                                | AccessCommand::Leave { .. }
+                                | AccessCommand::Verify { .. }
                         }
                 ),
                 "{tool:?}"
