@@ -24,6 +24,7 @@ previous version.
 | `profiles/*.yaml` and `people/*.yaml` format 1, including `status: active \| left` and the optional `version: 1` | [Access profiles](profiles.md) | `permesh-config` profile tests |
 | Policy file `version: 2` (`unexplained_access` exceptions) | [Policies](resource-policies.md) | `fixtures/stable/policy-v2.json` |
 | `check` report version 1 (`check.json` and the `check` result) | [Scheduled checks](check.md) | `fixtures/stable/check-report*.json` |
+| Generic webhook and email JSON body (`check_report_version: 1`), with and without `detail` | [Notifications](notifications.md) | `fixtures/stable/webhook-payload.json` |
 | `profile_check` and `profile_suggest` results, version 1 | [Output schema](output-schema.md#other-results) | `fixtures/stable/profile-*.json` |
 | Access plan file `permesh_access_plan` version 1, including execution plans | [Access plans](access-plans.md) | `fixtures/stable/access-plan-*.json`, `access-execution-plan.json` |
 | `access_plan`, `access_verify` and `access_review` results, and `index.json` version 1 | [Output schema](output-schema.md#access-plans) | `fixtures/stable/access-*.json` |
@@ -53,8 +54,10 @@ These may change between releases without a migration guide.
 
 ## Human-readable output
 
-Terminal text, `summary.md`, HTML views, notification message text and the
-`profile suggest` draft comments are for people and may change in any release.
+Terminal text, `summary.md`, HTML views, Slack and Teams message text, email
+subject and wording, the `summary` and `message` strings inside JSON results, and
+the `profile suggest` draft comments are for people and may change in any release.
+Paths under `files` echo the paths you gave, with your platform's separator.
 Two promises hold: summaries and notifications carry counts only unless you ask
 for `--detail` or `detail: true`, and nothing is reported as clean or removed when
 a provider could not be fully read. Automate against the JSON instead.

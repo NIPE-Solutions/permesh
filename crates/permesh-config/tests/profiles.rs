@@ -297,12 +297,11 @@ fn unknown_version_names_file() {
         files.push((name, body));
         let dir = workspace("", &files);
         let message = load(dir.path()).unwrap_err().to_string();
-        let version = if name.starts_with("people") { 2 } else { 0 };
-        assert_eq!(
-            message,
-            format!(
-                "{name}: unsupported format version {version}; this Permesh reads version 1. Remove the version line or upgrade Permesh."
-            )
-        );
+        let expected = if name.starts_with("people") {
+            "people/a.yaml: format version 2 is newer than this Permesh reads (version 1); upgrade Permesh"
+        } else {
+            "profiles/b.yaml: format version 0 is not valid; use version: 1 or remove the line"
+        };
+        assert_eq!(message, expected);
     }
 }

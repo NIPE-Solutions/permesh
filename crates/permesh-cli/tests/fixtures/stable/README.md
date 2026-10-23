@@ -8,8 +8,10 @@ spellings, array order and `null`s.
 
 Only run-specific values are replaced with `"<normalized>"`: string values of keys
 ending in `_at`, `sha256` or `digest`, numbers under keys ending in `_ms`, and
-strings starting with the temporary workspace path. Human-readable text, such as
-the `profile suggest` draft, is normalized too and checked for validity instead.
+strings starting with the temporary workspace path. Paths under `files` compare
+with `/` separators, so Windows output matches. Human-readable text (`summary`,
+`message` and the `profile suggest` draft) is normalized too; the draft is checked
+to load as a profile instead.
 
 A failing fixture means a stable format changed. Additive changes (new optional
 fields) are allowed; anything else needs a version bump and a migration guide in

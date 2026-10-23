@@ -224,7 +224,12 @@ fn read_dir<T: serde::de::DeserializeOwned>(
         }) = data::parse::<FormatPeek>(&bytes, MAX_CONFIG_BYTES)
             && version != PROFILE_FORMAT
         {
-            return Err(in_file(&label, Error::UnsupportedVersion(version)));
+            let error = if version > PROFILE_FORMAT {
+                Error::NewerVersion(version)
+            } else {
+                Error::InvalidVersion(version)
+            };
+            return Err(in_file(&label, error));
         }
         files.push((
             label.clone(),

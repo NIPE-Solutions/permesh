@@ -58,7 +58,8 @@ fn stable(name: &str) -> PathBuf {
 }
 
 /// Only run-specific values change between runs: times, durations, digests over them and
-/// absolute paths. Everything else, including order and nulls, is compared exactly.
+/// absolute paths. Human text (`summary`, `message`) and path separators are platform or
+/// wording details, not format. Everything else, including order and nulls, is compared exactly.
 fn normalize(root: &Path, value: &mut Value) {
     // Any temporary directory (workspace, base checkout) is run-specific.
     let roots: Vec<String> = [root.to_path_buf(), std::env::temp_dir()]
@@ -70,11 +71,37 @@ fn normalize(root: &Path, value: &mut Value) {
         match value {
             Value::Object(map) => {
                 for (key, value) in map.iter_mut() {
+                    // Output paths echo `--out` with the platform's separator.
+                    if key == "files"
+                        && let Value::Object(files) = value
+                    {
+                        for path in files.values_mut() {
+                            if let Value::String(text) = path {
+                                let temporary =
+                                    roots.iter().any(|root| text.starts_with(root.as_str()));
+                                *text = if temporary {
+                                    NORMALIZED.to_owned()
+                                } else {
+                                    text.replace('\\', "/")
+                                };
+                            }
+                        }
+                        continue;
+                    }
+                    // Human-readable text is not frozen (stability.md); only its type is.
+                    if matches!(key.as_str(), "summary" | "message") {
+                        assert!(value.is_string(), "{key} must stay a string");
+                        *value = json!(NORMALIZED);
+                        continue;
+                    }
                     walk(roots, Some(key), value);
                 }
             }
             Value::Array(items) => items.iter_mut().for_each(|item| walk(roots, key, item)),
             Value::String(text) => {
+                if text == NORMALIZED {
+                    return; // idempotent on already-normalized fixtures
+                }
                 let time = key.is_some_and(|key| key.ends_with("_at"));
                 let digest =
                     key.is_some_and(|key| key.ends_with("sha256") || key.ends_with("digest"));
@@ -404,4 +431,25 @@ fn access_review_and_execution_fixtures() {
         "access-execution-plan.json",
         &normalized(head.path(), read(head.path(), "r2/000.execution.json")),
     );
+}
+
+#[test]
+fn file_paths_compare_across_platforms() {
+    let mut value = json!({"files": {"report": "out\\check.json", "summary": "out/summary.md"}});
+    normalize(Path::new("."), &mut value);
+    assert_eq!(value["files"]["report"], "out/check.json");
+}
+
+#[test]
+fn human_text_is_not_frozen() {
+    let mut value: Value =
+        serde_json::from_slice(&fs::read(stable("access-review-result.json")).unwrap()).unwrap();
+    value["summary"] = json!("# Reworded summary");
+    normalize(Path::new("."), &mut value);
+    assert!(compare("access-review-result.json", &value).is_ok());
+    let mut value: Value =
+        serde_json::from_slice(&fs::read(stable("profile-check.json")).unwrap()).unwrap();
+    value["message"] = json!("Reworded");
+    normalize(Path::new("."), &mut value);
+    assert!(compare("profile-check.json", &value).is_ok());
 }

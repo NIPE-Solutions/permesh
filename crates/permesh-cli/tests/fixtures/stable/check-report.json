@@ -131,7 +131,7 @@
         ]
       }
     ],
-    "message": "Read-only comparison of declared profiles with captured access. Unexplained access is a review finding, not proof of wrong access; cannot_tell entries were not fully observed.",
+    "message": "<normalized>",
     "profile_review_version": 1,
     "unresolved_assignments": []
   },

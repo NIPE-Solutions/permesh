@@ -334,9 +334,9 @@ fn profile_check_rejects_unknown_version() {
     ]);
     let output = run(dir.path(), &["profile", "check", "--json"]);
     assert_eq!(output.status.code(), Some(2));
-    let text = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        text.contains("people/bob.yaml: unsupported format version 2"),
-        "{text}"
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        report["error"]["message"],
+        "people/bob.yaml: format version 2 is newer than this Permesh reads (version 1); upgrade Permesh"
     );
 }

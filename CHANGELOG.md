@@ -13,7 +13,7 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 - People and profile files accept an optional `version: 1`; any other value is
   an error that says what to do. `access review` writes `index.json` as
   `{"access_review_index_version": 1, "plans": [...]}`.
-- Add experimental `permesh check`: one unattended review run that writes a snapshot,
+- Add `permesh check`: one unattended review run that writes a snapshot,
   a JSON report and a counts-only summary. It compares with a previous snapshot,
   including admin access gained through groups, and exits 6 when something needs
   review. See [scheduled checks](docs/check.md).
@@ -21,14 +21,14 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
   email, counts only by default ([ADR 0032](docs/adr/0032-explicit-check-notifications.md)).
 - Add `permesh init --starter` with GitHub Actions and GitLab CI workflows for
   weekly checks ([starter](docs/starter.md)).
-- Add experimental access profiles: `permesh profile check` compares declared
+- Add access profiles: `permesh profile check` compares declared
   `profiles/` and `people/` files with observed access and reports missing and
   unexplained access, including the group route; `permesh profile suggest` drafts
   a profile from a group. `permesh check` reports profile counts, report-only unless
   `profiles.enforce: true`. Policy files gain `version: 2` with `unexplained_access`
   exceptions ([access profiles](docs/profiles.md),
   [ADR 0033](docs/adr/0033-access-profiles.md)).
-- Add experimental joiner, mover and leaver plans: `permesh access join|move|leave`
+- Add joiner, mover and leaver plans: `permesh access join|move|leave`
   write a `permesh_access_plan` v1 file with operation-shaped steps and stable step
   IDs; moves keep access a remaining profile justifies and plan derived access at
   its membership; `permesh access verify` checks the steps and flags extra access;
