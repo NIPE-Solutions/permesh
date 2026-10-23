@@ -26,6 +26,8 @@ pub struct ProfileInput {
     pub profiles: BTreeMap<String, BTreeSet<ExpectedEntry>>,
     pub people: BTreeMap<String, BTreeSet<String>>,
     pub directory_groups: Vec<DirectoryAssignment>,
+    /// People who left: compared against no profiles, whatever assigns them.
+    pub left: BTreeSet<String>,
     /// Completely observed instances and their declared capabilities.
     pub observable: BTreeMap<String, BTreeSet<String>>,
 }
@@ -233,10 +235,15 @@ pub fn compare_profiles(
     let index = IdentityIndex::build(snapshots, aliases)?;
     let graph = MembershipGraph::new(snapshots);
     let Assignments {
-        profiles: assigned,
+        profiles: mut assigned,
         unresolved_assignments,
         unresolved_members,
     } = assign(snapshots, &index, &graph, input)?;
+    // Someone who left is expected to hold nothing: remaining access is unexplained,
+    // and their former profiles are not missing.
+    for identity in &input.left {
+        assigned.insert(identity.clone(), BTreeSet::new());
+    }
     let assignments_complete = unresolved_assignments.is_empty();
     let (owned, claimed, ambiguous_accounts) = owned_accounts(&index);
     let mut identities = Vec::new();

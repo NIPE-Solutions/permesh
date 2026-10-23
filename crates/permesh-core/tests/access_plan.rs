@@ -167,6 +167,7 @@ fn input(profiles: &[(&str, Vec<ExpectedEntry>)]) -> ProfileInput {
             .collect(),
         people: BTreeMap::new(),
         directory_groups: vec![],
+        left: BTreeSet::new(),
         observable: observable(),
     }
 }

@@ -161,6 +161,7 @@ fn input(profile: Vec<ExpectedEntry>, people: &[&str]) -> ProfileInput {
             .map(|p| (p.to_string(), ["backend".to_string()].into()))
             .collect(),
         directory_groups: vec![],
+        left: BTreeSet::new(),
         observable: observable(),
     }
 }
