@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+mod access;
 mod admins_output;
 mod app;
 mod args;

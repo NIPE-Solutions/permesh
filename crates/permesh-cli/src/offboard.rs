@@ -22,6 +22,7 @@ use crate::{
 };
 use clap::Subcommand;
 use model::*;
+pub(crate) use model::{Mode, evidence_start, time};
 use std::{collections::BTreeSet, path::PathBuf};
 #[derive(Clone, Subcommand)]
 pub enum OffboardCommand {
