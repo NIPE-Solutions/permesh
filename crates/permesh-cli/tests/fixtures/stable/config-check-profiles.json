@@ -1,0 +1,74 @@
+{
+  "check": {
+    "notifications": [
+      {
+        "id": "slack",
+        "on": [
+          "departed_with_access",
+          "new_admin"
+        ],
+        "type": "slack_webhook",
+        "url": "env://PERMESH_SLACK_WEBHOOK"
+      },
+      {
+        "id": "teams",
+        "type": "teams_webhook",
+        "url": "env://PERMESH_TEAMS_WEBHOOK"
+      },
+      {
+        "detail": true,
+        "id": "siem",
+        "type": "webhook",
+        "url": "keychain://permesh/siem-hook"
+      },
+      {
+        "from": "Permesh <permesh@example.com>",
+        "id": "email",
+        "on": [
+          "removed_admin",
+          "no_longer_observed",
+          "policy_finding",
+          "unexplained_access",
+          "missing_access",
+          "incomplete",
+          "provider_failed"
+        ],
+        "password": "env://PERMESH_SMTP_PASSWORD",
+        "smtp_host": "smtp.example.com",
+        "smtp_port": 587,
+        "to": [
+          "it@example.com"
+        ],
+        "type": "email",
+        "username": "permesh@example.com"
+      }
+    ]
+  },
+  "identity": {
+    "aliases": {},
+    "sources": []
+  },
+  "organization": {
+    "name": "Stable fixture"
+  },
+  "profiles": {
+    "directory_groups": [
+      {
+        "group": "team-10",
+        "instance": "demo",
+        "profiles": [
+          "backend"
+        ]
+      }
+    ],
+    "enforce": true
+  },
+  "providers": [
+    {
+      "id": "demo",
+      "organizations": [],
+      "type": "demo"
+    }
+  ],
+  "version": 1
+}

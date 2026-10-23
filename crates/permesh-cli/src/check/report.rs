@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! Check report version 1 (experimental). `summary.md` carries counts only.
+//! Check report version 1 (stable, ADR 0036). `summary.md` carries counts only.
 use permesh_config::FindingKind;
 use serde::{Serialize, Serializer};
 use serde_json::{Value, json};

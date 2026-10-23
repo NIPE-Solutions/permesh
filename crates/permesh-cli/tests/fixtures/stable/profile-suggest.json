@@ -1,0 +1,32 @@
+{
+  "draft": "<normalized>",
+  "entries": [
+    {
+      "count": 1,
+      "entry": {
+        "group": "team-10",
+        "instance": "demo",
+        "kind": "group"
+      },
+      "label": "team/backend"
+    },
+    {
+      "count": 1,
+      "entry": {
+        "instance": "demo",
+        "kind": "role",
+        "resource": "repo-21",
+        "role": "Read"
+      },
+      "label": "acme/infrastructure"
+    }
+  ],
+  "group": {
+    "id": "team-10",
+    "instance": "demo",
+    "name": "team/backend"
+  },
+  "members": 1,
+  "profile_suggestion_version": 1,
+  "unresolved_members": 0
+}

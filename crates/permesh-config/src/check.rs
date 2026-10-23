@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //! Optional `check` section: explicit notification destinations (ADR 0032).
-//! Experimental format. Destinations are credential references, never inline values.
+//! Stable format (ADR 0036). Destinations are credential references, never inline values.
 use crate::{Result, invalid, valid_id, valid_text};
 use permesh_secrets::SecretRef;
 use serde::{Deserialize, Serialize};

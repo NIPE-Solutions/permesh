@@ -241,3 +241,67 @@ fn left_status_is_parsed_and_default_is_active() {
     );
     assert!(load(dir.path()).is_err());
 }
+
+#[test]
+fn version_absent_means_one() {
+    let dir = workspace(
+        "",
+        &[
+            ("profiles/base.yaml", TEAM),
+            (
+                "people/bob.yaml",
+                "identity: bob@example.com\nprofiles: [base]\n",
+            ),
+        ],
+    );
+    assert!(
+        load(dir.path())
+            .unwrap()
+            .unwrap()
+            .people
+            .contains_key("bob@example.com")
+    );
+}
+
+#[test]
+fn version_one_loads() {
+    let dir = workspace(
+        "",
+        &[
+            ("profiles/base.yaml", &format!("version: 1\n{TEAM}")),
+            (
+                "people/bob.yaml",
+                "version: 1\nidentity: bob@example.com\nprofiles: [base]\n",
+            ),
+        ],
+    );
+    assert!(
+        load(dir.path())
+            .unwrap()
+            .unwrap()
+            .people
+            .contains_key("bob@example.com")
+    );
+}
+
+#[test]
+fn unknown_version_names_file() {
+    for (name, body) in [
+        (
+            "people/a.yaml",
+            "version: 2\nidentity: a@example.com\nprofiles: [base]\n",
+        ),
+        ("profiles/b.yaml", "version: 0\nprofile: b\ngrants: []\n"),
+    ] {
+        let mut files = vec![("profiles/base.yaml", TEAM)];
+        files.push((name, body));
+        let dir = workspace("", &files);
+        let message = load(dir.path()).unwrap_err().to_string();
+        let expected = if name.starts_with("people") {
+            "people/a.yaml: format version 2 is newer than this Permesh reads (version 1); upgrade Permesh"
+        } else {
+            "profiles/b.yaml: format version 0 is not valid; use version: 1 or remove the line"
+        };
+        assert_eq!(message, expected);
+    }
+}

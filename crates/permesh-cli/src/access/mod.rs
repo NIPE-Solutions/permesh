@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! Joiner, mover and leaver plans (experimental). Plans are data for a person to
+//! Joiner, mover and leaver plans (stable formats, ADR 0036). Plans are data for a person to
 //! carry out, never commands; nothing here changes provider access.
 pub(crate) mod model;
 mod review;
@@ -497,7 +497,8 @@ async fn review(
             let rows: Vec<&review::IndexRow> = regenerated.plans.iter().map(|(r, _)| r).collect();
             write(
                 review::INDEX,
-                &serde_json::to_vec_pretty(&rows).map_err(|_| model::invalid())?,
+                &serde_json::to_vec_pretty(&review::index_value(&rows))
+                    .map_err(|_| model::invalid())?,
             )?;
             let summary = review::summary(
                 &regenerated.plans,

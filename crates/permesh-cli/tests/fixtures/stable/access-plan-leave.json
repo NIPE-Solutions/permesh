@@ -1,0 +1,91 @@
+{
+  "accounts": [
+    {
+      "id": "100",
+      "provider": "demo"
+    }
+  ],
+  "complete": true,
+  "created_at": "<normalized>",
+  "expires_at": "<normalized>",
+  "format": "permesh_access_plan",
+  "format_version": 1,
+  "identity": "alice@example.com",
+  "identity_authorities": [
+    "demo"
+  ],
+  "identity_bindings": [],
+  "identity_context_sha256": "<normalized>",
+  "kept": [],
+  "kind": "leave",
+  "max_age_hours": 24,
+  "mode": "snapshot_replay",
+  "profiles_after": [],
+  "profiles_removed": [
+    "base"
+  ],
+  "profiles_sha256": "<normalized>",
+  "reviewed_plan_sha256": null,
+  "source_snapshot_sha256": "<normalized>",
+  "state": "compared",
+  "steps": [
+    {
+      "evidence": [
+        "grant-1"
+      ],
+      "id": "327a3c3d2f81a4b3cd3e8d062159c89e8902d61ab0ffbe1933d82f783c509679",
+      "justification": "unexplained",
+      "operation": {
+        "account": "100",
+        "group": "team-10",
+        "instance": "demo",
+        "type": "remove_membership"
+      },
+      "prerequisites": [],
+      "reason": "observed",
+      "state": "planned",
+      "verification": "observe_absence"
+    },
+    {
+      "evidence": [
+        "grant-2"
+      ],
+      "id": "8bf5091b30c0a6c56d35f1dce6da9a5c77d952cc98bcae687f5d75cf6b4e52ee",
+      "justification": {
+        "profiles": [
+          "base"
+        ]
+      },
+      "operation": {
+        "account": "100",
+        "grant_id": "grant-2",
+        "instance": "demo",
+        "resource": "repo-21",
+        "role": "Read",
+        "type": "remove_role"
+      },
+      "prerequisites": [],
+      "reason": "observed",
+      "state": "planned",
+      "verification": "observe_absence"
+    },
+    {
+      "evidence": [],
+      "id": "4306dbc3bb6731de183889c9ea725ddbcd17a77e3243b44307a7636ef999f0f0",
+      "justification": {
+        "profiles": [
+          "base"
+        ]
+      },
+      "operation": {
+        "account": "100",
+        "instance": "demo",
+        "type": "review_account_lifecycle"
+      },
+      "prerequisites": [],
+      "reason": "manual_review",
+      "state": "planned",
+      "verification": "manual_review"
+    }
+  ]
+}

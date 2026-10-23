@@ -3,8 +3,9 @@
 When someone joins, moves to another project or leaves, `permesh access` turns the
 change in their [access profiles](profiles.md) into a plan file you can review. A
 person carries out each step in the provider; Permesh never changes access. Later,
-`permesh access verify` checks what was done. Everything here is
-[experimental](stability.md).
+`permesh access verify` checks what was done. The plan
+file and JSON results are [stable](stability.md); summaries and HTML views are for
+people and may change wording.
 
 The examples use the demo workspace (`permesh init --demo`) with two profiles:
 

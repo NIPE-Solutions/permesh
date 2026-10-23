@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "rules": ["inactive_access"],
+  "exceptions": [
+    {
+      "id": "alice-team",
+      "rule": "unexplained_access",
+      "instance": "demo",
+      "account": "100",
+      "group": "team-10",
+      "reason": "Pairing on payments",
+      "owner": "it@example.com",
+      "expires_at": "2099-01-01T00:00:00Z"
+    }
+  ]
+}

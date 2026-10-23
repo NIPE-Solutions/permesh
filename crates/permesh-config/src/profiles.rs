@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 //! Access profiles: declared expected access (`profiles/*.yaml`), people
 //! assignments (`people/*.yaml`) and directory group mappings (ADR 0033).
-//! Experimental format. Entries reference immutable provider IDs, never labels.
+//! Stable format 1 (ADR 0036). Entries reference immutable provider IDs, never labels.
 use crate::{Config, Error, MAX_CONFIG_BYTES, Result, data, invalid, valid_id, valid_text};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -103,6 +103,9 @@ impl From<ProfileEntry> for RawEntry {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
+    /// Optional format marker; absent means [`PROFILE_FORMAT`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<u64>,
     pub profile: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -113,6 +116,9 @@ pub struct Profile {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Person {
+    /// Optional format marker; absent means [`PROFILE_FORMAT`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<u64>,
     pub identity: String,
     #[serde(default)]
     pub status: PersonStatus,
@@ -162,6 +168,16 @@ pub(crate) fn validate(config: &ProfilesConfig, instances: &BTreeSet<&str>) -> R
     Ok(())
 }
 
+/// The people and profile file format this build reads.
+pub const PROFILE_FORMAT: u64 = 1;
+
+/// Read first, so a newer file reports its version instead of an unknown field.
+#[derive(Deserialize)]
+struct FormatPeek {
+    #[serde(default)]
+    version: Option<u64>,
+}
+
 fn in_file(file: &str, error: Error) -> Error {
     Error::File {
         file: file.to_owned(),
@@ -202,6 +218,19 @@ fn read_dir<T: serde::de::DeserializeOwned>(
             return Err(in_file(&label, Error::Read));
         }
         let bytes = data::read_file(&file, MAX_CONFIG_BYTES).map_err(|e| in_file(&label, e))?;
+        // A file that is not even a mapping falls through to the full parse and its error.
+        if let Ok(FormatPeek {
+            version: Some(version),
+        }) = data::parse::<FormatPeek>(&bytes, MAX_CONFIG_BYTES)
+            && version != PROFILE_FORMAT
+        {
+            let error = if version > PROFILE_FORMAT {
+                Error::NewerVersion(version)
+            } else {
+                Error::InvalidVersion(version)
+            };
+            return Err(in_file(&label, error));
+        }
         files.push((
             label.clone(),
             data::parse(&bytes, MAX_CONFIG_BYTES).map_err(|e| in_file(&label, e))?,

@@ -781,8 +781,8 @@ fn review_plans_changed_people_only() {
     let plan = saved(head.path(), "plans/000.json");
     assert_eq!(plan["identity"], "bob@example.com");
     let index = saved(head.path(), "plans/index.json");
-    assert_eq!(index[0]["file"], "000.json");
-    assert_eq!(index[0]["steps"], 2);
+    assert_eq!(index["plans"][0]["file"], "000.json");
+    assert_eq!(index["plans"][0]["steps"], 2);
     let summary = fs::read_to_string(head.path().join("plans/summary.md")).unwrap();
     assert!(summary.starts_with("# Permesh access plan"), "{summary}");
     assert!(
@@ -944,7 +944,7 @@ fn reviewed_index_cannot_name_files_outside_its_directory() {
     let (code, _) = review(head.path(), base.path(), "r1", &[]);
     assert_eq!(code, Some(0));
     let mut index = saved(head.path(), "r1/index.json");
-    index[0]["file"] = "../permesh.yaml".into();
+    index["plans"][0]["file"] = "../permesh.yaml".into();
     save(head.path(), "r1/index.json", &index);
     let (code, _) = review(head.path(), base.path(), "r2", &["--reviewed", "r1"]);
     assert_eq!(code, Some(2));
@@ -1031,4 +1031,45 @@ fn deleting_a_departed_persons_file_is_no_change() {
     let (code, result) = review(head.path(), base.path(), "plans", &[]);
     assert_eq!(code, Some(0), "{result}");
     assert!(plans(&result).is_empty(), "{result}");
+}
+
+#[test]
+fn review_index_has_version() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    let (code, _) = review(head.path(), base.path(), "plans", &[]);
+    assert_eq!(code, Some(0));
+    let index = saved(head.path(), "plans/index.json");
+    assert_eq!(index["access_review_index_version"], 1, "{index}");
+    assert_eq!(index["plans"][0]["identity"], "bob@example.com");
+}
+
+#[test]
+fn bare_array_index_is_refused() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    snapshot(head.path());
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    let (code, _) = review(head.path(), base.path(), "r1", &["--snapshot", "s.json"]);
+    assert_eq!(code, Some(0));
+    let index = saved(head.path(), "r1/index.json");
+    let rows = index.get("plans").cloned().unwrap_or(index);
+    save(head.path(), "r1/index.json", &rows);
+    let (code, result) = review(
+        head.path(),
+        base.path(),
+        "r2",
+        &["--snapshot", "s.json", "--reviewed", "r1"],
+    );
+    assert_eq!(code, Some(2), "{result}");
+    assert_eq!(
+        result["error"]["message"],
+        "Unsupported index.json format; regenerate the reviewed plans with this Permesh version"
+    );
+    assert!(!head.path().join("r2/000.execution.json").exists());
 }

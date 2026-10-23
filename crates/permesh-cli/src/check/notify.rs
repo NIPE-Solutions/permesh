@@ -398,6 +398,25 @@ mod tests {
         assert!(selected(&explicit, &quiet));
     }
 
+    /// The generic webhook and email JSON body is stable (ADR 0036).
+    #[test]
+    fn webhook_payload_fixture() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/stable/webhook-payload.json"
+        );
+        let hook = channels().remove(2);
+        let value = json!({
+            "default": payload(&notification(hook.clone(), false, vec![]), &profiled(false)),
+            "detail": payload(&notification(hook, true, vec![]), &profiled(false)),
+        });
+        if std::env::var_os("PERMESH_BLESS").is_some() {
+            std::fs::write(path, serde_json::to_string_pretty(&value).unwrap() + "\n").unwrap();
+        }
+        let expected: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(value, expected, "webhook payload is a stable format");
+    }
+
     #[test]
     fn detail_payload_lists_profile_findings_without_names_in_summary() {
         let hook = channels().remove(2);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//! Declared access profiles against captured access (experimental report format).
+//! Declared access profiles against captured access (stable report format, ADR 0036).
 use crate::{
     args::Cli,
     artifact::{Artifact, State},

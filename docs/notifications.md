@@ -1,8 +1,8 @@
 # Check notifications
 
 `permesh check` can send its result to channels your team already uses. A red CI run
-is always the baseline signal; notifications are optional and **experimental**
-([ADR 0032](adr/0032-explicit-check-notifications.md)).
+is always the baseline signal; notifications are optional. The configuration is stable; message wording may change
+([ADR 0032](adr/0032-explicit-check-notifications.md), [stability](stability.md)).
 
 ```yaml
 check:

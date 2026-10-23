@@ -322,3 +322,21 @@ fn left_person_expects_nothing_and_remaining_access_is_unexplained() {
     assert_eq!(bob["missing"], json!([]), "{bob}");
     assert_eq!(bob["unexplained"].as_array().unwrap().len(), 1, "{bob}");
 }
+
+#[test]
+fn profile_check_rejects_unknown_version() {
+    let dir = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        (
+            "people/bob.yaml",
+            "version: 2\nidentity: bob@example.com\nprofiles: [backend]\n",
+        ),
+    ]);
+    let output = run(dir.path(), &["profile", "check", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        report["error"]["message"],
+        "people/bob.yaml: format version 2 is newer than this Permesh reads (version 1); upgrade Permesh"
+    );
+}

@@ -89,7 +89,9 @@ for validation evidence and remaining prerequisites.
 ## Release and adoption gates
 
 - The [stability declaration](stability.md) defines which surfaces are stable
-  for the beta line and which remain experimental.
+  for the beta line and which remain experimental. The second declaration
+  ([ADR 0036](adr/0036-second-stability-declaration.md)) froze the check, profile
+  and access plan formats; Stage 2 may now be designed.
 
 - The exact alpha.3 candidate passed signed-artifact verification, local provider
   package/setup/trust/approval/pin checks, and limited authorized GitHub queries;
