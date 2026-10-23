@@ -3,7 +3,7 @@
 //! Pure planning over observations: every step is carried out by a person, and a
 //! step that could not be fully observed stays `cannot_tell`.
 use crate::identity::IdentityIndex;
-use crate::profiles::{observable, owned_accounts, roles_observable};
+use crate::profiles::{explains, observable, owned_accounts, roles_observable};
 use crate::traversal::{MembershipGraph, paths, sort_paths};
 use crate::*;
 use serde::{Deserialize, Serialize};
@@ -272,8 +272,242 @@ pub fn plan_access(
             });
         }
     }
+    // Removals act on the first membership hop of each route: derived access is
+    // planned at the membership that grants it, never as individual resource grants.
+    let state_for = |instance: &str, visible: bool| {
+        if !visible {
+            (EntryState::CannotTell, "instance_not_observable")
+        } else if claimed_in.contains(instance) {
+            (EntryState::CannotTell, "ambiguous_account")
+        } else {
+            (EntryState::Finding, "observed")
+        }
+    };
+    let remove_role = |path: &AccessPath, justification: Justification| {
+        let instance = &path.resource.key.provider;
+        let (state, reason) = state_for(instance, roles_observable(input, instance));
+        PlannedStep {
+            operation: Operation::RemoveRole {
+                instance: instance.clone(),
+                account: path.account.id.clone(),
+                role: path.grant.role.clone(),
+                resource: path.resource.key.id.clone(),
+                grant_id: path.grant.id.clone(),
+            },
+            state,
+            reason,
+            justification,
+            evidence: vec![path.grant.id.clone()],
+            needs_account: None,
+        }
+    };
+    let remove_membership =
+        |account: &EntityKey, group: &EntityKey, evidence: Vec<String>, justification| {
+            let (state, reason) = state_for(
+                &group.provider,
+                observable(input, &group.provider, "memberships"),
+            );
+            PlannedStep {
+                operation: Operation::RemoveMembership {
+                    instance: group.provider.clone(),
+                    account: account.id.clone(),
+                    group: group.id.clone(),
+                },
+                state,
+                reason,
+                justification,
+                evidence,
+                needs_account: None,
+            }
+        };
+    let profiles_of = |names: &BTreeSet<String>| {
+        let mut entries: BTreeMap<&ExpectedEntry, Vec<String>> = BTreeMap::new();
+        for name in names {
+            for entry in &input.profiles[name] {
+                entries.entry(entry).or_default().push(name.clone());
+            }
+        }
+        entries
+    };
+    let mut kept: BTreeMap<ExpectedEntry, BTreeSet<String>> = BTreeMap::new();
+    // Removed scope that could not be fully observed: absence there proves nothing.
+    let mut removals_visible = true;
+    if request.leave {
+        removals_visible = snapshots
+            .iter()
+            .all(|s| roles_observable(input, &s.provider));
+        let assigned = profiles_of(&request.removed);
+        let justify = |because: Vec<String>| {
+            if because.is_empty() {
+                Justification::Unexplained
+            } else {
+                Justification::Profiles(sorted(because))
+            }
+        };
+        for path in &access {
+            let because = assigned
+                .iter()
+                .filter(|(entry, _)| explains(path, entry))
+                .flat_map(|(_, names)| names.iter().cloned())
+                .collect();
+            steps.add(match path.memberships.first() {
+                None => remove_role(path, justify(because)),
+                Some(m) => remove_membership(
+                    &path.account,
+                    &m.group,
+                    vec![path.grant.id.clone()],
+                    justify(because),
+                ),
+            });
+        }
+        for account in &accounts {
+            // Memberships that grant nothing observed are still access to remove.
+            for group in graph.direct(&account.key) {
+                let reach = graph.reachable_from(&Subject::Group(group.clone()))?;
+                let because = assigned
+                    .iter()
+                    .filter(|(entry, _)| match entry {
+                        ExpectedEntry::Group { instance, group: g } => {
+                            let key = EntityKey::new(instance, g);
+                            key == group || reach.contains(&key)
+                        }
+                        ExpectedEntry::Role { .. } => false,
+                    })
+                    .flat_map(|(_, names)| names.iter().cloned())
+                    .collect();
+                steps.add(remove_membership(
+                    &account.key,
+                    &group,
+                    vec![],
+                    justify(because),
+                ));
+            }
+            let (state, reason) = state_for(
+                &account.key.provider,
+                observable(input, &account.key.provider, "accounts"),
+            );
+            steps.add(PlannedStep {
+                operation: Operation::ReviewAccountLifecycle {
+                    instance: account.key.provider.clone(),
+                    account: account.key.id.clone(),
+                },
+                state,
+                reason: if state == EntryState::Finding {
+                    "manual_review"
+                } else {
+                    reason
+                },
+                justification: justify(request.removed.iter().cloned().collect()),
+                evidence: vec![],
+                needs_account: None,
+            });
+        }
+    } else {
+        let after_groups: BTreeMap<EntityKey, &Vec<String>> = after
+            .iter()
+            .filter_map(|(entry, names)| match entry {
+                ExpectedEntry::Group { instance, group } => {
+                    Some((EntityKey::new(instance, group), names))
+                }
+                ExpectedEntry::Role { .. } => None,
+            })
+            .collect();
+        // Remaining profiles that need the account's membership in `group`: a profile
+        // group at or above it, or a profile role reached through it.
+        let justifying = |account: &EntityKey, group: &EntityKey| {
+            let reach = graph.reachable_from(&Subject::Group(group.clone()))?;
+            let mut because = Vec::new();
+            for (key, names) in &after_groups {
+                if key == group || reach.contains(key) {
+                    because.extend(names.iter().cloned());
+                }
+            }
+            for path in access.iter().filter(|p| {
+                p.account == *account && p.memberships.first().is_some_and(|m| m.group == *group)
+            }) {
+                for (entry, names) in &after {
+                    if matches!(entry, ExpectedEntry::Role { .. }) && explains(path, entry) {
+                        because.extend(names.iter().cloned());
+                    }
+                }
+            }
+            Ok::<_, DomainError>(sorted(because))
+        };
+        for (entry, names) in profiles_of(&request.removed) {
+            if let Some(because) = after.get(entry) {
+                kept.entry(entry.clone())
+                    .or_default()
+                    .extend(because.iter().cloned());
+                continue;
+            }
+            let justification = Justification::Profiles(names);
+            // (account, first membership hop, grant IDs of paths through it)
+            let mut hops: Vec<(&EntityKey, EntityKey, Vec<String>)> = Vec::new();
+            match entry {
+                ExpectedEntry::Group { instance, group } => {
+                    removals_visible &= observable(input, instance, "memberships");
+                    let target = EntityKey::new(instance, group);
+                    for account in accounts.iter().filter(|a| a.key.provider == *instance) {
+                        for direct in graph.direct(&account.key) {
+                            if direct != target
+                                && !graph
+                                    .reachable_from(&Subject::Group(direct.clone()))?
+                                    .contains(&target)
+                            {
+                                continue;
+                            }
+                            let evidence = access
+                                .iter()
+                                .filter(|p| {
+                                    p.account == account.key
+                                        && p.memberships.first().is_some_and(|m| m.group == direct)
+                                        && p.groups.iter().any(|g| g.key == target)
+                                })
+                                .map(|p| p.grant.id.clone())
+                                .collect();
+                            hops.push((&account.key, direct, evidence));
+                        }
+                    }
+                }
+                ExpectedEntry::Role { instance, .. } => {
+                    removals_visible &= roles_observable(input, instance);
+                    for path in access.iter().filter(|p| explains(p, entry)) {
+                        match path.memberships.first() {
+                            None => steps.add(remove_role(path, justification.clone())),
+                            Some(m) => hops.push((
+                                &path.account,
+                                m.group.clone(),
+                                vec![path.grant.id.clone()],
+                            )),
+                        }
+                    }
+                }
+            }
+            for (account, group, evidence) in hops {
+                let because = justifying(account, &group)?;
+                if because.is_empty() {
+                    steps.add(remove_membership(
+                        account,
+                        &group,
+                        evidence,
+                        justification.clone(),
+                    ));
+                } else {
+                    kept.entry(entry.clone()).or_default().extend(because);
+                }
+            }
+        }
+    }
     result.steps = steps.0.into_values().collect();
-    result.complete =
-        claimed_in.is_empty() && result.steps.iter().all(|s| s.state == EntryState::Finding);
+    result.kept = kept
+        .into_iter()
+        .map(|(entry, because)| KeptAccess {
+            entry,
+            because: because.into_iter().collect(),
+        })
+        .collect();
+    result.complete = claimed_in.is_empty()
+        && removals_visible
+        && result.steps.iter().all(|s| s.state == EntryState::Finding);
     Ok(result)
 }

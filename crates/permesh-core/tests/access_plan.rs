@@ -330,3 +330,226 @@ fn unknown_profile_is_identifier_error() {
         Err(DomainError::Identifier)
     ));
 }
+
+fn change(identity: &str, after: &[&str], removed: &[&str]) -> PlanRequest {
+    PlanRequest {
+        identity: identity.into(),
+        after: set(after),
+        removed: set(removed),
+        leave: false,
+    }
+}
+fn leave(identity: &str, assigned: &[&str]) -> PlanRequest {
+    PlanRequest {
+        identity: identity.into(),
+        after: BTreeSet::new(),
+        removed: set(assigned),
+        leave: true,
+    }
+}
+fn remove_team(account: &str, group: &str) -> Operation {
+    Operation::RemoveMembership {
+        instance: "demo".into(),
+        account: account.into(),
+        group: group.into(),
+    }
+}
+fn kept(result: &PlanResult) -> Vec<(&ExpectedEntry, Vec<&str>)> {
+    result
+        .kept
+        .iter()
+        .map(|k| (&k.entry, k.because.iter().map(String::as_str).collect()))
+        .collect()
+}
+fn outer_team(s: &mut Snapshot) {
+    s.groups.push(Group {
+        key: key("team-11"),
+        name: "team/ops".into(),
+    });
+}
+
+#[test]
+fn move_removes_membership_not_justified_by_remaining_profiles() {
+    let input = input(&[
+        ("base", vec![role("Read", "repo-21")]),
+        ("backend", vec![team(), role("Read", "repo-21")]),
+    ]);
+    let result = plan(
+        &[fixture()],
+        &Aliases::new(),
+        &input,
+        &change(ALICE, &["base"], &["backend"]),
+    );
+    assert_eq!(operations(&result), vec![&remove_team("100", "team-10")]);
+    let step = &result.steps[0];
+    assert_eq!(step.state, EntryState::Finding);
+    assert_eq!(
+        step.justification,
+        Justification::Profiles(vec!["backend".into()])
+    );
+    assert_eq!(
+        kept(&result),
+        vec![(&role("Read", "repo-21"), vec!["base"])]
+    );
+    assert!(result.complete);
+}
+
+#[test]
+fn nested_membership_needed_by_remaining_profile_is_kept() {
+    let mut s = fixture();
+    outer_team(&mut s);
+    s.memberships.clear();
+    member(&mut s, Subject::Account(key("100")), "team-11");
+    member(&mut s, Subject::Group(key("team-11")), "team-10");
+    let input = input(&[("ops", vec![group("team-11")]), ("backend", vec![team()])]);
+    let result = plan(
+        &[s],
+        &Aliases::new(),
+        &input,
+        &change(ALICE, &["ops"], &["backend"]),
+    );
+    assert!(result.steps.is_empty(), "{:?}", result.steps);
+    assert_eq!(kept(&result), vec![(&team(), vec!["ops"])]);
+    assert!(result.complete);
+}
+
+#[test]
+fn membership_granting_a_remaining_role_is_kept() {
+    let input = input(&[
+        ("writer", vec![role("Write", "repo-20")]),
+        ("backend", vec![team()]),
+    ]);
+    let result = plan(
+        &[fixture()],
+        &Aliases::new(),
+        &input,
+        &change(ALICE, &["writer"], &["backend"]),
+    );
+    assert!(result.steps.is_empty(), "{:?}", result.steps);
+    assert_eq!(kept(&result), vec![(&team(), vec!["writer"])]);
+}
+
+#[test]
+fn derived_role_is_removed_at_the_membership() {
+    let input = input(&[("payments", vec![role("Write", "repo-20")])]);
+    let result = plan(
+        &[fixture()],
+        &Aliases::new(),
+        &input,
+        &change(ALICE, &[], &["payments"]),
+    );
+    assert_eq!(operations(&result), vec![&remove_team("100", "team-10")]);
+    assert_eq!(result.steps[0].evidence, vec!["grant-1".to_string()]);
+}
+
+#[test]
+fn direct_role_is_removed_as_role() {
+    let input = input(&[("admin", vec![role("Admin", "repo-21")])]);
+    let result = plan(
+        &[fixture()],
+        &Aliases::new(),
+        &input,
+        &change(BOB, &[], &["admin"]),
+    );
+    assert_eq!(
+        operations(&result),
+        vec![&Operation::RemoveRole {
+            instance: "demo".into(),
+            account: "101".into(),
+            role: "Admin".into(),
+            resource: "repo-21".into(),
+            grant_id: "grant-3".into(),
+        }]
+    );
+    assert_eq!(result.steps[0].evidence, vec!["grant-3".to_string()]);
+}
+
+#[test]
+fn removal_in_unobservable_instance_is_cannot_tell() {
+    let mut input = input(&[("admin", vec![role("Admin", "repo-21")])]);
+    input.observable.clear();
+    let result = plan(
+        &[fixture()],
+        &Aliases::new(),
+        &input,
+        &change(BOB, &[], &["admin"]),
+    );
+    assert_eq!(result.steps.len(), 1);
+    assert_eq!(result.steps[0].state, EntryState::CannotTell);
+    assert_eq!(result.steps[0].reason, "instance_not_observable");
+    assert!(!result.complete);
+}
+
+#[test]
+fn leave_removes_everything_and_labels_unexplained() {
+    let input = input(&[("backend", backend())]);
+    let lifecycle = |account: &str| Operation::ReviewAccountLifecycle {
+        instance: "demo".into(),
+        account: account.into(),
+    };
+    let result = plan(
+        &[fixture()],
+        &Aliases::new(),
+        &input,
+        &leave(BOB, &["backend"]),
+    );
+    assert_eq!(
+        operations(&result),
+        vec![
+            &Operation::RemoveRole {
+                instance: "demo".into(),
+                account: "101".into(),
+                role: "Admin".into(),
+                resource: "repo-21".into(),
+                grant_id: "grant-3".into(),
+            },
+            &lifecycle("101")
+        ]
+    );
+    assert_eq!(result.steps[0].justification, Justification::Unexplained);
+    assert!(result.complete);
+    let result = plan(
+        &[fixture()],
+        &Aliases::new(),
+        &input,
+        &leave(ALICE, &["backend"]),
+    );
+    assert_eq!(
+        operations(&result),
+        vec![
+            &remove_team("100", "team-10"),
+            &Operation::RemoveRole {
+                instance: "demo".into(),
+                account: "100".into(),
+                role: "Read".into(),
+                resource: "repo-21".into(),
+                grant_id: "grant-2".into(),
+            },
+            &lifecycle("100")
+        ]
+    );
+    for step in &result.steps[..2] {
+        assert_eq!(
+            step.justification,
+            Justification::Profiles(vec!["backend".into()])
+        );
+    }
+}
+
+#[test]
+fn membership_cycle_in_removal_terminates() {
+    let mut s = fixture();
+    outer_team(&mut s);
+    member(&mut s, Subject::Group(key("team-10")), "team-11");
+    member(&mut s, Subject::Group(key("team-11")), "team-10");
+    let input = input(&[("ops", vec![group("team-11")]), ("backend", vec![team()])]);
+    let result = plan(
+        &[s],
+        &Aliases::new(),
+        &input,
+        &change(ALICE, &["ops"], &["backend"]),
+    );
+    // team-10 reaches team-11 through the cycle, so the remaining profile justifies it.
+    assert!(result.steps.is_empty(), "{:?}", result.steps);
+    assert_eq!(kept(&result), vec![(&team(), vec!["ops"])]);
+}

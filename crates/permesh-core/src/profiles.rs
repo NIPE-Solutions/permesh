@@ -98,6 +98,25 @@ pub(crate) fn roles_observable(input: &ProfileInput, instance: &str) -> bool {
         && (observable(input, instance, "memberships") || !observable(input, instance, "groups"))
 }
 
+/// A path is explained by a group entry it passes through, or by a role entry it ends in.
+pub(crate) fn explains(path: &AccessPath, entry: &ExpectedEntry) -> bool {
+    match entry {
+        ExpectedEntry::Group { instance, group } => path
+            .groups
+            .iter()
+            .any(|g| g.key.provider == *instance && g.key.id == *group),
+        ExpectedEntry::Role {
+            instance,
+            role,
+            resource,
+        } => {
+            path.resource.key.provider == *instance
+                && path.resource.key.id == *resource
+                && path.grant.role == *role
+        }
+    }
+}
+
 /// Accounts attributed to exactly one canonical identity, the instances where an
 /// identity also claims an ambiguous account, and how many accounts are ambiguous.
 pub(crate) type Owned<'a> = (
@@ -215,21 +234,6 @@ pub fn compare_profiles(
         for account in &accounts {
             member_of.extend(graph.reachable(&account.key)?);
         }
-        let explains = |path: &AccessPath, entry: &ExpectedEntry| match entry {
-            ExpectedEntry::Group { instance, group } => path
-                .groups
-                .iter()
-                .any(|g| g.key.provider == *instance && g.key.id == *group),
-            ExpectedEntry::Role {
-                instance,
-                role,
-                resource,
-            } => {
-                path.resource.key.provider == *instance
-                    && path.resource.key.id == *resource
-                    && path.grant.role == *role
-            }
-        };
         for path in access.iter() {
             if expected.iter().any(|e| explains(path, e)) {
                 comparison.explained += 1;
