@@ -283,3 +283,40 @@ fn gitlab_plans_merge_requests_and_keeps_checks_scheduled() {
         );
     }
 }
+
+#[test]
+fn every_workflow_job_bootstraps_providers_once() {
+    for file in [
+        ".github/workflows/permesh-check.yml",
+        ".github/workflows/permesh-plan.yml",
+        ".github/workflows/permesh-verify.yml",
+    ] {
+        let workflow = yaml(file);
+        for (name, job) in workflow["jobs"].as_object().unwrap() {
+            let count = job["steps"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|s| {
+                    s["run"]
+                        .as_str()
+                        .is_some_and(|r| r.contains("ci/bootstrap.sh"))
+                })
+                .count();
+            assert_eq!(count, 1, "{file} job {name}");
+        }
+    }
+}
+
+#[test]
+fn post_merge_job_binds_only_the_merged_pull_request() {
+    let text = String::from_utf8(example(".github/workflows/permesh-plan.yml")).unwrap();
+    for needle in ["merged_at", "github.event.before"] {
+        assert!(text.contains(needle), "{needle}");
+    }
+    assert!(!text.contains("HEAD^1"));
+    // Queued post-merge runs must not cancel each other.
+    let workflow = yaml(".github/workflows/permesh-plan.yml");
+    let group = workflow["concurrency"]["group"].as_str().unwrap();
+    assert!(group.contains("github.sha"), "{group}");
+}

@@ -392,7 +392,10 @@ async fn verify(
         3
     } else if !complete {
         4
-    } else if value["counts"]["not_done"].as_u64().unwrap_or(0) > 0 {
+    } else if value["counts"]["not_done"].as_u64().unwrap_or(0) > 0
+        // Access remaining after a leave needs action like a step not done.
+        || (value["kind"] == "leave" && value["counts"]["extra"].as_u64().unwrap_or(0) > 0)
+    {
         6
     } else {
         0
@@ -681,6 +684,14 @@ fn write_plan(out: &mut impl Write, result: &Value) -> io::Result<()> {
             " (INCOMPLETE: some access could not be observed)"
         }
     )?;
+    match plan["state"].as_str() {
+        Some("not_found") => writeln!(out, "  Identity not found in any provider")?,
+        Some("ambiguous") => writeln!(
+            out,
+            "  Identity evidence conflicts; nothing could be attributed"
+        )?,
+        _ => {}
+    }
     let counts = &result["counts"];
     writeln!(
         out,

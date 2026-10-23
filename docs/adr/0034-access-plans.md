@@ -46,12 +46,18 @@ makes no provider changes ([ADR 0028](0028-separate-opt-in-remediation.md)).
   context and the profile definitions, and expires 1–168 hours (default 24) after
   the evidence started, as offboarding plans do. Validation refuses wrong versions,
   bounds, step IDs that do not match their operation, duplicate IDs and unknown
-  prerequisites before any provider is contacted.
+  prerequisites before any provider is contacted. It checks consistency, not
+  authenticity: plans are not signed, so their integrity rests on where they are
+  stored and on the digests in the post-merge `index.json`.
 - **Verification.** An add step is `done` once observed. A removal is `done` only
   when absent from a complete capture of its instance, `not_done` while observed,
   and `cannot_verify` otherwise. Reviews are manual. Join and move also list
-  `extra`: access unexplained by the after-profiles. An expired plan still
-  verifies. Exit 0 when complete and done, 6 when a step is not done, 4 when
+  `extra`: access unexplained by the after-profiles; for a leave, every remaining
+  path is `extra` and counts as needing action. An expired plan still verifies.
+  Only changes to authorities or to mappings of the plan's accounts are an
+  identity-context gap; a joiner's own new mapping is expected. Exit 0 when
+  complete and done, 6 when a step is not done or access remains after a leave,
+  4 when incomplete. A move or leave for an identity no provider knows is
   incomplete.
 - **Pull-request binding.** `access review` compares the people assignments of a
   base and a head checkout and plans each changed identity. After merge,

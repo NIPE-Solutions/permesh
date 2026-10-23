@@ -52,7 +52,7 @@ pub struct UnexplainedPath {
     pub path: AccessPath,
     pub state: EntryState,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ComparisonState {
     Compared,

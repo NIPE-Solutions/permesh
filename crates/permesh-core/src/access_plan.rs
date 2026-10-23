@@ -506,7 +506,12 @@ pub fn plan_access(
             because: because.into_iter().collect(),
         })
         .collect();
+    // Removing access from an identity no provider knows proves nothing: a typo
+    // would otherwise read as "nothing to remove".
+    let unknown_removal =
+        result.state == ComparisonState::NotFound && (request.leave || !request.removed.is_empty());
     result.complete = claimed_in.is_empty()
+        && !unknown_removal
         && removals_visible
         && result.steps.iter().all(|s| s.state == EntryState::Finding);
     Ok(result)

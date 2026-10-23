@@ -42,8 +42,6 @@ jobs:
           echo "PERMESH_DATA_DIR=$RUNNER_TEMP/permesh-state" >> "$GITHUB_ENV"
       - name: Trust and approve pinned providers
         run: sh ci/bootstrap.sh
-      - name: Trust and approve pinned providers
-        run: sh ci/bootstrap.sh
       - name: Fetch the execution plans
         env:
           GH_TOKEN: ${{ github.token }}

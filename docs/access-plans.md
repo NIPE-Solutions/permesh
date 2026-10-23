@@ -41,7 +41,9 @@ Access plan: join for carol@example.com
   - add role Read on repo-21 in demo — profiles backend
 ```
 
-Each add step lists the `account_needed` step as a prerequisite. Once her account
+Each add step lists the `account_needed` step as a prerequisite. An identity no
+provider knows is fine for a join, but a move or leave for it is incomplete
+(exit 4, `state: not_found`), so a typo never reads as "nothing to remove". Once her account
 exists and is mapped to `carol@example.com` (verified email or an
 [identity mapping](identity-mapping.md)), verification can confirm the rest.
 
@@ -100,8 +102,19 @@ Access verification: leave for bob@example.com
 An added membership or role is `done` once observed. A removal is `done` only when
 it is absent from a complete capture of that provider; with a partial capture it is
 `cannot_verify`. Join and move plans also list `extra`: access the after-profiles do
-not explain. An expired plan still verifies; a changed plan file is refused with
-exit 2 before any provider is contacted.
+not explain. For a leave, every access path that remains is `extra` and needs action
+(exit 6). An expired plan still verifies.
+
+A plan that is structurally invalid or inconsistent (wrong version or bounds, a
+step ID that does not match its operation, unknown prerequisites) is refused with
+exit 2 before any provider is contacted. This is not a signature: someone who can
+edit the file can also recompute the IDs. Keep plans where only reviewers can
+change them, and compare an execution plan's SHA-256 with the `index.json` of the
+post-merge run that wrote it.
+
+Verification reports `identity_context_changed` when the identity authorities, or
+mappings for the plan's accounts, changed since the plan was made. Mapping the
+planned person's own new account (a joiner) is expected and is not a gap.
 
 ## Plan files
 

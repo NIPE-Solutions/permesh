@@ -65,7 +65,9 @@ profiles:
 
 People assigned through a directory group and a people file get the union of their
 profiles. `status: left` marks an explicit departure: `permesh check` counts that
-person's remaining access as departed, and `permesh access review` plans a leave.
+person's remaining access as departed, `profile check` expects nothing for them
+(remaining access is unexplained, not their old profiles missing), and
+`permesh access review` plans a leave.
 To turn a change in someone's profiles into a reviewable plan, see
 [joiner, mover and leaver plans](access-plans.md). Only `*.yaml` files are read; directories that hold nothing else count as
 not configured.

@@ -2,7 +2,7 @@
 //! Verify a plan against a later capture. An add step is done once observed; a
 //! removal is done only when absent from a complete capture of its instance.
 //! Missing observation never proves absence.
-use super::model::{AccessPlan, Kind, hash, plan_sha256};
+use super::model::{AccessPlan, Kind, plan_sha256};
 use crate::{
     artifact::{Artifact, State},
     error::AppError,
@@ -122,14 +122,21 @@ pub(crate) fn verify(
         }));
     }
     let mut gaps = Vec::new();
-    if hash(&artifact.identity)? != plan.identity_context_sha256 {
+    if identity_changed(plan, artifact) {
         gaps.push("identity_context_changed");
     }
     if !plan.complete {
         gaps.push("plan_incomplete");
     }
     let mut extra = Vec::new();
-    if plan.kind != Kind::Leave {
+    if plan.kind == Kind::Leave {
+        // After a leave nothing should remain: every current path is extra.
+        extra = now
+            .paths
+            .iter()
+            .map(|p| path_row(p, core::EntryState::Finding))
+            .collect();
+    } else {
         match input {
             None => gaps.push("profiles_not_configured"),
             Some(input)
@@ -192,22 +199,46 @@ fn extra_access(
         .iter()
         .filter(|i| i.identity == plan.identity)
         .flat_map(|i| &i.unexplained)
-        .map(|row| {
-            let path = &row.path;
-            json!({
-                "state": match row.state {
-                    core::EntryState::Finding => "finding",
-                    core::EntryState::CannotTell => "cannot_tell",
-                },
-                "instance": path.account.provider,
-                "account": path.account.id,
-                "resource": path.resource.key.id,
-                "resource_name": path.resource.name,
-                "role": path.grant.role,
-                "grant_id": path.grant.id,
-                "via": path.groups.iter().map(|g| g.key.id.as_str()).collect::<Vec<_>>(),
-                "certainty": path.certainty(),
-            })
-        })
+        .map(|row| path_row(&row.path, row.state))
         .collect())
+}
+
+fn path_row(path: &core::AccessPath, state: core::EntryState) -> Value {
+    json!({
+        "state": match state {
+            core::EntryState::Finding => "finding",
+            core::EntryState::CannotTell => "cannot_tell",
+        },
+        "instance": path.account.provider,
+        "account": path.account.id,
+        "resource": path.resource.key.id,
+        "resource_name": path.resource.name,
+        "role": path.grant.role,
+        "grant_id": path.grant.id,
+        "via": path.groups.iter().map(|g| g.key.id.as_str()).collect::<Vec<_>>(),
+        "certainty": path.certainty(),
+    })
+}
+
+/// Authorities, or the mappings that concern this plan, changed since it was made.
+/// New mappings for the plan's own identity are expected (a joiner's new account);
+/// unrelated mappings elsewhere in the organization are not a gap.
+fn identity_changed(plan: &AccessPlan, artifact: &Artifact) -> bool {
+    let now = &artifact.identity;
+    let mut authorities = now.authorities.clone();
+    authorities.sort();
+    let mut planned = plan.identity_authorities.clone();
+    planned.sort();
+    authorities != planned
+        || plan
+            .identity_bindings
+            .iter()
+            .any(|b| !now.bindings.contains(b))
+        || now.bindings.iter().any(|b| {
+            b.identity != plan.identity
+                && plan
+                    .accounts
+                    .contains(&core::EntityKey::new(&b.instance, &b.account))
+                && !plan.identity_bindings.contains(b)
+        })
 }

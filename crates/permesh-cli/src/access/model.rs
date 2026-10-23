@@ -52,6 +52,8 @@ pub struct AccessPlan {
     pub format_version: u32,
     pub kind: Kind,
     pub identity: String,
+    /// `compared`, `not_found` (no provider knows the identity) or `ambiguous`.
+    pub state: core::ComparisonState,
     pub profiles_after: Vec<String>,
     pub profiles_removed: Vec<String>,
     pub created_at: String,
@@ -60,6 +62,12 @@ pub struct AccessPlan {
     pub mode: offboard::Mode,
     pub source_snapshot_sha256: String,
     pub identity_context_sha256: String,
+    /// Accounts the plan concerns: attributed to the identity, or named by a step.
+    pub accounts: Vec<core::EntityKey>,
+    /// Identity authorities and the mappings that concern this plan when it was made;
+    /// verification reports a gap only when these change.
+    pub identity_authorities: Vec<String>,
+    pub identity_bindings: Vec<artifact::Binding>,
     pub profiles_sha256: String,
     pub complete: bool,
     pub steps: Vec<Step>,
@@ -97,6 +105,26 @@ pub fn verification(operation: &core::Operation) -> Verification {
         ReviewAccountLifecycle { .. } | ReviewOwnership { .. } | ReviewMachineDependency { .. } => {
             Verification::ManualReview
         }
+    }
+}
+/// The provider account a step operates on, if any.
+pub fn step_account(operation: &core::Operation) -> Option<core::EntityKey> {
+    use core::Operation::*;
+    match operation {
+        RemoveMembership {
+            instance, account, ..
+        }
+        | RemoveRole {
+            instance, account, ..
+        }
+        | ReviewAccountLifecycle { instance, account }
+        | ReviewOwnership {
+            instance, account, ..
+        }
+        | ReviewMachineDependency { instance, account } => {
+            Some(core::EntityKey::new(instance, account))
+        }
+        AccountNeeded { .. } | AddMembership { .. } | AddRole { .. } => None,
     }
 }
 fn is_review_first(operation: &core::Operation) -> bool {
@@ -166,11 +194,28 @@ pub fn build(
             verification: verification(&planned.operation),
         });
     }
+    let mut accounts: BTreeSet<core::EntityKey> = result.accounts.iter().cloned().collect();
+    for step in &steps {
+        if let Some(account) = step_account(&step.operation) {
+            accounts.insert(account);
+        }
+    }
+    let identity_bindings = artifact
+        .identity
+        .bindings
+        .iter()
+        .filter(|b| {
+            b.identity == request.identity
+                || accounts.contains(&core::EntityKey::new(&b.instance, &b.account))
+        })
+        .cloned()
+        .collect();
     let plan = AccessPlan {
         format: FORMAT.into(),
         format_version: 1,
         kind,
         identity: request.identity.clone(),
+        state: result.state,
         profiles_after: request.after.iter().cloned().collect(),
         profiles_removed: request.removed.iter().cloned().collect(),
         created_at: format(now)?,
@@ -179,6 +224,9 @@ pub fn build(
         mode,
         source_snapshot_sha256: hash(artifact)?,
         identity_context_sha256: hash(&artifact.identity)?,
+        accounts: accounts.into_iter().collect(),
+        identity_authorities: artifact.identity.authorities.clone(),
+        identity_bindings,
         profiles_sha256: hash(&input.profiles)?,
         complete: result.complete && artifact.complete(),
         steps,
@@ -213,6 +261,10 @@ impl AccessPlan {
             || !strictly_sorted(&self.profiles_removed)
             || self.steps.len() > MAX_STEPS
             || self.kept.len() > MAX_STEPS
+            || self.accounts.len() > MAX_STEPS
+            || self.identity_bindings.len() > MAX_STEPS
+            || !self.accounts.windows(2).all(|w| w[0] < w[1])
+            || !self.identity_bindings.windows(2).all(|w| w[0] < w[1])
             || ![
                 &self.source_snapshot_sha256,
                 &self.identity_context_sha256,

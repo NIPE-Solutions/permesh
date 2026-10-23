@@ -306,3 +306,19 @@ fn ambiguous_alias_is_incomplete_and_shown() {
     );
     assert!(stdout.contains("ambiguous account"), "{stdout}");
 }
+
+#[test]
+fn left_person_expects_nothing_and_remaining_access_is_unexplained() {
+    let dir = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        (
+            "people/bob.yaml",
+            "identity: bob@example.com\nstatus: left\nprofiles: [backend]\n",
+        ),
+    ]);
+    let (code, result) = check(dir.path(), &[]);
+    assert_eq!(code, Some(6), "{result}");
+    let bob = identity(&result, "bob@example.com");
+    assert_eq!(bob["missing"], json!([]), "{bob}");
+    assert_eq!(bob["unexplained"].as_array().unwrap().len(), 1, "{bob}");
+}

@@ -565,3 +565,17 @@ fn attributed_access_lists_owned_accounts_paths_and_claims() {
     assert!(now.accounts.is_empty());
     assert!(now.claimed_instances.contains("demo"));
 }
+
+#[test]
+fn unknown_identity_leave_or_move_is_incomplete() {
+    let input = input(&[("backend", backend())]);
+    for request in [
+        leave("bbo@example.com", &["backend"]),
+        change("bbo@example.com", &[], &["backend"]),
+    ] {
+        let result = plan(&[fixture()], &Aliases::new(), &input, &request);
+        assert_eq!(result.state, ComparisonState::NotFound);
+        assert!(result.steps.is_empty());
+        assert!(!result.complete, "{request:?}");
+    }
+}

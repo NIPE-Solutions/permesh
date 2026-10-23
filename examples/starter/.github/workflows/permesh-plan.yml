@@ -13,7 +13,9 @@ permissions:
   pull-requests: write
   actions: read
 concurrency:
-  group: permesh-plan-${{ github.ref }}
+  # One group per pull request, and per merged commit, so queued post-merge runs
+  # never cancel each other.
+  group: permesh-plan-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: false
 env:
   # A Permesh release that includes `permesh access`, and the SHA-256 of its
@@ -48,8 +50,6 @@ jobs:
           tar -xzf "$archive" -C "$RUNNER_TEMP/permesh-bin"
           echo "$RUNNER_TEMP/permesh-bin" >> "$GITHUB_PATH"
           echo "PERMESH_DATA_DIR=$RUNNER_TEMP/permesh-state" >> "$GITHUB_ENV"
-      - name: Trust and approve pinned providers
-        run: sh ci/bootstrap.sh
       - name: Trust and approve pinned providers
         run: sh ci/bootstrap.sh
       - name: Plan the people changes
@@ -93,7 +93,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Install Permesh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -114,13 +114,13 @@ jobs:
           echo "PERMESH_DATA_DIR=$RUNNER_TEMP/permesh-state" >> "$GITHUB_ENV"
       - name: Trust and approve pinned providers
         run: sh ci/bootstrap.sh
-      - name: Trust and approve pinned providers
-        run: sh ci/bootstrap.sh
       - name: Fetch the reviewed plans
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number // empty')
+          # Only a pull request merged into this branch counts as reviewed.
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq "[.[] | select(.merged_at != null and .base.ref == \"$GITHUB_REF_NAME\")][0].number // empty")
           if [ -z "$pr" ]; then
             echo "No merged pull request for this commit: people changes were pushed without review." >&2
             exit 1
@@ -136,10 +136,12 @@ jobs:
       - name: Regenerate and bind to the reviewed plans
         id: review
         env:
+          # The branch as it was before this push, also for multi-commit pushes.
+          BEFORE: ${{ github.event.before }}
           PERMESH_GITHUB_TOKEN: ${{ secrets.PERMESH_GITHUB_TOKEN }}
           PERMESH_GOOGLE_TOKEN: ${{ secrets.PERMESH_GOOGLE_TOKEN }}
         run: |
-          git worktree add ../base HEAD^1
+          git worktree add ../base "$BEFORE"
           set +e
           permesh access review --base ../base --out execution --reviewed reviewed
           code=$?

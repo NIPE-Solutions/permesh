@@ -623,24 +623,83 @@ fn account_needed_without_mapping_cannot_verify() {
     }
 }
 
+fn bind(snapshot: &mut Value, identity: &str, account: &str) {
+    snapshot["identity"]["bindings"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({"identity": identity, "instance": "demo", "account": account}));
+}
+fn gaps(result: &Value) -> Vec<&str> {
+    result["result"]["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g.as_str().unwrap())
+        .collect()
+}
+
 #[test]
 fn identity_context_change_is_a_gap() {
     let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
     let mut s = join_bob(dir.path());
-    s["identity"]["bindings"] = serde_json::json!([
-        {"identity": "bob@example.com", "instance": "demo", "account": "101"}
-    ]);
+    // Bob's account is now also claimed for alice: attribution changed.
+    bind(&mut s, "alice@example.com", "101");
     save(dir.path(), "edited.json", &s);
     let (code, result) = verify(dir.path(), &["--snapshot", "edited.json"]);
     assert_eq!(code, Some(4), "{result}");
     assert!(
-        result["result"]["gaps"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|g| g == "identity_context_changed"),
+        gaps(&result).contains(&"identity_context_changed"),
         "{result}"
     );
+}
+
+#[test]
+fn unrelated_identity_mapping_is_not_a_gap() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    let mut s = join_bob(dir.path());
+    bind(&mut s, "contractor@example.com", "104");
+    save(dir.path(), "edited.json", &s);
+    let (code, result) = verify(dir.path(), &["--snapshot", "edited.json"]);
+    assert_eq!(code, Some(6), "{result}");
+    assert!(gaps(&result).is_empty(), "{result}");
+}
+
+#[test]
+fn joiner_mapped_after_the_plan_verifies_done() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    let mut s = snapshot(dir.path());
+    access(
+        dir.path(),
+        &[
+            "join",
+            "carol@example.com",
+            "--profile",
+            "backend",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    // Carol's account was invited, added as planned and mapped to her identity.
+    data(&mut s)["accounts"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "key": {"provider": "demo", "id": "106"},
+            "login": "carol-dev",
+            "kind": "human",
+            "affiliation": "internal",
+            "status": "active",
+            "verified_emails": [],
+        }));
+    add_membership(&mut s, "106", "team-10");
+    add_grant(&mut s, "grant-96", "106", "repo-21", "Read");
+    bind(&mut s, "carol@example.com", "106");
+    save(dir.path(), "after.json", &s);
+    let (code, result) = verify(dir.path(), &["--snapshot", "after.json"]);
+    assert_eq!(code, Some(0), "{result}");
+    assert_eq!(result["result"]["counts"]["done"], 3, "{result}");
 }
 
 #[test]
@@ -904,4 +963,72 @@ fn missing_base_configuration_means_nothing_assigned_before() {
         plans(&result),
         vec![("bob@example.com".into(), "join".into())]
     );
+}
+
+#[test]
+fn leave_for_unknown_identity_is_not_a_clean_plan() {
+    let dir = demo(&[("profiles/backend.yaml", BACKEND)]);
+    let (code, result) = access(
+        dir.path(),
+        &["leave", "bbo@example.com", "--output", "p.json"],
+    );
+    assert_eq!(code, Some(4), "{result}");
+    assert_eq!(result["result"]["access_plan"]["state"], "not_found");
+    let output = run(
+        dir.path(),
+        &["access", "leave", "bbo@example.com", "--output", "q.json"],
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("not found"), "{text}");
+}
+
+#[test]
+fn leave_verification_reports_access_that_appeared_after_the_plan() {
+    let dir = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let mut s = snapshot(dir.path());
+    access(
+        dir.path(),
+        &[
+            "leave",
+            "bob@example.com",
+            "--snapshot",
+            "s.json",
+            "--output",
+            "p.json",
+        ],
+    );
+    data(&mut s)["grants"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|g| g["id"] != "grant-3");
+    add_grant(&mut s, "grant-99", "101", "repo-20", "Admin");
+    add_membership(&mut s, "101", "team-10");
+    save(dir.path(), "after.json", &s);
+    let (code, result) = verify(dir.path(), &["--snapshot", "after.json"]);
+    assert_eq!(code, Some(6), "{result}");
+    let grants: Vec<_> = result["result"]["extra"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["grant_id"].as_str().unwrap())
+        .collect();
+    assert_eq!(grants, vec!["grant-1", "grant-99"], "{result}");
+}
+
+#[test]
+fn deleting_a_departed_persons_file_is_no_change() {
+    let head = demo(&[("profiles/backend.yaml", BACKEND)]);
+    let base = base_checkout(
+        head.path(),
+        &[
+            ("profiles/backend.yaml", BACKEND),
+            ("people/bob.yaml", &left("bob@example.com", "backend")),
+        ],
+    );
+    let (code, result) = review(head.path(), base.path(), "plans", &[]);
+    assert_eq!(code, Some(0), "{result}");
+    assert!(plans(&result).is_empty(), "{result}");
 }

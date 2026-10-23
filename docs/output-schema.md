@@ -265,7 +265,11 @@ Experimental; see [joiner, mover and leaver plans](access-plans.md) and
 
 **Plan file** `permesh_access_plan` version 1 (written by `access join`, `move`,
 `leave` and `review`; unknown fields are refused):
-`{format, format_version, kind, identity, profiles_after, profiles_removed, created_at, expires_at, max_age_hours, mode, source_snapshot_sha256, identity_context_sha256, profiles_sha256, complete, steps, kept, reviewed_plan_sha256}`.
+`{format, format_version, kind, identity, state, profiles_after, profiles_removed, created_at, expires_at, max_age_hours, mode, source_snapshot_sha256, identity_context_sha256, accounts, identity_authorities, identity_bindings, profiles_sha256, complete, steps, kept, reviewed_plan_sha256}`.
+`state` is `compared`, `not_found` or `ambiguous`; `accounts` are the
+`{provider, id}` accounts the plan concerns; `identity_bindings` are the
+`{identity, instance, account}` mappings for the plan's identity or accounts when
+it was made.
 `kind` is `join`, `move` or `leave`; `reviewed_plan_sha256` is `null` except in
 execution plans. Each step is
 `{id, operation, state, reason, justification, evidence, prerequisites, verification}`:
@@ -286,11 +290,12 @@ Exit 0 complete, 4 incomplete, 3 when no provider returned data (nothing written
 
 **`access_verify`**: `{access_verification_version: 1, plan_sha256, identity, kind, complete, checks, extra, gaps, counts: {done, not_done, cannot_verify, manual_review, extra}}`.
 Each check is `{step, operation, state, reason}` with `state` `done`, `not_done` or
-`cannot_verify`. `extra` rows have the `profile_check` unexplained shape. `gaps`
+`cannot_verify`. `extra` rows have the `profile_check` unexplained shape; for a
+leave they are every remaining access path. `gaps`
 may contain `identity_context_changed`, `plan_incomplete`,
 `profiles_not_configured` and `profile_no_longer_defined`. Exit precedence
 3 > 4 (incomplete, or `cannot_verify` other than manual review) > 6 (a step not
-done) > 0; an invalid plan is 2 before any capture.
+done, or `extra` after a leave) > 0; an invalid plan is 2 before any capture.
 
 **`access_review`**: `{access_review_version: 1, plans: [{file, identity, kind, plan_sha256, steps}], executions, rereview: [{identity, kind, added_steps, removed_steps}], profiles_changed, complete, summary, files: {out}}`.
 The output directory holds `NNN.json`, `index.json` (the `plans` rows),

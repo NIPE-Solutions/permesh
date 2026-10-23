@@ -98,7 +98,10 @@ fn changes(
                 result.push(change(Kind::Leave, &none, &none));
             }
         } else if was_left {
-            result.push(change(Kind::Join, now, &none));
+            // Back with profiles is a join; a departed person's file deleted is no change.
+            if !now.is_empty() {
+                result.push(change(Kind::Join, now, &none));
+            }
         } else if was != now {
             let add = now.difference(was).cloned().collect();
             let remove: BTreeSet<String> = was.difference(now).cloned().collect();
