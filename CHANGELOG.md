@@ -4,6 +4,20 @@ User-visible changes are recorded here. Alpha releases are for evaluation; stabl
 
 ## Unreleased
 
+- Add a [team setup guide](docs/team-setup.md) for a small team on GitHub and
+  Google Workspace.
+- Fix: someone with `status: left` is expected to hold nothing in `profile check`,
+  even when a directory group still assigns them profiles.
+- `access review` refuses existing plan files before discovery, escapes Markdown
+  in `--detail` summaries, and names the folder and the CI remedy when a reviewed
+  `index.json` has an old format.
+- The starter verify workflow accepts only a successful post-merge plan run from
+  this repository's default branch, and exits like the CLI for the worst plan
+  (errors, then 3, 4, 6).
+- `permesh mcp`: a failure to reach the client exits 5 instead of blaming the
+  protocol version; symlinks that leave the workspace read as "File not found", so
+  they reveal nothing about their target; empty `profiles` or `remove` lists get a
+  specific message.
 - Declare the formats added since the first stability declaration stable: the
   `check` and `profiles` configuration, people and profile files, policy
   `version: 2`, the check report, profile results, access plan files and the

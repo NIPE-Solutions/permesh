@@ -9,6 +9,7 @@ connects them to a resource. Choose a starting point below.
 2. [Try the demo and connect GitHub](getting-started.md): see useful results before granting API access.
 3. [Understand identity matching](identity-resolution.md): connect a provider login to a canonical identity safely.
 4. [Check provider coverage](providers.md): know what is available and what each adapter can prove.
+5. [Set up a small team](team-setup.md): GitHub and Google Workspace, weekly checks and reviewed joins, moves and leaves.
 
 Documentation on `main` follows current source. [Release status and upgrade
 notes](status.md) describe what the published release includes; [stability](stability.md)

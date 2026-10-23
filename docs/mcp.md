@@ -37,7 +37,8 @@ The server uses them as they are; it never approves, stores credentials or promp
 **Client requirement.** The server speaks MCP protocol version 2026-07-28 only.
 A client that starts with the older `initialize` handshake gets error `-32022`
 listing `2026-07-28`, and `permesh mcp` exits with code 2. Update the client if
-you see that error.
+you see that error. If Permesh cannot write to the client at all, it exits with
+code 5 instead.
 
 ## Tools
 
