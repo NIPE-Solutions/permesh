@@ -2,6 +2,7 @@
 //! Joiner, mover and leaver plans (experimental). Plans are data for a person to
 //! carry out, never commands; nothing here changes provider access.
 pub(crate) mod model;
+mod review;
 mod verify;
 mod view;
 use crate::{
@@ -71,6 +72,30 @@ pub enum AccessCommand {
         annotations: Option<PathBuf>,
         #[command(flatten)]
         common: PlanArgs,
+    },
+    /// Plan every people change between a base checkout and this workspace (pull requests).
+    Review {
+        /// Base workspace directory (for example a `git worktree` of the target branch).
+        #[arg(long)]
+        base: PathBuf,
+        /// Directory for NNN.json plans, index.json and summary.md.
+        #[arg(long)]
+        out: PathBuf,
+        /// Plans reviewed before merge; matching ones become NNN.execution.json.
+        #[arg(long)]
+        reviewed: Option<PathBuf>,
+        /// Read a saved snapshot offline instead of running fresh discovery.
+        #[arg(long)]
+        snapshot: Option<PathBuf>,
+        /// Hours each plan stays fresh, measured from the evidence start (1–168).
+        #[arg(long, default_value_t = 24)]
+        expires_in_hours: u32,
+        /// Include names and resources in summary.md (counts and step types otherwise).
+        #[arg(long)]
+        detail: bool,
+        /// Replace files from an earlier run in the output directory.
+        #[arg(long)]
+        overwrite: bool,
     },
     /// Check a plan's steps against current observations and flag extra access.
     Verify {
@@ -378,6 +403,134 @@ async fn verify(
     Ok(outcome)
 }
 
+struct ReviewArgs<'a> {
+    base: &'a Path,
+    out: &'a Path,
+    reviewed: Option<&'a Path>,
+    snapshot: Option<&'a Path>,
+    hours: u32,
+    detail: bool,
+    overwrite: bool,
+}
+
+async fn review(
+    cli: &Cli,
+    args: ReviewArgs<'_>,
+    pool: &BlockingPool,
+    cancel: &Cancellation,
+) -> Result<Outcome, AppError> {
+    cancelled(cancel)?;
+    if args.hours == 0 || args.hours > 168 {
+        return Err(AppError::input(
+            "Plan freshness must be 1 through 168 hours",
+        ));
+    }
+    let workspace = crate::workspace::path(cli)?;
+    let root = workspace
+        .canonicalize()
+        .map_err(|_| AppError::input("Cannot locate workspace"))?;
+    if let Ok(dir) = args.out.canonicalize()
+        && Some(dir.as_path()) == root.parent()
+    {
+        return Err(AppError::input(
+            "Review output must be a separate directory, not the workspace directory",
+        ));
+    }
+    review::check_out(args.out, args.overwrite)?;
+    let (base_dir, reviewed_dir) = (args.base.to_owned(), args.reviewed.map(Path::to_owned));
+    let (base, head, reviewed) = pool
+        .run(move || -> Result<_, AppError> {
+            let reviewed = reviewed_dir
+                .as_deref()
+                .map(review::load_reviewed)
+                .transpose()?;
+            Ok((
+                review::load_base(&base_dir)?,
+                crate::profile_command::load(&workspace)?,
+                reviewed,
+            ))
+        })
+        .await??;
+    // One capture serves every plan in the run.
+    let (mut outcome, artifact) =
+        crate::resource_command::input(cli, args.snapshot, pool, cancel).await?;
+    cancelled(cancel)?;
+    if !artifact.providers.is_empty() && artifact.providers.iter().all(|p| p.state == State::Failed)
+    {
+        return Err(AppError::new(
+            3,
+            "No provider returned usable observations; no plan was written",
+        ));
+    }
+    let mode = mode(args.snapshot);
+    let (hours, detail, overwrite) = (args.hours, args.detail, args.overwrite);
+    let out = args.out.to_owned();
+    let token = cancel.clone();
+    let value = pool
+        .run(move || -> Result<Value, AppError> {
+            let regenerated = review::regenerate(
+                base.as_ref(),
+                head.as_ref(),
+                &artifact,
+                mode,
+                hours,
+                time::OffsetDateTime::now_utc(),
+            )?;
+            let (executions, rereview) = match reviewed {
+                Some(reviewed) => review::bind(&regenerated.plans, reviewed)?,
+                None => (vec![], vec![]),
+            };
+            std::fs::create_dir_all(&out)
+                .map_err(|_| AppError::new(5, "Cannot create review output directory"))?;
+            let write = |name: &str, bytes: &[u8]| {
+                artifact::persist_bytes(&out.join(name), bytes, overwrite, &token)
+            };
+            for (row, plan) in &regenerated.plans {
+                write(&row.file, &model::plan_bytes(plan)?)?;
+            }
+            for (file, plan) in &executions {
+                write(file, &model::plan_bytes(plan)?)?;
+            }
+            let rows: Vec<&review::IndexRow> = regenerated.plans.iter().map(|(r, _)| r).collect();
+            write(
+                review::INDEX,
+                &serde_json::to_vec_pretty(&rows).map_err(|_| model::invalid())?,
+            )?;
+            let summary = review::summary(
+                &regenerated.plans,
+                rereview.len(),
+                regenerated.profiles_changed,
+                regenerated.complete,
+                detail,
+            );
+            write(review::SUMMARY, summary.as_bytes())?;
+            Ok(json!({
+                "access_review_version": 1,
+                "plans": rows,
+                "executions": executions.iter().map(|(f, _)| f).collect::<Vec<_>>(),
+                "rereview": rereview,
+                "profiles_changed": regenerated.profiles_changed,
+                "complete": regenerated.complete,
+                "summary": summary,
+                "files": {"out": out.display().to_string()},
+            }))
+        })
+        .await??;
+    cancelled(cancel)?;
+    let complete = value["complete"] == true;
+    outcome.code = if !complete {
+        4
+    } else if value["rereview"].as_array().is_some_and(|r| !r.is_empty()) {
+        6
+    } else {
+        0
+    };
+    outcome.report.command = "access_review".into();
+    outcome.report.complete = complete;
+    outcome.report.result = value;
+    Ok(outcome)
+}
+
 pub async fn run(
     cli: &Cli,
     command: &AccessCommand,
@@ -425,6 +578,26 @@ pub async fn run(
                 remove: BTreeSet::new(),
             };
             plan(cli, change, annotations.as_deref(), common, pool, cancel).await
+        }
+        AccessCommand::Review {
+            base,
+            out,
+            reviewed,
+            snapshot,
+            expires_in_hours,
+            detail,
+            overwrite,
+        } => {
+            let args = ReviewArgs {
+                base,
+                out,
+                reviewed: reviewed.as_deref(),
+                snapshot: snapshot.as_deref(),
+                hours: *expires_in_hours,
+                detail: *detail,
+                overwrite: *overwrite,
+            };
+            review(cli, args, pool, cancel).await
         }
         AccessCommand::Verify {
             plan,
@@ -614,6 +787,16 @@ pub fn write(out: &mut impl Write, command: &str, result: &Value) -> io::Result<
     match command {
         "access_plan" => write_plan(out, result),
         "access_verify" => write_verify(out, result),
+        "access_review" => {
+            for line in result["summary"].as_str().unwrap_or_default().lines() {
+                writeln!(out, "{}", safe(line))?;
+            }
+            writeln!(
+                out,
+                "\nFiles: {}",
+                safe(result["files"]["out"].as_str().unwrap_or_default())
+            )
+        }
         _ => writeln!(out, "{}", safe(&result.to_string())),
     }
 }

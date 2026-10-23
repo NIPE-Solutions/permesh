@@ -79,8 +79,13 @@ pub fn hash<T: Serialize>(value: &T) -> Result<String, AppError> {
 pub fn step_id(operation: &core::Operation) -> Result<String, AppError> {
     hash(operation)
 }
+/// The serialized plan file's bytes.
+pub fn plan_bytes(plan: &AccessPlan) -> Result<Vec<u8>, AppError> {
+    serde_json::to_vec_pretty(plan).map_err(|_| invalid())
+}
+/// SHA-256 of the plan file as written, so `shasum -a 256 FILE` gives the same value.
 pub fn plan_sha256(plan: &AccessPlan) -> Result<String, AppError> {
-    hash(plan)
+    Ok(artifact::digest(&plan_bytes(plan)?))
 }
 pub fn verification(operation: &core::Operation) -> Verification {
     use core::Operation::*;

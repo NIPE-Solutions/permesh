@@ -653,3 +653,255 @@ fn verify_html_is_written() {
     assert!(html.contains("default-src 'none'"));
     assert!(html.contains("not_done"), "{html}");
 }
+
+fn left(identity: &str, profile: &str) -> String {
+    format!("identity: {identity}\nstatus: left\nprofiles: [{profile}]\n")
+}
+/// A base checkout next to the head workspace: same permesh.yaml, its own files.
+fn base_checkout(head: &Path, files: &[(&str, &str)]) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    fs::copy(head.join("permesh.yaml"), dir.path().join("permesh.yaml")).unwrap();
+    for (name, body) in files {
+        let path = dir.path().join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, body).unwrap();
+    }
+    dir
+}
+fn review(head: &Path, base: &Path, out: &str, extra: &[&str]) -> (Option<i32>, Value) {
+    let base = base.display().to_string();
+    let mut args = vec!["review", "--base", base.as_str(), "--out", out];
+    args.extend_from_slice(extra);
+    access(head, &args)
+}
+fn plans(result: &Value) -> Vec<(String, String)> {
+    result["result"]["plans"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            (
+                p["identity"].as_str().unwrap().to_owned(),
+                p["kind"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect()
+}
+fn sha256(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+#[test]
+fn review_plans_changed_people_only() {
+    let alice = person("alice@example.com", "backend");
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/alice.yaml", &alice),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let base = base_checkout(
+        head.path(),
+        &[
+            ("profiles/backend.yaml", BACKEND),
+            ("people/alice.yaml", &alice),
+        ],
+    );
+    let (code, result) = review(head.path(), base.path(), "plans", &[]);
+    assert_eq!(code, Some(0), "{result}");
+    assert_eq!(result["command"], "access_review");
+    assert_eq!(result["result"]["access_review_version"], 1);
+    assert_eq!(
+        plans(&result),
+        vec![("bob@example.com".into(), "join".into())]
+    );
+    assert_eq!(result["result"]["profiles_changed"], false);
+    let plan = saved(head.path(), "plans/000.json");
+    assert_eq!(plan["identity"], "bob@example.com");
+    let index = saved(head.path(), "plans/index.json");
+    assert_eq!(index[0]["file"], "000.json");
+    assert_eq!(index[0]["steps"], 2);
+    let summary = fs::read_to_string(head.path().join("plans/summary.md")).unwrap();
+    assert!(summary.starts_with("# Permesh access plan"), "{summary}");
+    assert!(
+        summary.contains("People affected: 1 (join 1, move 0, leave 0)"),
+        "{summary}"
+    );
+    assert!(
+        summary.contains("add membership 1, add role 1"),
+        "{summary}"
+    );
+    for name in ["bob", "@example.com", "team-10", "repo-21"] {
+        assert!(!summary.contains(name), "{name} in {summary}");
+    }
+    // Detail is an explicit opt-in.
+    let (_, _) = review(head.path(), base.path(), "detailed", &["--detail"]);
+    let summary = fs::read_to_string(head.path().join("detailed/summary.md")).unwrap();
+    assert!(summary.contains("bob@example.com"), "{summary}");
+}
+
+#[test]
+fn deleted_people_file_is_a_move_and_left_is_a_leave() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &left("bob@example.com", "backend")),
+    ]);
+    let base = base_checkout(
+        head.path(),
+        &[
+            ("profiles/backend.yaml", BACKEND),
+            ("people/alice.yaml", &person("alice@example.com", "backend")),
+            ("people/bob.yaml", &person("bob@example.com", "backend")),
+        ],
+    );
+    let (code, result) = review(head.path(), base.path(), "plans", &[]);
+    assert_eq!(code, Some(0), "{result}");
+    assert_eq!(
+        plans(&result),
+        vec![
+            ("alice@example.com".into(), "move".into()),
+            ("bob@example.com".into(), "leave".into())
+        ]
+    );
+    let alice = saved(head.path(), "plans/000.json");
+    assert_eq!(alice["profiles_after"], serde_json::json!([]));
+    assert_eq!(alice["profiles_removed"], serde_json::json!(["backend"]));
+}
+
+#[test]
+fn matching_reviewed_plan_becomes_execution_plan() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    snapshot(head.path());
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    let (code, _) = review(head.path(), base.path(), "r1", &["--snapshot", "s.json"]);
+    assert_eq!(code, Some(0));
+    let (code, result) = review(
+        head.path(),
+        base.path(),
+        "r2",
+        &["--snapshot", "s.json", "--reviewed", "r1"],
+    );
+    assert_eq!(code, Some(0), "{result}");
+    let execution = saved(head.path(), "r2/000.execution.json");
+    let reviewed = fs::read(head.path().join("r1/000.json")).unwrap();
+    assert_eq!(execution["reviewed_plan_sha256"], sha256(&reviewed));
+    assert_eq!(execution["identity"], "bob@example.com");
+    assert_eq!(result["result"]["rereview"], serde_json::json!([]));
+    // The execution plan is a valid plan in its own right.
+    fs::copy(
+        head.path().join("r2/000.execution.json"),
+        head.path().join("p.json"),
+    )
+    .unwrap();
+    let (code, _) = verify(head.path(), &["--snapshot", "s.json"]);
+    assert_eq!(code, Some(6));
+}
+
+#[test]
+fn changed_access_after_review_requires_rereview() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &left("bob@example.com", "backend")),
+    ]);
+    let mut s = snapshot(head.path());
+    let base = base_checkout(
+        head.path(),
+        &[
+            ("profiles/backend.yaml", BACKEND),
+            ("people/bob.yaml", &person("bob@example.com", "backend")),
+        ],
+    );
+    let (code, result) = review(head.path(), base.path(), "r1", &["--snapshot", "s.json"]);
+    assert_eq!(code, Some(0), "{result}");
+    // Between review and merge, bob loses grant-3 and gains grant-97.
+    data(&mut s)["grants"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|g| g["id"] != "grant-3");
+    add_grant(&mut s, "grant-97", "101", "repo-20", "Write");
+    save(head.path(), "s2.json", &s);
+    let (code, result) = review(
+        head.path(),
+        base.path(),
+        "r2",
+        &["--snapshot", "s2.json", "--reviewed", "r1"],
+    );
+    assert_eq!(code, Some(6), "{result}");
+    assert!(!head.path().join("r2/000.execution.json").exists());
+    let rereview = &result["result"]["rereview"][0];
+    assert_eq!(rereview["identity"], "bob@example.com");
+    assert_eq!(rereview["added_steps"].as_array().unwrap().len(), 1);
+    assert_eq!(rereview["removed_steps"].as_array().unwrap().len(), 1);
+    let summary = fs::read_to_string(head.path().join("r2/summary.md")).unwrap();
+    assert!(
+        summary.contains("Not comparable with the reviewed plan: 1 people; re-review required"),
+        "{summary}"
+    );
+}
+
+#[test]
+fn profile_definition_change_is_noted() {
+    let alice = person("alice@example.com", "backend");
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/alice.yaml", &alice),
+    ]);
+    let base = base_checkout(
+        head.path(),
+        &[
+            (
+                "profiles/backend.yaml",
+                "profile: backend\ngrants:\n  - {instance: demo, group: team-10}\n",
+            ),
+            ("people/alice.yaml", &alice),
+        ],
+    );
+    let (code, result) = review(head.path(), base.path(), "plans", &[]);
+    assert_eq!(code, Some(0), "{result}");
+    assert_eq!(result["result"]["profiles_changed"], true);
+    assert!(plans(&result).is_empty());
+    assert!(!head.path().join("plans/000.json").exists());
+    let summary = fs::read_to_string(head.path().join("plans/summary.md")).unwrap();
+    assert!(summary.contains("People affected: 0"), "{summary}");
+    assert!(
+        summary.contains("Profile definitions changed; run permesh profile check"),
+        "{summary}"
+    );
+}
+
+#[test]
+fn reviewed_index_cannot_name_files_outside_its_directory() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let base = base_checkout(head.path(), &[("profiles/backend.yaml", BACKEND)]);
+    let (code, _) = review(head.path(), base.path(), "r1", &[]);
+    assert_eq!(code, Some(0));
+    let mut index = saved(head.path(), "r1/index.json");
+    index[0]["file"] = "../permesh.yaml".into();
+    save(head.path(), "r1/index.json", &index);
+    let (code, _) = review(head.path(), base.path(), "r2", &["--reviewed", "r1"]);
+    assert_eq!(code, Some(2));
+}
+
+#[test]
+fn missing_base_configuration_means_nothing_assigned_before() {
+    let head = demo(&[
+        ("profiles/backend.yaml", BACKEND),
+        ("people/bob.yaml", &person("bob@example.com", "backend")),
+    ]);
+    let empty = tempfile::tempdir().unwrap();
+    let (code, result) = review(head.path(), empty.path(), "plans", &[]);
+    assert_eq!(code, Some(0), "{result}");
+    assert_eq!(
+        plans(&result),
+        vec![("bob@example.com".into(), "join".into())]
+    );
+}
