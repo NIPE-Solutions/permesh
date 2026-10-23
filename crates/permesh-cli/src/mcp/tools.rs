@@ -127,7 +127,7 @@ fn plan(name: &'static str, description: &'static str, input: Value) -> Definiti
 fn plan_properties(mut properties: Value) -> Value {
     properties["person"] =
         json!({"type": "string", "description": "The person's identity, as in their people file."});
-    properties["output"] = json!({"type": "string", "description": "New plan file to write, relative to the workspace; its folder must exist and the file must not."});
+    properties["output"] = json!({"type": "string", "description": "New .json plan file to write, relative to the workspace and outside people/, profiles/ and hidden folders; its folder must exist and the file must not."});
     properties["snapshot"] = json!({"type": "string", "description": SNAPSHOT});
     properties["expires_in_hours"] = json!({"type": "integer", "minimum": 1, "maximum": 168, "default": 24, "description": "Hours the plan stays fresh, from the evidence start."});
     properties

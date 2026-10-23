@@ -18,8 +18,10 @@ CLI action.
   `provider`, `init`, `offboard` or `access review`.
 - **Tools.** `doctor`, `user_access`, `resource_access`, `admins`, `orphaned`,
   `profile_check`, `plan_join`, `plan_move`, `plan_leave` and `verify_plan`.
-- **One write.** The plan tools write a new plan file, which a person reviews and
-  carries out. They never overwrite a file. HTML views are not offered.
+- **One write.** The plan tools write a new `.json` plan file, which a person
+  reviews and carries out. They never overwrite a file, and never write into
+  `people/`, `profiles/` or hidden folders, where plan JSON would be read as
+  workspace YAML. HTML views are not offered.
 - **Paths stay inside the workspace.** File arguments are relative to the workspace
   folder. Absolute paths, `..` that leaves it and symlinks that point outside are
   input errors, checked before any command runs. Values are passed as `--name=value`
@@ -28,7 +30,8 @@ CLI action.
   `--json` prints. When the capture is incomplete it adds a note that missing access
   is not proof of absence. Exit codes 4 and 6 are answers, not tool errors.
 - **One call at a time.** Calls run in sequence. A cancelled call cancels the
-  command and waits until provider processes are stopped, as Ctrl+C does.
+  command and waits until provider processes are stopped, as Ctrl+C does. Ending the
+  session (stdin closed, Ctrl+C or SIGTERM) does the same for a running call.
 - **Protocol 2026-07-28 only.** The server uses the official Rust SDK (`rmcp`) and
   supports only the stateless MCP revision with `server/discover`. Clients that
   start with the older `initialize` handshake get an error naming that version.

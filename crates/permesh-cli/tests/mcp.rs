@@ -579,10 +579,9 @@ fn plan_output_outside_workspace_is_refused() {
     assert!(!dir.path().parent().unwrap().join("x.json").exists());
 }
 
+/// A workspace whose only provider hangs in discovery after writing `ready.pid`.
 #[cfg(unix)]
-#[test]
-fn cancelled_call_drains_and_server_continues() {
-    use std::time::Instant;
+fn slow_workspace() -> (tempfile::TempDir, std::path::PathBuf) {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().canonicalize().unwrap();
     let digest = fixture(&root);
@@ -607,6 +606,83 @@ fn cancelled_call_drains_and_server_continues() {
             "--accept-risk",
         ],
     );
+    (temporary, root)
+}
+#[cfg(unix)]
+fn wait_for_provider(root: &Path) -> String {
+    let marker = root.join("ready.pid");
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !marker.exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    std::fs::read_to_string(&marker)
+        .expect("discovery never started")
+        .trim()
+        .to_owned()
+}
+#[cfg(unix)]
+fn alive(pid: &str) -> bool {
+    Command::new("kill")
+        .args(["-0", pid])
+        .output()
+        .unwrap()
+        .status
+        .success()
+}
+
+#[cfg(unix)]
+#[test]
+fn sigterm_during_call_stops_providers() {
+    let (_temporary, root) = slow_workspace();
+    let mut client = Client::start(&root);
+    client.start_request(
+        "tools/call",
+        json!({"name": "user_access", "arguments": {"identity": "missing"}}),
+    );
+    let provider = wait_for_provider(&root);
+    let server = client.child.id().to_string();
+    assert!(
+        Command::new("kill")
+            .args(["-TERM", &server])
+            .status()
+            .unwrap()
+            .success()
+    );
+    let (code, lines) = client.finish();
+    let survived = alive(&provider);
+    if survived {
+        let _ = Command::new("kill").args(["-KILL", &provider]).status();
+    }
+    assert!(!survived, "provider outlived the stopped MCP server");
+    assert_eq!(code, Some(130));
+    for line in lines {
+        assert!(serde_json::from_str::<Value>(&line).is_ok(), "{line}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn stdin_eof_during_call_stops_providers() {
+    let (_temporary, root) = slow_workspace();
+    let mut client = Client::start(&root);
+    client.start_request(
+        "tools/call",
+        json!({"name": "user_access", "arguments": {"identity": "missing"}}),
+    );
+    let provider = wait_for_provider(&root);
+    let (_, _) = client.finish();
+    let survived = alive(&provider);
+    if survived {
+        let _ = Command::new("kill").args(["-KILL", &provider]).status();
+    }
+    assert!(!survived, "provider outlived the closed MCP session");
+}
+
+#[cfg(unix)]
+#[test]
+fn cancelled_call_drains_and_server_continues() {
+    use std::time::Instant;
+    let (_temporary, root) = slow_workspace();
     let mut client = Client::start(&root);
     let id = client.start_request(
         "tools/call",

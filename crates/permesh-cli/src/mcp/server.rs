@@ -13,7 +13,7 @@ use rmcp::{
     },
     service::RequestContext,
 };
-use std::{borrow::Cow, path::PathBuf};
+use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 pub(crate) const INSTRUCTIONS: &str = "Permesh answers who has access to what, read-only. Every tool result has `complete`: when it is false, some providers could not be fully read and missing access is not proof of absence, so say you cannot tell. Plan tools write a new plan file for a person to review and carry out; Permesh never changes access.";
 const VERSIONS: &[ProtocolVersion] = &[ProtocolVersion::V_2026_07_28];
@@ -22,14 +22,23 @@ pub(crate) struct Server {
     workspace: PathBuf,
     blocking: BlockingPool,
     /// One command at a time: discoveries never share provider sessions or the keyring.
-    lock: tokio::sync::Mutex<()>,
+    /// The session takes it after shutdown to wait for the running call's drain.
+    lock: Arc<tokio::sync::Mutex<()>>,
+    /// Cancelled when the session ends (stdin closed, Ctrl+C or SIGTERM).
+    shutdown: Cancellation,
 }
 impl Server {
-    pub(crate) fn new(workspace: PathBuf, blocking: BlockingPool) -> Self {
+    pub(crate) fn new(
+        workspace: PathBuf,
+        blocking: BlockingPool,
+        lock: Arc<tokio::sync::Mutex<()>>,
+        shutdown: Cancellation,
+    ) -> Self {
         Self {
             workspace,
             blocking,
-            lock: tokio::sync::Mutex::new(()),
+            lock,
+            shutdown,
         }
     }
     async fn execute(
@@ -39,12 +48,20 @@ impl Server {
     ) -> Result<Outcome, AppError> {
         let cli = Cli::try_parse_from(tool.argv(&self.workspace)?)
             .map_err(|_| AppError::input("Invalid tool arguments"))?;
+        if self.shutdown.is_cancelled() {
+            return Err(AppError::new(130, "Cancelled"));
+        }
         let cancellation = Cancellation::new();
         let operation = app::run(&cli, &self.blocking, &cancellation);
         tokio::pin!(operation);
         tokio::select! {
             biased;
-            () = stop => {
+            () = async {
+                tokio::select! {
+                    () = stop => {},
+                    () = self.shutdown.cancelled() => {},
+                }
+            } => {
                 // Drain like Ctrl+C in main: providers are terminated and reaped first.
                 cancellation.cancel();
                 match operation.await {

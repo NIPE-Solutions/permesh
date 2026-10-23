@@ -76,6 +76,9 @@ Each result's structured content is:
 A failure sets `isError` and gives `error.message` instead of `report`. The same
 JSON is also in the text content.
 
+Ending the session (closing stdin, Ctrl+C or SIGTERM) during a call stops that
+call the same way: provider processes are stopped before `permesh mcp` exits.
+
 When `complete` is false, a good assistant says it can't tell, rather than "no
 access". The server's instructions tell it so.
 
@@ -85,8 +88,10 @@ File arguments (`snapshot`, `policy`, `annotations`, `plan`, `output`) are paths
 relative to the folder that holds `permesh.yaml`. Absolute paths, `..` that leaves
 the folder and symlinks that point outside it are refused.
 
-The plan tools are the only tools that write. They create `output` as a new file;
-its folder must already exist (for example `plans/`) and the file must not. Permesh
+The plan tools are the only tools that write. They create `output` as a new
+`.json` file; its folder must already exist (for example `plans/`) and the file
+must not. Plans can't be written into `people/`, `profiles/` or hidden folders,
+where they would be read as workspace files. Permesh
 never overwrites a plan and never carries one out.
 
 ## Privacy
