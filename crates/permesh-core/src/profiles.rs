@@ -85,7 +85,7 @@ pub struct ProfileComparison {
     pub complete: bool,
 }
 
-fn observable(input: &ProfileInput, instance: &str, capability: &str) -> bool {
+pub(crate) fn observable(input: &ProfileInput, instance: &str, capability: &str) -> bool {
     input
         .observable
         .get(instance)
@@ -93,19 +93,19 @@ fn observable(input: &ProfileInput, instance: &str, capability: &str) -> bool {
 }
 /// Role entries also need membership coverage when the instance has groups,
 /// because a derived path could otherwise satisfy them unseen.
-fn roles_observable(input: &ProfileInput, instance: &str) -> bool {
+pub(crate) fn roles_observable(input: &ProfileInput, instance: &str) -> bool {
     observable(input, instance, "grants")
         && (observable(input, instance, "memberships") || !observable(input, instance, "groups"))
 }
 
 /// Accounts attributed to exactly one canonical identity, the instances where an
 /// identity also claims an ambiguous account, and how many accounts are ambiguous.
-type Owned<'a> = (
+pub(crate) type Owned<'a> = (
     BTreeMap<&'a str, Vec<&'a Account>>,
     BTreeMap<&'a str, BTreeSet<&'a str>>,
     usize,
 );
-fn owned_accounts<'a>(index: &'a IdentityIndex<'a>) -> Owned<'a> {
+pub(crate) fn owned_accounts<'a>(index: &'a IdentityIndex<'a>) -> Owned<'a> {
     let mut owned: BTreeMap<&str, Vec<&Account>> = BTreeMap::new();
     let mut claimed: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     let mut ambiguous = 0usize;

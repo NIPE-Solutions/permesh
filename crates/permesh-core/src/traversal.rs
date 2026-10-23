@@ -188,13 +188,33 @@ impl<'a> MembershipGraph<'a> {
         }
         Self { edges }
     }
+    /// Groups the account is a direct member of, in key order.
+    pub(crate) fn direct(&self, account: &EntityKey) -> Vec<EntityKey> {
+        let mut groups: Vec<EntityKey> = self
+            .edges
+            .get(&Subject::Account(account.clone()))
+            .into_iter()
+            .flatten()
+            .map(|g| (*g).clone())
+            .collect();
+        groups.sort();
+        groups.dedup();
+        groups
+    }
     pub(crate) fn reachable(
         &self,
         account: &EntityKey,
     ) -> Result<BTreeSet<EntityKey>, DomainError> {
-        let start = Subject::Account(account.clone());
+        self.reachable_from(&Subject::Account(account.clone()))
+    }
+    /// Groups reachable from a subject through one or more memberships. A group
+    /// reaches itself only through a cycle.
+    pub(crate) fn reachable_from(
+        &self,
+        subject: &Subject,
+    ) -> Result<BTreeSet<EntityKey>, DomainError> {
         let mut seen = BTreeSet::new();
-        let mut pending: Vec<&EntityKey> = self.edges.get(&start).cloned().unwrap_or_default();
+        let mut pending: Vec<&EntityKey> = self.edges.get(subject).cloned().unwrap_or_default();
         while let Some(group) = pending.pop() {
             if seen.len() >= MAX_PATH_STEPS {
                 return Err(DomainError::PathLimit);
