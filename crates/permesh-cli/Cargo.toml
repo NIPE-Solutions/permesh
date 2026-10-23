@@ -36,6 +36,7 @@ rpassword.workspace = true
 zeroize = { version = "1", features = ["serde"] }
 
 tempfile.workspace = true
+rmcp = { version = "3.7", default-features = false, features = ["server", "transport-io"] }
 
 [dev-dependencies]
 

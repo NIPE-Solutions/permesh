@@ -41,6 +41,8 @@ These may change between releases without a migration guide.
   (`join`, `move`, `leave`, `verify`, `review`), the `permesh_access_plan` v1 file,
   people files' `status`, and the plan and verify starter workflows. A second
   stability declaration will freeze these formats.
+- [AI assistants](mcp.md): `permesh mcp`, its tool names, arguments and result
+  shape, and the supported MCP protocol version.
 
 ## Provider maturity
 
