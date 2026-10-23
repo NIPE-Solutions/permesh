@@ -106,6 +106,11 @@ pub enum Command {
         #[command(subcommand)]
         command: crate::profile_command::ProfileCommand,
     },
+    /// Plan and verify joiner, mover and leaver access changes; never changes access.
+    Access {
+        #[command(subcommand)]
+        command: crate::access::AccessCommand,
+    },
     /// Assess, plan and verify a departure review without changing provider access.
     Offboard {
         #[command(subcommand)]

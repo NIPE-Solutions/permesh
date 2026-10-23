@@ -18,7 +18,7 @@ use std::{
 };
 use time::OffsetDateTime;
 
-const NOT_CONFIGURED: &str = "No access profiles are configured; add profiles/ and people/ files or a profiles section (see docs/profiles.md)";
+pub(crate) const NOT_CONFIGURED: &str = "No access profiles are configured; add profiles/ and people/ files or a profiles section (see docs/profiles.md)";
 
 #[derive(Clone, clap::Subcommand)]
 pub enum ProfileCommand {

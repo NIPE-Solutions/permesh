@@ -94,6 +94,12 @@ pub fn verification(operation: &core::Operation) -> Verification {
         }
     }
 }
+fn is_review_first(operation: &core::Operation) -> bool {
+    matches!(
+        operation,
+        core::Operation::ReviewOwnership { .. } | core::Operation::ReviewMachineDependency { .. }
+    )
+}
 fn time(value: &str) -> Result<time::OffsetDateTime, AppError> {
     offboard::time(value).map_err(|_| invalid())
 }
@@ -122,14 +128,24 @@ pub fn build(
         ));
     }
     let format = |t: time::OffsetDateTime| t.format(&Rfc3339).map_err(|_| invalid());
+    // Ownership and machine dependencies are reviewed before any other change.
+    let reviews = result
+        .steps
+        .iter()
+        .filter(|s| is_review_first(&s.operation))
+        .map(|s| step_id(&s.operation))
+        .collect::<Result<Vec<_>, _>>()?;
     let mut steps = Vec::with_capacity(result.steps.len());
     for planned in &result.steps {
-        let prerequisites = match &planned.needs_account {
+        let mut prerequisites = match &planned.needs_account {
             Some(instance) => vec![step_id(&core::Operation::AccountNeeded {
                 instance: instance.clone(),
             })?],
             None => vec![],
         };
+        if !is_review_first(&planned.operation) {
+            prerequisites.extend(reviews.iter().cloned());
+        }
         steps.push(Step {
             id: step_id(&planned.operation)?,
             operation: planned.operation.clone(),

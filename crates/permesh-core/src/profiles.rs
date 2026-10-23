@@ -150,13 +150,35 @@ pub(crate) fn owned_accounts<'a>(index: &'a IdentityIndex<'a>) -> Owned<'a> {
     (owned, claimed, ambiguous)
 }
 
-pub fn compare_profiles(
+/// Effective profile assignment: people files plus directory group mappings.
+#[derive(Clone, Debug, Default)]
+pub struct Assignments {
+    pub profiles: BTreeMap<String, BTreeSet<String>>,
+    /// Mappings whose directory group could not be read completely.
+    pub unresolved_assignments: Vec<UnresolvedAssignment>,
+    /// Directory group members without exactly one canonical identity.
+    pub unresolved_members: usize,
+}
+impl Assignments {
+    /// Incomplete directory observation leaves assignments unresolved, not empty.
+    pub fn complete(&self) -> bool {
+        self.unresolved_assignments.is_empty() && self.unresolved_members == 0
+    }
+}
+pub fn assign_profiles(
     snapshots: &[Snapshot],
     aliases: &Aliases,
     input: &ProfileInput,
-) -> Result<ProfileComparison, DomainError> {
+) -> Result<Assignments, DomainError> {
     let index = IdentityIndex::build(snapshots, aliases)?;
-    let graph = MembershipGraph::new(snapshots);
+    assign(snapshots, &index, &MembershipGraph::new(snapshots), input)
+}
+fn assign(
+    snapshots: &[Snapshot],
+    index: &IdentityIndex<'_>,
+    graph: &MembershipGraph<'_>,
+    input: &ProfileInput,
+) -> Result<Assignments, DomainError> {
     let groups: BTreeSet<&EntityKey> = snapshots
         .iter()
         .flat_map(|s| s.groups.iter().map(|g| &g.key))
@@ -196,11 +218,30 @@ pub fn compare_profiles(
             }
         }
     }
+    Ok(Assignments {
+        profiles: assigned,
+        unresolved_assignments,
+        unresolved_members: unresolved_members.len(),
+    })
+}
+
+pub fn compare_profiles(
+    snapshots: &[Snapshot],
+    aliases: &Aliases,
+    input: &ProfileInput,
+) -> Result<ProfileComparison, DomainError> {
+    let index = IdentityIndex::build(snapshots, aliases)?;
+    let graph = MembershipGraph::new(snapshots);
+    let Assignments {
+        profiles: assigned,
+        unresolved_assignments,
+        unresolved_members,
+    } = assign(snapshots, &index, &graph, input)?;
     let assignments_complete = unresolved_assignments.is_empty();
     let (owned, claimed, ambiguous_accounts) = owned_accounts(&index);
     let mut identities = Vec::new();
     // Assigned members without a resolved identity were never compared.
-    let mut complete = assignments_complete && unresolved_members.is_empty();
+    let mut complete = assignments_complete && unresolved_members == 0;
     for (id, profiles) in &assigned {
         let mut comparison = IdentityComparison {
             identity: id.clone(),
@@ -317,7 +358,7 @@ pub fn compare_profiles(
         identities,
         not_covered,
         ambiguous_accounts,
-        unresolved_members: unresolved_members.len(),
+        unresolved_members,
         unresolved_assignments,
         complete,
     })
