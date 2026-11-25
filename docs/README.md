@@ -9,8 +9,11 @@ connects them to a resource. Choose a starting point below.
 2. [Try the demo and connect GitHub](getting-started.md): see useful results before granting API access.
 3. [Understand identity matching](identity-resolution.md): connect a provider login to a canonical identity safely.
 4. [Check provider coverage](providers.md): know what is available and what each adapter can prove.
+5. [Set up a small team](team-setup.md): GitHub and Google Workspace, weekly checks and reviewed joins, moves and leaves.
 
-Documentation on `main` follows current source. Published alpha.2 has earlier
+Documentation on `main` follows current source. [Release status and upgrade
+notes](status.md) describe what the published release includes; [stability](stability.md)
+says which formats are stable. Published alpha.2 has earlier
 contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 [upgrade notes](migrations/domain-schema-2.md) when comparing versions.
 
@@ -24,6 +27,10 @@ contracts; use its [release notes](releases/0.1.0-alpha.2.md) and the
 | Review and save stable identity mappings | [Identity mapping](identity-mapping.md) |
 | Use a maintained identity roster | [Pinned identity inventory](identity-inventory.md) |
 | Compare saved observations offline | [Snapshots and diffs](snapshots.md) |
+| Declare expected access and find unexplained access | [Access profiles](profiles.md) |
+| Plan and verify a join, project move or departure | [Joiner, mover and leaver plans](access-plans.md) |
+| Ask an AI assistant the same questions (MCP) | [AI assistants](mcp.md) |
+| Run weekly checks in CI and get notified | [Scheduled checks](check.md), [notifications](notifications.md), [starter](starter.md) |
 | Assess a departure and verify later observations | [Read-only offboarding](offboarding.md) |
 | Review one resource or run local rules | [Resource queries and policies](resource-policies.md) |
 | Process reports in scripts | [JSON schemas and exit codes](output-schema.md) |

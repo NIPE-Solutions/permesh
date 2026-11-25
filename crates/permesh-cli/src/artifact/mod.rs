@@ -6,7 +6,9 @@ mod storage;
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-pub use storage::{check_destination, load, load_document, write, write_bytes, write_document};
+pub use storage::{
+    check_destination, load, load_document, persist_bytes, write, write_bytes, write_document,
+};
 pub const MAX_BYTES: usize = 64 * 1024 * 1024;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -169,7 +169,7 @@ pub fn write_bytes(
 ) -> Result<(), AppError> {
     persist_bytes(path, bytes, false, cancel)
 }
-fn persist_bytes(
+pub fn persist_bytes(
     path: &Path,
     bytes: &[u8],
     overwrite: bool,

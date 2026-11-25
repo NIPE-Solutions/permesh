@@ -211,3 +211,37 @@ fn init_refuses_symlinks_without_changing_target_or_link() {
     );
     assert_eq!(std::fs::read_link(path).unwrap(), target);
 }
+#[test]
+fn provider_list_labels_live_testing_per_provider() {
+    let dir = tempfile::tempdir().unwrap();
+    let digest = "a".repeat(64);
+    std::fs::write(
+        dir.path().join("permesh.yaml"),
+        format!(
+            "version: 1\norganization: {{name: Test}}\nproviders:\n  - id: demo\n    type: demo\n  - id: github-main\n    type: external\n    external: {{provider: github, sha256: \"{digest}\"}}\n  - id: internal-main\n    type: external\n    external: {{provider: my-provider, sha256: \"{digest}\"}}\n"
+        ),
+    )
+    .unwrap();
+    let report = json(&run(dir.path(), &["provider", "list", "--json"]));
+    let providers = report["result"]["providers"].as_array().unwrap();
+    let entry = |id: &str| {
+        providers
+            .iter()
+            .find(|p| p["id"] == id)
+            .unwrap_or_else(|| panic!("{id} missing"))
+            .clone()
+    };
+    assert!(entry("demo")["provider"].is_null());
+    assert!(entry("demo")["live_tested"].is_null());
+    assert_eq!(entry("github-main")["provider"], "github");
+    assert_eq!(entry("github-main")["live_tested"], true);
+    assert_eq!(entry("internal-main")["provider"], "my-provider");
+    assert_eq!(entry("internal-main")["live_tested"], false);
+    let human = run(dir.path(), &["provider", "list"]);
+    assert!(human.status.success());
+    let text = String::from_utf8(human.stdout).unwrap();
+    let line = |id: &str| text.lines().find(|l| l.contains(id)).unwrap().to_owned();
+    assert!(line("internal-main").contains("untested against live tenants"));
+    assert!(!line("github-main").contains("untested"));
+    assert!(!line("demo").contains("untested"));
+}

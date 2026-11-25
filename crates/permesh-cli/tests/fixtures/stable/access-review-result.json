@@ -1,0 +1,20 @@
+{
+  "access_review_version": 1,
+  "complete": true,
+  "executions": [],
+  "files": {
+    "out": "r1"
+  },
+  "plans": [
+    {
+      "file": "000.json",
+      "identity": "bob@example.com",
+      "kind": "join",
+      "plan_sha256": "<normalized>",
+      "steps": 2
+    }
+  ],
+  "profiles_changed": false,
+  "rereview": [],
+  "summary": "<normalized>"
+}

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+mod access;
 mod admins_output;
 mod app;
 mod args;
@@ -9,6 +10,7 @@ mod blocking;
 mod browser_flow;
 mod browser_login;
 mod cancellation;
+mod check;
 mod collection;
 mod completion;
 mod distribution;
@@ -21,14 +23,17 @@ mod guided_add;
 mod guided_prompt;
 mod identity_command;
 mod inventory;
+mod mcp;
 mod offboard;
 mod orphaned_output;
 mod output;
 mod policy_command;
+mod profile_command;
 mod provider_development;
 mod provider_diagnostics;
 mod provider_migration;
 mod provider_operation;
+mod qualification;
 mod remote_secrets;
 mod report;
 mod resource_command;
@@ -40,6 +45,7 @@ mod setup_output;
 mod setup_prompt;
 mod setup_workspace;
 mod snapshot_command;
+mod starter;
 mod workspace;
 use clap::Parser;
 use error::AppError;
@@ -90,6 +96,16 @@ async fn main() -> ExitCode {
     }
     let schema_version = report::command_schema_version(&cli.command);
     let blocking = blocking::BlockingPool::new();
+    if let args::Command::Mcp = &cli.command {
+        // stdout belongs to the MCP session; errors only reach stderr.
+        return match mcp::serve(&cli, &blocking).await {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => match output::write_error(&error, false, schema_version) {
+                Ok(()) => ExitCode::from(error.code),
+                Err(_) => ExitCode::from(5),
+            },
+        };
+    }
     let result = if let args::Command::Provider {
         command: args::ProviderCommand::External { command },
     } = &cli.command
@@ -103,7 +119,7 @@ async fn main() -> ExitCode {
             biased;
             signal=tokio::signal::ctrl_c()=>{
                 cancellation.cancel();
-                let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor { .. } | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Snapshot { .. } | args::Command::Offboard { .. } | args::Command::Resource(_) | args::Command::Policy { .. } | args::Command::Identity { .. } | args::Command::Provider { command: args::ProviderCommand::Dev { .. } | args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) | args::ProviderCommand::Add(_) });
+                let drains = matches!(cli.command, args::Command::Auth { command: args::AuthCommand::Login { browser: true, .. } } | args::Command::Doctor { .. } | args::Command::User { .. } | args::Command::Admins | args::Command::Orphaned | args::Command::Snapshot { .. } | args::Command::Offboard { .. } | args::Command::Access { .. } | args::Command::Resource(_) | args::Command::Policy { .. } | args::Command::Profile { .. } | args::Command::Identity { .. } | args::Command::Provider { command: args::ProviderCommand::Dev { .. } | args::ProviderCommand::Status { .. } | args::ProviderCommand::Setup(_) | args::ProviderCommand::Add(_) });
                 if drains {
                     let result = operation.await;
                     if let Err(error) = result && error.code == 5 { return finish_error(error, cli.json, schema_version); }
