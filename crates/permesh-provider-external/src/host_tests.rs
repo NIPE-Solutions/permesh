@@ -3,16 +3,16 @@
 use super::*;
 use std::path::PathBuf;
 fn executable() -> PathBuf {
-    std::env::current_exe()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join(format!(
-            "permesh-test-external-peer{}",
-            std::env::consts::EXE_SUFFIX
-        ))
+    // Cargo places unit tests below either <profile>/deps or <profile>/build.
+    let test_binary = std::env::current_exe().unwrap();
+    let artifact_dir = test_binary
+        .ancestors()
+        .find(|path| path.ends_with("deps") || path.ends_with("build"))
+        .unwrap();
+    artifact_dir.parent().unwrap().join(format!(
+        "permesh-test-external-peer{}",
+        std::env::consts::EXE_SUFFIX
+    ))
 }
 fn deadlines() -> Deadlines {
     Deadlines {
