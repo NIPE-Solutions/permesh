@@ -1,0 +1,70 @@
+{
+  "accounts": [
+    {
+      "id": "101",
+      "provider": "demo"
+    }
+  ],
+  "complete": true,
+  "created_at": "<normalized>",
+  "expires_at": "<normalized>",
+  "format": "permesh_access_plan",
+  "format_version": 1,
+  "identity": "bob@example.com",
+  "identity_authorities": [
+    "demo"
+  ],
+  "identity_bindings": [],
+  "identity_context_sha256": "<normalized>",
+  "kept": [],
+  "kind": "join",
+  "max_age_hours": 24,
+  "mode": "snapshot_replay",
+  "profiles_after": [
+    "backend"
+  ],
+  "profiles_removed": [],
+  "profiles_sha256": "<normalized>",
+  "reviewed_plan_sha256": null,
+  "source_snapshot_sha256": "<normalized>",
+  "state": "compared",
+  "steps": [
+    {
+      "evidence": [],
+      "id": "4d3f0716c4f6bfc72ede969a5bbc4113d3e269113be2a16be07977eb2be2b753",
+      "justification": {
+        "profiles": [
+          "backend"
+        ]
+      },
+      "operation": {
+        "group": "team-10",
+        "instance": "demo",
+        "type": "add_membership"
+      },
+      "prerequisites": [],
+      "reason": "not_observed",
+      "state": "planned",
+      "verification": "observe_membership"
+    },
+    {
+      "evidence": [],
+      "id": "1dddccdef53956e1f92f7f63edbc2ebf3784c5a985bea0d81caf4d083ae2bbb3",
+      "justification": {
+        "profiles": [
+          "backend"
+        ]
+      },
+      "operation": {
+        "instance": "demo",
+        "resource": "repo-21",
+        "role": "Read",
+        "type": "add_role"
+      },
+      "prerequisites": [],
+      "reason": "not_observed",
+      "state": "planned",
+      "verification": "observe_role"
+    }
+  ]
+}

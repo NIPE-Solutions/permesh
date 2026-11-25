@@ -87,7 +87,7 @@ async fn exceptions_match_exact_scope_expire_and_never_suppress_unknown_evidence
     let (result, _, _) = evaluate(&policy, &artifact, now()).unwrap();
     assert_eq!(result["excepted"], 1);
     assert_eq!(result["clean"], false);
-    policy.exceptions[0].resource = "another-resource".into();
+    policy.exceptions[0].resource = Some("another-resource".into());
     assert_eq!(
         evaluate(&policy, &artifact, now()).unwrap().0["excepted"],
         0
@@ -125,7 +125,7 @@ async fn coverage_declarations_and_capability_gaps_cannot_pass_silently() {
 #[test]
 fn strict_policy_scopes_owners_and_expiries_are_validated_without_reflection() {
     for doc in [
-        json!({"version":2,"rules":["inactive_access"]}),
+        json!({"version":3,"rules":["inactive_access"]}),
         json!({"version":1,"rules":["inactive_access","inactive_access"]}),
         json!({"version":1,"rules":["required_coverage"]}),
         json!({"version":1,"rules":["inactive_access"],"owners":[{"instance":"p","account":"a","owner":"","reason":"SENTINEL"}]}),
@@ -325,4 +325,87 @@ async fn explicit_required_coverage_still_checks_directory_capabilities() {
     assert_eq!(code, 4);
     assert!(!complete);
     assert_eq!(result["findings"], 1);
+}
+fn unexplained(scope: Value) -> Value {
+    let mut e = json!({"id":"u-1","rule":"unexplained_access","instance":"demo","account":"100","reason":"Project handover","owner":"it:owner","expires_at":"2026-09-10T00:00:00Z"});
+    e.as_object_mut()
+        .unwrap()
+        .extend(scope.as_object().unwrap().clone());
+    e
+}
+fn v2(exceptions: Vec<Value>) -> Result<LoadedPolicy, AppError> {
+    let policy: Policy = serde_json::from_value(
+        json!({"version":2,"rules":["inactive_access"],"exceptions":exceptions}),
+    )
+    .map_err(|_| AppError::input("parse"))?;
+    policy.validate()?;
+    Ok(LoadedPolicy(policy))
+}
+#[test]
+fn v1_policy_round_trips_unchanged() {
+    let value = json!({"version":1,"rules":["inactive_access"],"required_providers":[],"owners":[],"exceptions":[{"id":"r","rule":"inactive_access","instance":"demo","account":"1","resource":"r","grant_id":"g","reason":"x","owner":"o","expires_at":"2026-09-10T00:00:00Z"}]});
+    let policy: Policy = serde_json::from_value(value.clone()).unwrap();
+    policy.validate().unwrap();
+    assert_eq!(serde_json::to_value(&policy).unwrap(), value);
+}
+#[test]
+fn v1_rejects_group_exception() {
+    let policy: Policy = serde_json::from_value(json!({"version":1,"rules":["inactive_access"],"exceptions":[{"id":"r","rule":"inactive_access","instance":"demo","account":"1","group":"team-10","reason":"x","owner":"o","expires_at":"2026-09-10T00:00:00Z"}]})).unwrap();
+    assert!(policy.validate().is_err());
+    let policy: Policy = serde_json::from_value(json!({"version":1,"rules":["inactive_access"],"exceptions":[unexplained(json!({"group":"team-10"}))]})).unwrap();
+    assert!(policy.validate().is_err());
+}
+#[test]
+fn v2_accepts_membership_and_direct_unexplained_exceptions() {
+    let mut direct = unexplained(json!({"resource":"repo-21","grant_id":"grant-2"}));
+    direct["id"] = json!("u-2");
+    assert!(v2(vec![unexplained(json!({"group":"team-10"})), direct]).is_ok());
+    assert!(
+        v2(vec![unexplained(
+            json!({"group":"team-10","resource":"repo-21","grant_id":"grant-2"})
+        )])
+        .is_err()
+    );
+    assert!(v2(vec![unexplained(json!({}))]).is_err());
+}
+#[test]
+fn unexplained_access_in_rules_is_invalid() {
+    let policy: Policy =
+        serde_json::from_value(json!({"version":2,"rules":["unexplained_access"]})).unwrap();
+    assert!(policy.validate().is_err());
+}
+async fn alice_paths() -> Vec<core::AccessPath> {
+    let artifact = fixture().await;
+    let (snapshots, aliases) = crate::resource_command::domain(&artifact);
+    core::query_user(&snapshots, &aliases, "alice@example.com")
+        .unwrap()
+        .access
+}
+#[tokio::test]
+async fn membership_exception_matches_nested_path_through_group() {
+    let paths = alice_paths().await;
+    let via_team = paths.iter().find(|p| !p.groups.is_empty()).unwrap();
+    let direct = paths.iter().find(|p| p.groups.is_empty()).unwrap();
+    let membership = v2(vec![unexplained(json!({"group":"team-10"}))]).unwrap();
+    assert!(membership.unexplained_exception(via_team, now()).is_some());
+    assert!(membership.unexplained_exception(direct, now()).is_none());
+    let grant = v2(vec![unexplained(
+        json!({"resource":direct.resource.key.id,"grant_id":direct.grant.id}),
+    )])
+    .unwrap();
+    assert!(grant.unexplained_exception(direct, now()).is_some());
+    assert!(grant.unexplained_exception(via_team, now()).is_none());
+}
+#[tokio::test]
+async fn expired_unexplained_exception_does_not_match() {
+    let paths = alice_paths().await;
+    let via_team = paths.iter().find(|p| !p.groups.is_empty()).unwrap();
+    let mut e = unexplained(json!({"group":"team-10"}));
+    e["expires_at"] = json!("2026-09-09T12:00:00Z");
+    assert!(
+        v2(vec![e])
+            .unwrap()
+            .unexplained_exception(via_team, now())
+            .is_none()
+    );
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-//! Policy document version 1. Annotations are local organizational assertions.
+//! Policy documents version 1 and 2. Annotations are local organizational assertions.
+//! Version 2 adds `unexplained_access` exceptions scoped to a membership (ADR 0033).
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -12,6 +13,8 @@ pub(super) enum Rule {
     MachineOwner,
     ExpiredException,
     RequiredCoverage,
+    /// Exceptions only: profile findings are configured in permesh.yaml.
+    UnexplainedAccess,
 }
 impl Rule {
     pub(super) fn access(self) -> Option<permesh_core::AccessRule> {
@@ -57,8 +60,13 @@ pub(super) struct Exception {
     pub rule: Rule,
     pub instance: String,
     pub account: String,
-    pub resource: String,
-    pub grant_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grant_id: Option<String>,
+    /// Version 2, `unexplained_access` only: every path through this group.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
     pub reason: String,
     pub owner: String,
     pub expires_at: String,
@@ -71,7 +79,7 @@ fn text(value: &str, max: usize) -> bool {
 }
 fn invalid() -> AppError {
     AppError::input(
-        "Invalid policy version 1: check supported rules, exact unique scopes, bounded text, owners and UTC expiries",
+        "Invalid policy: version 1 or 2; check supported rules, exact unique scopes, bounded text, owners and UTC expiries",
     )
 }
 pub(super) fn expiry(value: &str) -> Result<OffsetDateTime, AppError> {
@@ -83,7 +91,8 @@ pub(super) fn expiry(value: &str) -> Result<OffsetDateTime, AppError> {
 }
 impl Policy {
     pub(super) fn validate(&self) -> Result<(), AppError> {
-        if self.version != 1
+        if !matches!(self.version, 1 | 2)
+            || self.rules.contains(&Rule::UnexplainedAccess)
             || self.rules.is_empty()
             || self.rules.len() > 5
             || self.rules.iter().copied().collect::<BTreeSet<_>>().len() != self.rules.len()
@@ -133,16 +142,25 @@ impl Policy {
         let mut ids = BTreeSet::new();
         let mut scopes = BTreeSet::new();
         for exception in &self.exceptions {
-            if exception.rule.access().is_none()
+            let unexplained = exception.rule == Rule::UnexplainedAccess;
+            let scope_ok = match (&exception.resource, &exception.grant_id, &exception.group) {
+                (Some(_), Some(_), None) => true,
+                (None, None, Some(_)) => unexplained,
+                _ => false,
+            };
+            if !(exception.rule.access().is_some() || (unexplained && self.version == 2))
+                || !scope_ok
                 || [
-                    &exception.id,
-                    &exception.instance,
-                    &exception.account,
-                    &exception.resource,
-                    &exception.grant_id,
-                    &exception.owner,
+                    Some(&exception.id),
+                    Some(&exception.instance),
+                    Some(&exception.account),
+                    exception.resource.as_ref(),
+                    exception.grant_id.as_ref(),
+                    exception.group.as_ref(),
+                    Some(&exception.owner),
                 ]
                 .iter()
+                .flatten()
                 .any(|v| !text(v, 256))
                 || !text(&exception.reason, 1024)
                 || !ids.insert(&exception.id)
@@ -152,6 +170,7 @@ impl Policy {
                     &exception.account,
                     &exception.resource,
                     &exception.grant_id,
+                    &exception.group,
                 ))
             {
                 return Err(invalid());

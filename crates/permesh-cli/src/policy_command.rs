@@ -19,6 +19,61 @@ use time::OffsetDateTime;
 #[path = "policy_config.rs"]
 mod config;
 use config::{Policy, Rule};
+/// Rules `permesh check` evaluates when no policy file is given.
+pub(crate) const DEFAULT_RULES: [&str; 3] =
+    ["inactive_access", "external_privileged", "machine_owner"];
+/// A validated policy document, opaque outside this module.
+pub(crate) struct LoadedPolicy(Policy);
+impl LoadedPolicy {
+    /// Load and validate a policy file, or the default rules without annotations.
+    pub(crate) fn load(path: Option<&std::path::Path>) -> Result<Self, AppError> {
+        let policy: Policy = match path {
+            Some(path) => artifact::load_document(path)?,
+            None => serde_json::from_value(json!({"version": 1, "rules": DEFAULT_RULES}))
+                .map_err(|_| AppError::new(5, "Invalid default policy"))?,
+        };
+        policy.validate()?;
+        Ok(Self(policy))
+    }
+    /// The unexpired `unexplained_access` exception covering this path, if any:
+    /// a membership scope matches every path from the account through the group,
+    /// a grant scope matches only the direct path to that grant.
+    pub(crate) fn unexplained_exception(
+        &self,
+        path: &core::AccessPath,
+        now: OffsetDateTime,
+    ) -> Option<Value> {
+        self.0
+            .exceptions
+            .iter()
+            .filter(|e| {
+                e.rule == Rule::UnexplainedAccess
+                    && e.instance == path.account.provider
+                    && e.account == path.account.id
+                    && config::expiry(&e.expires_at).is_ok_and(|expiry| now < expiry)
+            })
+            .find(|e| match &e.group {
+                Some(group) => path.groups.iter().any(|g| g.key.id == *group),
+                None => {
+                    path.groups.is_empty()
+                        && e.resource.as_deref() == Some(path.resource.key.id.as_str())
+                        && e.grant_id.as_deref() == Some(path.grant.id.as_str())
+                }
+            })
+            .map(|e| json!(e))
+    }
+    pub(crate) fn rules(&self) -> Value {
+        json!(self.0.rules)
+    }
+    /// Same evaluation as `policy check`: (result, exit code, evaluation complete).
+    pub(crate) fn evaluate(
+        &self,
+        artifact: &Artifact,
+        now: OffsetDateTime,
+    ) -> Result<(Value, u8, bool), AppError> {
+        evaluate(&self.0, artifact, now)
+    }
+}
 #[derive(Clone, clap::Subcommand)]
 pub enum PolicyCommand {
     Check {
@@ -102,17 +157,17 @@ fn evaluate(
     let exceptions: BTreeMap<_, _> = policy
         .exceptions
         .iter()
-        .map(|e| {
-            (
+        .filter_map(|e| {
+            Some((
                 (
                     e.rule,
                     e.instance.as_str(),
                     e.account.as_str(),
-                    e.resource.as_str(),
-                    e.grant_id.as_str(),
+                    e.resource.as_deref()?,
+                    e.grant_id.as_deref()?,
                 ),
                 e,
-            )
+            ))
         })
         .collect();
     for check in checks {

@@ -1,0 +1,75 @@
+{
+  "default": {
+    "changes": {
+      "reasons": [],
+      "state": "no_baseline"
+    },
+    "check_report_version": 1,
+    "complete": true,
+    "counts": {
+      "departed_with_access": 1,
+      "incomplete": 0,
+      "missing_access": 1,
+      "policy_finding": 1,
+      "provider_failed": 0,
+      "unexplained_access": 1
+    },
+    "run_url": null,
+    "status": "findings"
+  },
+  "detail": {
+    "change_details": "no_baseline",
+    "changes": {
+      "reasons": [],
+      "state": "no_baseline"
+    },
+    "check_report_version": 1,
+    "complete": true,
+    "counts": {
+      "departed_with_access": 1,
+      "incomplete": 0,
+      "missing_access": 1,
+      "policy_finding": 1,
+      "provider_failed": 0,
+      "unexplained_access": 1
+    },
+    "departed": [
+      {
+        "access_paths": 1,
+        "account": "102",
+        "instance": "demo",
+        "login": "former-dev",
+        "reason": "inactive_identity"
+      }
+    ],
+    "findings": [
+      {
+        "account": "104",
+        "resource": "acme/payments-api",
+        "rule": "external_privileged",
+        "state": "finding"
+      }
+    ],
+    "profile_findings": [
+      {
+        "group": "team-10",
+        "identity": "bob@example.com",
+        "instance": "demo",
+        "kind": "missing_access",
+        "via": []
+      },
+      {
+        "identity": "bob@example.com",
+        "instance": "demo",
+        "kind": "unexplained_access",
+        "resource": "repo-21",
+        "role": "Admin",
+        "via": [
+          "team-10"
+        ]
+      }
+    ],
+    "run_url": null,
+    "status": "findings"
+  }
+}

@@ -25,6 +25,13 @@ impl AppError {
 }
 impl From<permesh_config::Error> for AppError {
     fn from(error: permesh_config::Error) -> Self {
+        use permesh_config::Error;
+        // Version errors already name their file and the fix; the permesh.yaml hint would mislead.
+        if let Error::File { source, .. } = &error
+            && matches!(**source, Error::NewerVersion(_) | Error::InvalidVersion(_))
+        {
+            return Self::input(error.to_string());
+        }
         Self::input(format!(
             "{error}. Check permesh.yaml or pass --config FILE."
         ))

@@ -172,3 +172,59 @@ pub(crate) fn sort_paths(access: &mut [AccessPath]) {
             })
     });
 }
+
+/// Membership edges only, independent of grants: answers "is this account in that
+/// group, directly or nested?" even when the group grants nothing observed.
+pub(crate) struct MembershipGraph<'a> {
+    edges: BTreeMap<&'a Subject, Vec<&'a EntityKey>>,
+}
+impl<'a> MembershipGraph<'a> {
+    pub(crate) fn new(snapshots: &'a [Snapshot]) -> Self {
+        let mut edges: BTreeMap<&Subject, Vec<&EntityKey>> = BTreeMap::new();
+        for s in snapshots {
+            for m in &s.memberships {
+                edges.entry(&m.member).or_default().push(&m.group);
+            }
+        }
+        Self { edges }
+    }
+    /// Groups the account is a direct member of, in key order.
+    pub(crate) fn direct(&self, account: &EntityKey) -> Vec<EntityKey> {
+        let mut groups: Vec<EntityKey> = self
+            .edges
+            .get(&Subject::Account(account.clone()))
+            .into_iter()
+            .flatten()
+            .map(|g| (*g).clone())
+            .collect();
+        groups.sort();
+        groups.dedup();
+        groups
+    }
+    pub(crate) fn reachable(
+        &self,
+        account: &EntityKey,
+    ) -> Result<BTreeSet<EntityKey>, DomainError> {
+        self.reachable_from(&Subject::Account(account.clone()))
+    }
+    /// Groups reachable from a subject through one or more memberships. A group
+    /// reaches itself only through a cycle.
+    pub(crate) fn reachable_from(
+        &self,
+        subject: &Subject,
+    ) -> Result<BTreeSet<EntityKey>, DomainError> {
+        let mut seen = BTreeSet::new();
+        let mut pending: Vec<&EntityKey> = self.edges.get(subject).cloned().unwrap_or_default();
+        while let Some(group) = pending.pop() {
+            if seen.len() >= MAX_PATH_STEPS {
+                return Err(DomainError::PathLimit);
+            }
+            if seen.insert(group.clone())
+                && let Some(parents) = self.edges.get(&Subject::Group(group.clone()))
+            {
+                pending.extend(parents.iter().copied());
+            }
+        }
+        Ok(seen)
+    }
+}

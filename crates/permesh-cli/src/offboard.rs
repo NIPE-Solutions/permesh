@@ -22,6 +22,7 @@ use crate::{
 };
 use clap::Subcommand;
 use model::*;
+pub(crate) use model::{Annotations, Mode, evidence_start, time};
 use std::{collections::BTreeSet, path::PathBuf};
 #[derive(Clone, Subcommand)]
 pub enum OffboardCommand {
@@ -292,6 +293,46 @@ pub async fn run(
             .await??;
     }
     Ok(outcome)
+}
+/// Ownership and machine-dependency reviews from the departure assessment, as
+/// access plan operations with the grant IDs they concern.
+pub(crate) fn review_steps(
+    artifact: &Artifact,
+    person: &str,
+    annotations: Option<&Annotations>,
+) -> Result<Vec<(permesh_core::Operation, Vec<String>)>, AppError> {
+    let assessment = assess(artifact, person, annotations)?;
+    let grants: std::collections::BTreeMap<_, _> = assessment
+        .paths
+        .iter()
+        .map(|p| (p.id.as_str(), p.grant.id.clone()))
+        .collect();
+    let mut steps = Vec::new();
+    for r in &assessment.recommendations {
+        let operation = match (r.kind, &r.resource) {
+            (RecommendationKind::Ownership, Some(resource)) => {
+                permesh_core::Operation::ReviewOwnership {
+                    instance: r.account.provider.clone(),
+                    account: r.account.id.clone(),
+                    resource: resource.id.clone(),
+                }
+            }
+            (RecommendationKind::MachineDependency, _) => {
+                permesh_core::Operation::ReviewMachineDependency {
+                    instance: r.account.provider.clone(),
+                    account: r.account.id.clone(),
+                }
+            }
+            _ => continue,
+        };
+        let evidence = r
+            .evidence
+            .iter()
+            .filter_map(|e| grants.get(e.as_str()).cloned())
+            .collect();
+        steps.push((operation, evidence));
+    }
+    Ok(steps)
 }
 pub fn write(out: &mut dyn std::io::Write, result: &serde_json::Value) -> std::io::Result<()> {
     view::write(out, result)

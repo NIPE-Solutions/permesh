@@ -23,11 +23,20 @@ pub async fn run(
     if let Command::Policy { command } = &cli.command {
         return crate::policy_command::run(cli, command, blocking, cancellation).await;
     }
+    if let Command::Profile { command } = &cli.command {
+        return crate::profile_command::run(cli, command, blocking, cancellation).await;
+    }
     if let Command::Identity { command } = &cli.command {
         return crate::identity_command::run(cli, command, blocking, cancellation).await;
     }
+    if let Command::Access { command } = &cli.command {
+        return crate::access::run(cli, command, blocking, cancellation).await;
+    }
     if let Command::Offboard { command } = &cli.command {
         return crate::offboard::run(cli, command, blocking, cancellation).await;
+    }
+    if let Command::Check(args) = &cli.command {
+        return crate::check::run(cli, args, blocking, cancellation).await;
     }
     if let Command::Snapshot { command } = &cli.command {
         return crate::snapshot_command::run(cli, command, blocking, cancellation).await;
@@ -79,7 +88,23 @@ pub async fn run(
     {
         return crate::setup::run(cli, args, blocking, cancellation).await;
     }
-    if let Command::Init { demo, organization } = &cli.command {
+    if let Command::Init {
+        starter: true,
+        organization,
+        ..
+    } = &cli.command
+    {
+        let organization = organization
+            .clone()
+            .unwrap_or_else(|| "My organization".into());
+        return blocking
+            .run(move || crate::starter::init(std::path::Path::new("."), &organization))
+            .await?;
+    }
+    if let Command::Init {
+        demo, organization, ..
+    } = &cli.command
+    {
         let owned_cli = cli.clone();
         let demo = *demo;
         let organization = organization.clone();
@@ -97,10 +122,7 @@ pub async fn run(
         command: ProviderCommand::Add(args),
     } = &cli.command
     {
-        if matches!(
-            args.provider_type.as_str(),
-            "github" | "google" | "cloudflare" | "aws"
-        ) {
+        if crate::guided_add::OFFICIAL_GUIDED.contains(&args.provider_type.as_str()) {
             return crate::guided_add::run(cli, args, blocking, cancellation).await;
         }
         return workspace::add(cli, args);
@@ -135,7 +157,15 @@ pub async fn run(
             let mut providers: Vec<_> = config
                 .providers
                 .iter()
-                .map(|p| serde_json::json!({"id":p.id,"type":collection::kind(p)}))
+                .map(|p| {
+                    let provider = p.external.as_ref().map(|e| e.provider.as_str());
+                    serde_json::json!({
+                        "id": p.id,
+                        "type": collection::kind(p),
+                        "provider": provider,
+                        "live_tested": provider.map(crate::qualification::live_tested),
+                    })
+                })
                 .collect();
             providers.sort_by_key(|v| v["id"].as_str().unwrap_or_default().to_string());
             Outcome::new("provider_list", serde_json::json!({"providers":providers}))
