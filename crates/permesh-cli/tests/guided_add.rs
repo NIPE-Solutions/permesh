@@ -68,3 +68,44 @@ fn invalid_official_and_external_add_flags_fail_before_network() {
         assert!(!root.path().join("state").exists());
     }
 }
+
+#[test]
+fn unknown_official_provider_is_rejected_before_network_or_state() {
+    let root = tempfile::tempdir().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_permesh"))
+        .current_dir(root.path())
+        .env("PERMESH_DATA_DIR", root.path().join("state"))
+        .args(["provider", "add", "okta", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(!root.path().join("state").exists());
+}
+
+#[test]
+fn new_official_providers_route_to_guided_add() {
+    for provider in ["gitlab", "entra", "aws-identity-center"] {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("permesh.yaml"),
+            "version: 1\norganization: {name: Test}\nproviders: []\n",
+        )
+        .unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_permesh"))
+            .current_dir(root.path())
+            .env("PERMESH_DATA_DIR", root.path().join("state"))
+            .args(["provider", "add", provider, "--json"])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{provider}");
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            report["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("--answers FILE and --accept-risk"),
+            "{provider}: {report}"
+        );
+        assert!(!root.path().join("state").exists());
+    }
+}

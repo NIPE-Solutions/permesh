@@ -1,0 +1,459 @@
+// SPDX-License-Identifier: MIT
+#![allow(clippy::unwrap_used)]
+use std::{fs, path::Path, process::Command};
+
+const FILES: [&str; 12] = [
+    "permesh.yaml",
+    "README.md",
+    ".gitignore",
+    "ci/providers.txt",
+    "ci/bootstrap.sh",
+    "policies/review-policy.json",
+    "profiles/README.md",
+    "people/README.md",
+    ".github/workflows/permesh-check.yml",
+    ".github/workflows/permesh-plan.yml",
+    ".github/workflows/permesh-verify.yml",
+    ".gitlab-ci.yml",
+];
+fn example(file: &str) -> Vec<u8> {
+    fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/starter")
+            .join(file),
+    )
+    .unwrap()
+}
+fn init(dir: &Path, organization: &str) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_permesh"))
+        .current_dir(dir)
+        .env("PERMESH_DATA_DIR", dir.join("state"))
+        .args([
+            "init",
+            "--starter",
+            "--organization",
+            organization,
+            "--json",
+        ])
+        .output()
+        .unwrap()
+}
+fn yaml(file: &str) -> serde_json::Value {
+    permesh_config::parse_setup_value(&String::from_utf8(example(file)).unwrap()).unwrap()
+}
+
+#[test]
+fn init_starter_writes_layout_that_loads() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = init(dir.path(), "Acme \"Ops\"");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    for file in FILES {
+        assert!(dir.path().join(file).is_file(), "{file}");
+    }
+    let config = permesh_config::Config::load(&dir.path().join("permesh.yaml")).unwrap();
+    assert_eq!(config.organization.name, "Acme \"Ops\"");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(dir.path().join("ci/bootstrap.sh"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_ne!(mode & 0o100, 0, "bootstrap.sh is executable");
+    }
+}
+
+#[test]
+fn init_starter_refuses_to_overwrite() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir_all(dir.path().join("ci")).unwrap();
+    fs::write(dir.path().join("ci/providers.txt"), "mine\n").unwrap();
+    let output = init(dir.path(), "Acme");
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        fs::read_to_string(dir.path().join("ci/providers.txt")).unwrap(),
+        "mine\n"
+    );
+    assert!(!dir.path().join("permesh.yaml").exists());
+}
+
+#[test]
+fn starter_files_match_examples() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(init(dir.path(), "Example organization").status.success());
+    for file in FILES {
+        assert_eq!(
+            fs::read(dir.path().join(file)).unwrap(),
+            example(file),
+            "{file}"
+        );
+    }
+}
+
+#[test]
+fn starter_policy_matches_default_rules() {
+    let policy: serde_json::Value =
+        serde_json::from_slice(&example("policies/review-policy.json")).unwrap();
+    assert_eq!(
+        policy["rules"],
+        serde_json::json!(["inactive_access", "external_privileged", "machine_owner"])
+    );
+}
+
+#[test]
+fn starter_workflows_are_valid_yaml_and_gate_the_baseline() {
+    let github = yaml(".github/workflows/permesh-check.yml");
+    assert_eq!(
+        github["permissions"],
+        serde_json::json!({"contents": "read", "issues": "write", "actions": "read"})
+    );
+    let steps = github["jobs"]["check"]["steps"].as_array().unwrap();
+    let baseline = steps
+        .iter()
+        .find(|s| s["name"] == "Keep the baseline for the next run")
+        .unwrap();
+    let condition = baseline["if"].as_str().unwrap();
+    assert!(
+        condition.contains("'0'") && condition.contains("'6'"),
+        "{condition}"
+    );
+    for step in steps.iter().filter(|s| s["uses"].is_string()) {
+        let uses = step["uses"].as_str().unwrap();
+        let sha = uses.split('@').nth(1).unwrap();
+        assert!(
+            sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
+            "{uses}"
+        );
+    }
+    let gitlab = yaml(".gitlab-ci.yml");
+    let script = gitlab["permesh-baseline"]["script"][0].as_str().unwrap();
+    assert!(
+        script.contains("\"0\"") && script.contains("\"6\""),
+        "{script}"
+    );
+}
+
+#[test]
+fn github_workflow_passes_actionlint_when_available() {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/starter/.github/workflows/permesh-check.yml");
+    match Command::new("actionlint").arg(&file).output() {
+        Ok(output) => assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        ),
+        Err(_) => eprintln!("actionlint not installed; skipped"),
+    }
+    let github = yaml(".github/workflows/permesh-check.yml");
+    assert!(!github["env"].to_string().contains("runner."));
+}
+
+#[test]
+fn github_baseline_comes_only_from_this_workflow_on_the_default_branch() {
+    let text = String::from_utf8(example(".github/workflows/permesh-check.yml")).unwrap();
+    for needle in [
+        "head_branch",
+        "head_repository_id",
+        ".github/workflows/permesh-check.yml",
+        "gh attestation verify",
+        "PERMESH_ARCHIVE_SHA256",
+    ] {
+        assert!(text.contains(needle), "{needle}");
+    }
+}
+
+#[test]
+fn gitlab_findings_keep_baseline_and_issue_jobs_running() {
+    let gitlab = yaml(".gitlab-ci.yml");
+    assert_eq!(
+        gitlab["permesh-check"]["allow_failure"]["exit_codes"],
+        serde_json::json!([6])
+    );
+    assert_eq!(gitlab["permesh-check"]["artifacts"]["access"], "developer");
+    assert_eq!(
+        gitlab["permesh-baseline"]["artifacts"]["access"],
+        "developer"
+    );
+    assert!(gitlab["permesh-issue"]["when"].is_null());
+    assert_eq!(gitlab["permesh-issue"]["rules"][0]["when"], "always");
+    let text = String::from_utf8(example(".gitlab-ci.yml")).unwrap();
+    assert!(text.contains("PERMESH_ARCHIVE_SHA256"));
+}
+
+#[test]
+fn starter_docs_require_a_private_repository() {
+    let readme = String::from_utf8(example("README.md")).unwrap();
+    assert!(readme.contains("private repository"), "{readme}");
+}
+
+#[test]
+fn starter_ships_report_only_profiles() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(init(dir.path(), "Acme").status.success());
+    let config = permesh_config::Config::load(&dir.path().join("permesh.yaml")).unwrap();
+    let profiles = permesh_config::profiles::load_profiles(dir.path(), &config).unwrap();
+    assert!(profiles.is_none_or(|p| !p.enforce));
+    let template = String::from_utf8(example("permesh.yaml")).unwrap();
+    assert!(template.contains("#   enforce: false"), "{template}");
+}
+
+#[test]
+fn starter_ships_plan_and_verify_workflows() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(init(dir.path(), "Acme").status.success());
+    for file in [
+        ".github/workflows/permesh-plan.yml",
+        ".github/workflows/permesh-verify.yml",
+    ] {
+        let text = fs::read_to_string(dir.path().join(file)).unwrap();
+        permesh_config::parse_setup_value(&text).unwrap();
+    }
+    let plan = String::from_utf8(example(".github/workflows/permesh-plan.yml")).unwrap();
+    for needle in [
+        "access review --base",
+        "--reviewed reviewed",
+        "pull-requests: write",
+        "gh attestation verify",
+        "PERMESH_ARCHIVE_SHA256",
+    ] {
+        assert!(plan.contains(needle), "{needle}");
+    }
+    assert!(!plan.contains("--detail"));
+    let parsed = yaml(".github/workflows/permesh-plan.yml");
+    assert_eq!(
+        parsed["permissions"],
+        serde_json::json!({"contents": "read", "pull-requests": "write", "actions": "read"})
+    );
+    assert_eq!(
+        parsed["on"]["pull_request"]["paths"],
+        serde_json::json!(["people/**", "profiles/**"])
+    );
+    let verify = String::from_utf8(example(".github/workflows/permesh-verify.yml")).unwrap();
+    assert!(verify.contains("workflow_dispatch") && verify.contains("access verify"));
+    assert!(!verify.contains("--detail"));
+    let parsed = yaml(".github/workflows/permesh-verify.yml");
+    assert_eq!(
+        parsed["on"]["workflow_dispatch"]["inputs"]["run_id"]["required"],
+        true
+    );
+    for workflow in [&plan, &verify] {
+        for line in workflow.lines().filter(|l| l.contains("uses:")) {
+            let sha = line
+                .split('@')
+                .nth(1)
+                .unwrap()
+                .split_whitespace()
+                .next()
+                .unwrap();
+            assert!(
+                sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit()),
+                "{line}"
+            );
+        }
+    }
+}
+
+#[test]
+fn gitlab_plans_merge_requests_and_keeps_checks_scheduled() {
+    let gitlab = yaml(".gitlab-ci.yml");
+    let job = &gitlab["permesh-plan"];
+    assert!(job.is_object(), "permesh-plan job");
+    assert_eq!(
+        job["rules"][0]["if"],
+        "$CI_PIPELINE_SOURCE == \"merge_request_event\""
+    );
+    assert_eq!(
+        job["rules"][0]["changes"],
+        serde_json::json!(["people/**", "profiles/**"])
+    );
+    let script = job["script"].to_string();
+    assert!(script.contains("access review --base"), "{script}");
+    assert!(!script.contains("--detail"), "{script}");
+    // The scheduled check never runs in merge-request pipelines.
+    for name in ["permesh-check", "permesh-baseline"] {
+        let rules = gitlab[name]["rules"].to_string();
+        assert!(
+            rules.contains("schedule") && !rules.contains("merge_request_event"),
+            "{name}: {rules}"
+        );
+    }
+}
+
+#[test]
+fn every_workflow_job_bootstraps_providers_once() {
+    for file in [
+        ".github/workflows/permesh-check.yml",
+        ".github/workflows/permesh-plan.yml",
+        ".github/workflows/permesh-verify.yml",
+    ] {
+        let workflow = yaml(file);
+        for (name, job) in workflow["jobs"].as_object().unwrap() {
+            let count = job["steps"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|s| {
+                    s["run"]
+                        .as_str()
+                        .is_some_and(|r| r.contains("ci/bootstrap.sh"))
+                })
+                .count();
+            assert_eq!(count, 1, "{file} job {name}");
+        }
+    }
+}
+
+#[test]
+fn post_merge_job_binds_only_the_merged_pull_request() {
+    let text = String::from_utf8(example(".github/workflows/permesh-plan.yml")).unwrap();
+    for needle in ["merged_at", "github.event.before"] {
+        assert!(text.contains(needle), "{needle}");
+    }
+    assert!(!text.contains("HEAD^1"));
+    // Queued post-merge runs must not cancel each other.
+    let workflow = yaml(".github/workflows/permesh-plan.yml");
+    let group = workflow["concurrency"]["group"].as_str().unwrap();
+    assert!(group.contains("github.sha"), "{group}");
+}
+
+/// The `run` script of one step of the verify workflow.
+#[cfg(unix)]
+fn verify_step(name: &str) -> String {
+    let parsed = yaml(".github/workflows/permesh-verify.yml");
+    parsed["jobs"]["verify"]["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == name)
+        .unwrap()["run"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
+/// Runs a workflow script with `bin` first on PATH, as GitHub runs `run:` steps.
+#[cfg(unix)]
+fn run_step(dir: &Path, bin: &Path, script: &str, env: &[(&str, &str)]) -> Option<i32> {
+    let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap());
+    std::process::Command::new("sh")
+        .args(["-e", "-c", script])
+        .current_dir(dir)
+        .env("PATH", path)
+        .env("GITHUB_STEP_SUMMARY", dir.join("summary.md"))
+        .env("GITHUB_REPOSITORY", "acme/access")
+        .envs(env.iter().copied())
+        .status()
+        .unwrap()
+        .code()
+}
+#[cfg(unix)]
+fn fake(bin: &Path, name: &str, body: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::create_dir_all(bin).unwrap();
+    let file = bin.join(name);
+    fs::write(&file, format!("#!/bin/sh\n{body}")).unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn verify_workflow_exit_follows_precedence() {
+    let script = verify_step("Verify each plan");
+    for (codes, expected) in [
+        (&[6, 4, 0][..], 4),
+        (&[6, 3, 4][..], 3),
+        (&[0, 6][..], 6),
+        (&[2, 3][..], 2),
+        (&[0, 0][..], 0),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("bin");
+        // `permesh access verify PLAN --json` exits with the code stored beside PLAN.
+        fake(
+            &bin,
+            "permesh",
+            "echo '{\"result\":{\"counts\":{}}}'\nexit \"$(cat \"$3.code\")\"\n",
+        );
+        fs::create_dir_all(dir.path().join("execution")).unwrap();
+        for (n, code) in codes.iter().enumerate() {
+            let plan = dir.path().join(format!("execution/{n:03}.execution.json"));
+            fs::write(&plan, "{}").unwrap();
+            fs::write(plan.with_extension("json.code"), code.to_string()).unwrap();
+        }
+        let code = run_step(dir.path(), &bin, &script, &[("RUN_ID", "1")]);
+        assert_eq!(code, Some(expected), "{codes:?}");
+        let summary = fs::read_to_string(dir.path().join("summary.md")).unwrap();
+        assert_eq!(summary.lines().count(), codes.len(), "{summary}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn verify_workflow_accepts_only_post_merge_plan_runs() {
+    let script = verify_step("Fetch the execution plans");
+    let good = serde_json::json!({
+        "path": ".github/workflows/permesh-plan.yml",
+        "event": "push",
+        "head_branch": "main",
+        "status": "completed",
+        "conclusion": "success",
+        "repository": {"id": 7},
+        "head_repository": {"id": 7}
+    });
+    // A run that exits 4 or 6 still keeps the plans that matched their review.
+    let mut failed = good.clone();
+    failed["conclusion"] = serde_json::json!("failure");
+    let mut cases = vec![(good.clone(), true), (failed, true)];
+    for (field, value) in [
+        (
+            "path",
+            serde_json::json!(".github/workflows/permesh-check.yml"),
+        ),
+        ("event", serde_json::json!("pull_request")),
+        ("head_branch", serde_json::json!("feature")),
+        ("status", serde_json::json!("in_progress")),
+        ("head_repository", serde_json::json!({"id": 8})),
+    ] {
+        let mut run = good.clone();
+        run[field] = value;
+        cases.push((run, false));
+    }
+    for (run, accepted) in cases {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("bin");
+        fs::write(dir.path().join("run.fixture"), run.to_string()).unwrap();
+        fake(
+            &bin,
+            "gh",
+            "case \"$1 $2\" in\n  'api repos/acme/access') echo '{\"default_branch\":\"main\"}' ;;\n  'api repos/acme/access/actions/runs/42') cat run.fixture ;;\n  'run download') touch downloaded ;;\n  *) exit 9 ;;\nesac\n",
+        );
+        let code = run_step(dir.path(), &bin, &script, &[("RUN_ID", "42")]);
+        assert_eq!(code == Some(0), accepted, "{run}");
+        assert_eq!(dir.path().join("downloaded").exists(), accepted, "{run}");
+    }
+}
+
+#[test]
+fn workflows_pass_google_refresh_credentials() {
+    // A Google access token expires within the hour; weekly CI needs refresh mode.
+    for file in [
+        ".github/workflows/permesh-check.yml",
+        ".github/workflows/permesh-plan.yml",
+        ".github/workflows/permesh-verify.yml",
+    ] {
+        let text = String::from_utf8(example(file)).unwrap();
+        for name in [
+            "PERMESH_GOOGLE_REFRESH_TOKEN",
+            "PERMESH_GOOGLE_CLIENT_SECRET",
+        ] {
+            assert!(
+                text.contains(&format!("{name}: ${{{{ secrets.{name} }}}}")),
+                "{file}: {name}"
+            );
+        }
+    }
+}

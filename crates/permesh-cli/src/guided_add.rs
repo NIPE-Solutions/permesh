@@ -18,6 +18,16 @@ struct Environment {
     root: PathBuf,
     interactive: bool,
 }
+/// Official catalog provider IDs supported by guided `provider add`.
+pub(crate) const OFFICIAL_GUIDED: [&str; 7] = [
+    "github",
+    "google",
+    "cloudflare",
+    "aws",
+    "gitlab",
+    "entra",
+    "aws-identity-center",
+];
 fn cancelled(cancellation: &Cancellation) -> Result<(), AppError> {
     if cancellation.is_cancelled() {
         Err(AppError::new(130, "Cancelled"))
@@ -26,10 +36,8 @@ fn cancelled(cancellation: &Cancellation) -> Result<(), AppError> {
     }
 }
 fn setup_args(args: &AddProvider) -> Result<SetupArgs, AppError> {
-    if !matches!(
-        args.provider_type.as_str(),
-        "github" | "google" | "cloudflare" | "aws"
-    ) || !args.organization.is_empty()
+    if !OFFICIAL_GUIDED.contains(&args.provider_type.as_str())
+        || !args.organization.is_empty()
         || args.customer_id.is_some()
         || args.token_ref.is_some()
         || args.provider.is_some()

@@ -78,7 +78,7 @@ When any authority is absent or partial, every observed account has reason `unas
 
 ## Other results
 
-`provider_list`: `{providers: [{id,type}]}`. `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add` for bundled/manual instances: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
+`check`: `result` is the check report version 1 described in [scheduled checks](check.md): `{check_report_version, status, complete, departed_assessed, counts, providers, changes, departed, findings, policy, notifications, run_url, files}`. `changes` is `"no_baseline"`, `{inconclusive: {reasons}}` or `{compared: {new_admins, removed_admins, no_longer_observed}}`. `profiles` is `"not_configured"` or the `profile_check` result below; `counts.unexplained_access` and `counts.missing_access` are present only when profiles were compared. `profile_check`: `{profile_review_version: 1, enforce, complete, counts: {covered, not_covered, unexplained, missing, cannot_tell, excepted, ambiguous_accounts, unresolved_members}, identities, unresolved_assignments, message}`. Each identity has `identity`, `state` (`compared`, `not_found` or `ambiguous`), `profiles`, `accounts`, `explained`, `missing` (`{state, entry, reason}`) and `unexplained` (`{state, instance, account, resource, resource_name, role, grant_id, via, certainty, exception?}`); row states are `finding`, `cannot_tell` or, for unexplained rows, `excepted`. `profile_suggest`: `{profile_suggestion_version: 1, group: {instance, id, name}, members, unresolved_members, entries: [{entry, label, count}], draft}`; human output is the bare `draft` YAML. See [access profiles](profiles.md). `provider_list`: `{providers: [{id,type,provider,live_tested}]}`; `provider` is the external provider ID (`null` for built-ins) and `live_tested` says whether an official provider with that ID has recorded [live tenant acceptance](live-acceptance.md) (`null` for built-ins). It is keyed by provider ID only and does not verify that the configured binary is the official package; use `provider external review` for that. `provider_capabilities`: `{id, metadata: {kind,capabilities}}`; capability strings enumerate supported read operations. `doctor`/`provider_status`: `{workspace_schema, organization, identity_sources, message, external_providers, local_overrides}`. `auth_status`: `{message}` plus provider status entries; availability does not mean remote authentication succeeded. `init`: `{message,file,next}`; `provider_add` for bundled/manual instances: `{message,next}`; login/logout: `{message}`. `version`: `{version,telemetry:false,backend:false}`.
 
 ## Error envelope
 
@@ -98,6 +98,7 @@ Errors deliberately omit raw arguments, YAML snippets, tokens, provider response
 | 3 | All requested providers failed, or credential operation failed |
 | 4 | Some results available, but collection/credential checks incomplete |
 | 5 | Internal or output error |
+| 6 | Review findings were established (for example by `policy check`) |
 | 130 | Cancelled by Ctrl+C |
 
 A broken stdout pipe exits cleanly with 0, following Unix pipeline conventions. A partial provider takes precedence over not-found, since missing data cannot establish absence. Schema changes are intentional and recorded in CHANGELOG; output schema, workspace schema and plugin protocol versions are independent.
@@ -256,3 +257,51 @@ Policy results contain selected `rules`, bounded deterministic `checks`, finding
 Policy exit codes: 0 complete evaluation without unaccepted findings; 2 invalid policy/input; 3 all captured providers failed; 4 partial collection, missing required coverage or a not-evaluable check; 5 internal/output failure; 6 findings with complete evaluation; 130 cancellation. Errors/cancellation are handled first, then precedence is 3 > 4 > 6 > 0. A specific finding remains in the report even when exit 3 or 4 takes precedence. Resource selection ambiguity uses 2; absence uses 1 only when collection is complete, otherwise 3/4 retains the uncertainty. Existing user/admins/orphaned inspection exit behavior is unchanged.
 
 See [resource and local policy review](resource-policies.md) for declarative policy fields and exact exception semantics.
+
+## Access plans
+
+Stable ([ADR 0036](adr/0036-second-stability-declaration.md)); see
+[joiner, mover and leaver plans](access-plans.md) and
+[ADR 0034](adr/0034-access-plans.md). The commands use the schema-1 envelope.
+
+**Plan file** `permesh_access_plan` version 1 (written by `access join`, `move`,
+`leave` and `review`; unknown fields are refused):
+`{format, format_version, kind, identity, state, profiles_after, profiles_removed, created_at, expires_at, max_age_hours, mode, source_snapshot_sha256, identity_context_sha256, accounts, identity_authorities, identity_bindings, profiles_sha256, complete, steps, kept, reviewed_plan_sha256}`.
+`state` is `compared`, `not_found` or `ambiguous`; `accounts` are the
+`{provider, id}` accounts the plan concerns; `identity_bindings` are the
+`{identity, instance, account}` mappings for the plan's identity or accounts when
+it was made.
+`kind` is `join`, `move` or `leave`; `reviewed_plan_sha256` is `null` except in
+execution plans. Each step is
+`{id, operation, state, reason, justification, evidence, prerequisites, verification}`:
+`id` is the SHA-256 of the operation's JSON; `operation` is `{type, instance, ...}`
+with `type` one of `account_needed`, `add_membership {group}`,
+`add_role {role, resource}`, `remove_membership {account, group}`,
+`remove_role {account, role, resource, grant_id}`,
+`review_account_lifecycle {account}`, `review_ownership {account, resource}` or
+`review_machine_dependency {account}`; `state` is `planned` or `cannot_tell`;
+`justification` is `{"profiles": [...]}` or `"unexplained"`; `evidence` lists grant
+IDs; `verification` is `observe_membership`, `observe_role`, `observe_account`,
+`observe_absence` or `manual_review`. `kept` rows are `{entry, because}`. The plan's
+SHA-256 is the digest of the file bytes as written.
+
+**`access_plan`**: `{access_plan, plan_sha256, counts: {steps, cannot_tell, account_needed, kept}, files: {plan, html}}`.
+Exit 0 complete, 4 incomplete, 3 when no provider returned data (nothing written),
+2 for invalid input, unknown profiles or existing output.
+
+**`access_verify`**: `{access_verification_version: 1, plan_sha256, identity, kind, complete, checks, extra, gaps, counts: {done, not_done, cannot_verify, manual_review, extra}}`.
+Each check is `{step, operation, state, reason}` with `state` `done`, `not_done` or
+`cannot_verify`. `extra` rows have the `profile_check` unexplained shape; for a
+leave they are every remaining access path. `gaps`
+may contain `identity_context_changed`, `plan_incomplete`,
+`profiles_not_configured` and `profile_no_longer_defined`. Exit precedence
+3 > 4 (incomplete, or `cannot_verify` other than manual review) > 6 (a step not
+done, or `extra` after a leave) > 0; an invalid plan is 2 before any capture.
+
+**`access_review`**: `{access_review_version: 1, plans: [{file, identity, kind, plan_sha256, steps}], executions, rereview: [{identity, kind, added_steps, removed_steps}], profiles_changed, complete, summary, files: {out}}`.
+The output directory holds `NNN.json`, `index.json`
+(`{access_review_index_version: 1, plans: [rows]}`, the same `plans` rows),
+`summary.md` and, with `--reviewed`, `NNN.execution.json`. Exit 3 or 4 from
+collection or incomplete plans, else 6 when `rereview` is non-empty, else 0.
+`--reviewed` accepts only `access_review_index_version: 1`; any other `index.json`
+is an input error (exit 2) asking to regenerate the reviewed plans.

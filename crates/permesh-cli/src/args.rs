@@ -59,6 +59,9 @@ pub enum Command {
     Init {
         #[arg(long)]
         demo: bool,
+        /// Write a starter layout with scheduled CI checks.
+        #[arg(long, conflicts_with = "demo")]
+        starter: bool,
         #[arg(long)]
         organization: Option<String>,
     },
@@ -98,11 +101,23 @@ pub enum Command {
         #[command(subcommand)]
         command: crate::policy_command::PolicyCommand,
     },
+    /// Compare declared access profiles with observed access, or draft a profile.
+    Profile {
+        #[command(subcommand)]
+        command: crate::profile_command::ProfileCommand,
+    },
+    /// Plan and verify joiner, mover and leaver access changes; never changes access.
+    Access {
+        #[command(subcommand)]
+        command: crate::access::AccessCommand,
+    },
     /// Assess, plan and verify a departure review without changing provider access.
     Offboard {
         #[command(subcommand)]
         command: crate::offboard::OffboardCommand,
     },
+    /// Run one scheduled review: snapshot, compare, evaluate, report and notify.
+    Check(crate::check::CheckArgs),
     /// Save or inspect explicit local access snapshots.
     Snapshot {
         #[command(subcommand)]
@@ -115,6 +130,8 @@ pub enum Command {
         #[arg(value_enum, conflicts_with = "json")]
         shell: clap_complete::Shell,
     },
+    /// Serve read-only answers to a local AI assistant over MCP (stdio).
+    Mcp,
     /// Show version and privacy defaults.
     Version,
 }
@@ -149,7 +166,7 @@ pub enum ProviderCommand {
 }
 #[derive(Args, Clone)]
 pub struct AddProvider {
-    #[arg(value_parser=["github", "google", "cloudflare", "aws", "external"], help="Provider type; official providers guide package trust and setup")]
+    #[arg(value_parser=crate::guided_add::OFFICIAL_GUIDED.into_iter().chain(["external"]).collect::<Vec<_>>(), help="Provider type; official providers guide package trust and setup")]
     pub provider_type: String,
     #[arg(long, value_enum, default_value_t = DiscoveryProtocol::Legacy, help = "Discovery contract for advanced external configuration; official packages use catalog metadata")]
     pub discovery_protocol: DiscoveryProtocol,

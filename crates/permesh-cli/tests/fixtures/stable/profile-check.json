@@ -1,0 +1,97 @@
+{
+  "complete": true,
+  "counts": {
+    "ambiguous_accounts": 0,
+    "cannot_tell": 0,
+    "covered": 2,
+    "excepted": 0,
+    "missing": 2,
+    "not_covered": 2,
+    "unexplained": 2,
+    "unresolved_members": 0
+  },
+  "enforce": false,
+  "identities": [
+    {
+      "accounts": [
+        {
+          "account": "100",
+          "instance": "demo"
+        }
+      ],
+      "explained": 1,
+      "identity": "alice@example.com",
+      "missing": [],
+      "profiles": [
+        "base"
+      ],
+      "state": "compared",
+      "unexplained": [
+        {
+          "account": "100",
+          "certainty": "derived",
+          "grant_id": "grant-1",
+          "instance": "demo",
+          "resource": "repo-20",
+          "resource_name": "acme/payments-api",
+          "role": "Write",
+          "state": "finding",
+          "via": [
+            "team-10"
+          ]
+        }
+      ]
+    },
+    {
+      "accounts": [
+        {
+          "account": "101",
+          "instance": "demo"
+        }
+      ],
+      "explained": 0,
+      "identity": "bob@example.com",
+      "missing": [
+        {
+          "entry": {
+            "group": "team-10",
+            "instance": "demo",
+            "kind": "group"
+          },
+          "reason": "not_observed",
+          "state": "finding"
+        },
+        {
+          "entry": {
+            "instance": "demo",
+            "kind": "role",
+            "resource": "repo-21",
+            "role": "Read"
+          },
+          "reason": "not_observed",
+          "state": "finding"
+        }
+      ],
+      "profiles": [
+        "backend"
+      ],
+      "state": "compared",
+      "unexplained": [
+        {
+          "account": "101",
+          "certainty": "observed",
+          "grant_id": "grant-3",
+          "instance": "demo",
+          "resource": "repo-21",
+          "resource_name": "acme/infrastructure",
+          "role": "Admin",
+          "state": "finding",
+          "via": []
+        }
+      ]
+    }
+  ],
+  "message": "<normalized>",
+  "profile_review_version": 1,
+  "unresolved_assignments": []
+}

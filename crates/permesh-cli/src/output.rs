@@ -14,6 +14,19 @@ pub(crate) fn safe(value: &str) -> String {
         })
         .collect()
 }
+/// `safe`, then backslash-escape Markdown syntax so provider names render as text.
+pub(crate) fn markdown(value: &str) -> String {
+    safe(value)
+        .chars()
+        .flat_map(|c| {
+            if "\\`*_{}[]()<>#!|~&".contains(c) {
+                vec!['\\', c]
+            } else {
+                vec![c]
+            }
+        })
+        .collect()
+}
 pub(crate) fn field<'a>(value: &'a serde_json::Value, name: &str) -> &'a str {
     value[name].as_str().unwrap_or("")
 }
@@ -22,6 +35,20 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
     if json {
         serde_json::to_writer_pretty(&mut out, report)?;
         return writeln!(out);
+    }
+    if report.command == "profile_suggest" {
+        // Bare YAML so the draft can be redirected into profiles/.
+        if !report.complete {
+            eprintln!(
+                "Capture incomplete: the draft may miss shared access. Review before committing."
+            );
+        }
+        return out.write_all(
+            report.result["draft"]
+                .as_str()
+                .unwrap_or_default()
+                .as_bytes(),
+        );
     }
     let colors = !matches!(color, Color::Never)
         && std::env::var_os("NO_COLOR").is_none()
@@ -78,8 +105,14 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         crate::provider_development::write(&mut out, result)?;
     } else if report.command == "resource" {
         crate::resource_command::write(&mut out, result)?;
+    } else if report.command == "check" {
+        crate::check::report::write(&mut out, result)?;
+    } else if report.command == "profile_check" {
+        crate::profile_command::write(&mut out, result)?;
     } else if report.command == "policy_check" {
         crate::policy_command::write(&mut out, result)?;
+    } else if report.command.starts_with("access_") {
+        crate::access::write(&mut out, &report.command, result)?;
     } else if report.command.starts_with("offboard_") {
         crate::offboard::write(&mut out, result)?;
     } else if matches!(report.command.as_str(), "snapshot_inspect" | "diff") {
@@ -94,9 +127,14 @@ pub fn write_report(report: &Report, json: bool, color: Color, verbose: u8) -> i
         writeln!(out, "Providers")?;
         if let Some(providers) = result["providers"].as_array() {
             for p in providers {
+                let label = if p["live_tested"] == false {
+                    " (untested against live tenants)"
+                } else {
+                    ""
+                };
                 writeln!(
                     out,
-                    "  {} {dot} {}",
+                    "  {} {dot} {}{label}",
                     safe(field(p, "id")),
                     safe(field(p, "type"))
                 )?;

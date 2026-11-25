@@ -1,0 +1,4 @@
+# Official provider packages CI installs before each check: one "PROVIDER VERSION"
+# per line. Use the versions you reviewed with `permesh provider add --portable`.
+github 0.2.0
+google 0.2.0

@@ -49,6 +49,19 @@ Apple Developer ID/notarization or Windows Authenticode signatures. Provenance
 is therefore mandatory for alpha.2 publication; platform signing, standards SBOM
 adoption and the live/desktop acceptance gates remain separate unfinished work.
 
+## Package manifests
+
+After a release is published, regenerate the Homebrew formula and Scoop manifest
+from its checksum files and commit them to the tap and bucket repositories:
+
+```bash
+gh release download vVERSION -p '*.tar.gz.sha256' -p '*.zip.sha256' -D sums
+python scripts/package_manifests.py --version VERSION --checksums sums --out manifests
+```
+
+The script refuses to write anything unless all five targets have well-formed
+checksums for exactly the expected archive names. winget is not yet supported.
+
 ## Stable release gates
 
 1. Run locked build, fmt, clippy, unit/integration/doc tests, and the Python example tests on the reviewed revision. Require Ubuntu, macOS, and Windows CI, plus the declared Rust minimum check.

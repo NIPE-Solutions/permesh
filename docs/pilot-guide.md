@@ -13,10 +13,10 @@ provider 0.2.0 evaluation releases have passed package and public catalog
 installation/update qualification. Check [release limitations](releases/0.1.0-alpha.3.md),
 [provider availability](providers.md) and the [roadmap](ROADMAP.md) before
 choosing an exact CLI/provider pair. Do not combine arbitrary candidate binaries.
-Catalog installation and guided onboarding are separate: alpha.3 guided
-`provider add` covers GitHub, Google, Cloudflare and AWS IAM. For GitLab, Entra or
-AWS Identity Center, install the package and use the documented explicit external
-trust/setup/approval flow with negotiated discovery.
+Catalog installation and guided onboarding are separate. Current source guided
+`provider add` covers all seven providers; alpha.3 covers GitHub, Google, Cloudflare
+and AWS IAM. With alpha.3, for GitLab, Entra or AWS Identity Center, install the
+package and use the documented explicit external trust/setup/approval flow.
 
 Identity mapping commands and identity inventory import are evaluation features
 in alpha.3. Record the exact release pair used;
