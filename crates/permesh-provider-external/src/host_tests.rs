@@ -8,7 +8,7 @@ fn executable() -> PathBuf {
     let artifact_dir = test_binary
         .ancestors()
         .find(|path| path.ends_with("deps") || path.ends_with("build"))
-        .expect("expected a Cargo test artifact directory");
+        .unwrap();
     artifact_dir.parent().unwrap().join(format!(
         "permesh-test-external-peer{}",
         std::env::consts::EXE_SUFFIX
