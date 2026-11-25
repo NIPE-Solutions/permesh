@@ -432,9 +432,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.6.9"
+version = "4.6.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3be2ad0423bdbbb0e25bc89add796f3559706d4a95e1bc98e4d9662a957b6a19"
+checksum = "037e2a1a92236d0aff7e845093f64661d6df4c02c9fcc61a60e9e1d736fa392f"
 dependencies = [
  "clap",
 ]
@@ -896,9 +896,9 @@ dependencies = [
 
 [[package]]
 name = "granit-parser"
-version = "1.2.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65ec0d45986cd51c847c75c5b69a00852c4fc84d0e5e79f041173f73437d0cdf"
+checksum = "da55feca5d1625466bae068f9fd4b87892caeae70c3fe671ddb0f50d41aebf37"
 dependencies = [
  "arraydeque",
  "smallvec",
@@ -1589,7 +1589,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 name = "permesh-cli"
 version = "0.1.0-alpha.3"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "clap",
  "clap_complete",
@@ -1944,11 +1944,11 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "reqwest"
-version = "0.13.4"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "219c5811de6525e5416c7d5d53bb656d3afdbc6c5af816e0802bcfa42dbdc1c3"
+checksum = "16a1cfa75cc186dd73d5818e510e042e40927bccc9c236b061cea97e1eb08029"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "futures-core",
  "http",
@@ -2276,9 +2276,9 @@ dependencies = [
 
 [[package]]
 name = "serde-saphyr"
-version = "1.2.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3afb591f9cdb6223c88ba39269aff895620c7f0716dc42b705b5733d5c7c0823"
+checksum = "a253edfdea34032da21af84e16fcc94f4c7a6ba237f9f3bc2dbf43cea8535c44"
 dependencies = [
  "annotate-snippets",
  "base64 0.23.1",
